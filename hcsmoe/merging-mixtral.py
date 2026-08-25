@@ -214,7 +214,34 @@ def run_hcsmoe(
         torch_dtype=torch.bfloat16, device_map="auto"
     )
     if model_path:
-        model.load_state_dict(torch.load(model_path))
+        state_dict = torch.load(model_path, map_location="cpu")
+        load_result = model.load_state_dict(state_dict)
+        print(
+            "[HC-SMoE] Checkpoint load keys: "
+            f"missing={load_result.missing_keys}, "
+            f"unexpected={load_result.unexpected_keys}"
+        )
+        for expert_idx in (0, 1):
+            checkpoint_key = (
+                f"model.layers.0.block_sparse_moe.experts.{expert_idx}.w1.weight"
+            )
+            loaded_weight = (
+                model.model.layers[0].block_sparse_moe.experts[expert_idx].w1.weight
+            )
+            if loaded_weight.is_meta:
+                raise RuntimeError(
+                    f"Checkpoint smoke check cannot read meta parameter: {checkpoint_key}"
+                )
+            matches_checkpoint = torch.equal(
+                loaded_weight.detach().to("cpu"), state_dict[checkpoint_key]
+            )
+            print(
+                f"[HC-SMoE] Checkpoint smoke check {checkpoint_key}: "
+                f"{matches_checkpoint}"
+            )
+            if not matches_checkpoint:
+                raise RuntimeError(f"Checkpoint smoke check failed: {checkpoint_key}")
+        del state_dict
     if eval_only:
         if not model_path:
             raise ValueError("--eval_only=True requires --model_path.")
