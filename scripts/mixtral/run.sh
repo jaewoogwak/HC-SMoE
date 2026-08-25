@@ -4,6 +4,9 @@ export TORCH_USE_CUDA_DSA=1
 export TOKENIZERS_PARALLELISM="false"
 export HF_HOME="your-huggingface-home-path"
 
+# Eval-only example:
+# bash scripts/mixtral/run.sh --eval_only=True --model_path="results/model.pth"
+
 accelerate launch --config_file static/finetune_config.yaml \
   --main_process_port 29512 hcsmoe/merging-mixtral.py \
   --task="winogrande,arc_challenge,arc_easy,boolq,hellaswag,mmlu,openbookqa,rte" \
@@ -19,4 +22,5 @@ accelerate launch --config_file static/finetune_config.yaml \
   --eval_batch_size=16 \
   --start_layer=0 \
   --result_path="results/result_mixtral_test.txt" \
-  --output_path="results/" |& tee results/log_mixtral_test
+  --output_path="results/" \
+  "$@" |& tee results/log_mixtral_test

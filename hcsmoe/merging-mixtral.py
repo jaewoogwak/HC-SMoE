@@ -170,6 +170,7 @@ def run_hcsmoe(
         ingredient: Optional[str] = "act", # act, weight, act+weight
         overlap_metric: Optional[str] = "cosine", # kl-divergence, wasserstein, cosine,
         dynamic_group: Optional[bool] = False,
+        eval_only: Optional[bool] = False,
 ):
     print(f"Merge model {model_name} with {num_average_groups} group, {dominant} dominant + {similarity_base} grouping + {merge} {mode} merge with ingredient {ingredient}, evaluate on {task}")
     print(f"Cluster: {cluster}, linkage: {linkage}, hierarchical_stopping_metric: {hierarchical_stopping_metric}, overlap_metric: {overlap_metric}, dynamic_group: {dynamic_group}")
@@ -214,6 +215,13 @@ def run_hcsmoe(
     )
     if model_path:
         model.load_state_dict(torch.load(model_path))
+    if eval_only:
+        if not model_path:
+            raise ValueError("--eval_only=True requires --model_path.")
+        print(f"[HC-SMoE] Evaluating saved model from {model_path}")
+        model.eval()
+        evaluation(args, model, tokenizer)
+        return
     model.eval()
     
     # Generation C4 calibration dataset 
