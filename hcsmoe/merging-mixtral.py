@@ -324,6 +324,27 @@ def run_hcsmoe(
                 print(f"Group {name}: {state.tolist()}")
             else:
                 print(f"Group {name}: {state.tolist()} (DOMs are {dom_experts[name]})")
+
+        # Preserve the layer-local expert -> group mapping used to create this
+        # merged checkpoint.  It is needed to project a base-Mixtral routing
+        # trace into HC-SMoE groups without rerunning the C4 calibration.
+        if not output_path:
+            raise ValueError("--output_path is required when saving a merged HC-SMoE model")
+        grouper.save_group_state_dict(output_path)
+        group_metadata = {
+            "model_name": model_name,
+            "similarity_base": similarity_base,
+            "cluster": cluster,
+            "linkage": linkage,
+            "hierarchical_stopping_metric": hierarchical_stopping_metric,
+            "num_average_groups": num_average_groups,
+            "start_layer": start_layer,
+            "merge": merge,
+            "group_mapping_file": "group_state_dict.pt",
+        }
+        with open(os.path.join(output_path, "group_mapping_metadata.json"), "w") as handle:
+            json.dump(group_metadata, handle, indent=2)
+        print(f"[HC-SMoE] Saved group mapping: {os.path.join(output_path, 'group_state_dict.pt')}")
         del grouper
 
     if merge == "unmerge":

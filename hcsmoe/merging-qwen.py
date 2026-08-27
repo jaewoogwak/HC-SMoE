@@ -6,6 +6,7 @@ import gc
 import sys
 import time
 import pickle
+import json
 from typing import Optional
 
 import logging
@@ -14,7 +15,11 @@ from fire import Fire
 from transformers import Qwen2MoeForCausalLM, AutoTokenizer
 
 from hcsmoe.evaluation import get_minipile_dataloder, evaluate_minipile_perplexity, evaluate_fewshot, get_calib_dataloder
-from hcsmoe.merging.grouping_qwen import ExpertsGrouperForQwen2MoE, merge_by_groups_with_usage_weighted, merge_by_groups_within_and_across_models, merge_by_feature_selection
+from hcsmoe.merging.grouping_qwen import (
+    ExpertsGrouperForQwen2MoE,
+    merge_by_groups_with_usage_weighted,
+    merge_by_groups_within_and_across_models,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -157,9 +162,12 @@ def run_hcsmoe(
         ingredient: Optional[str] = "act", # act, weight, act+weight
         overlap_metric: Optional[str] = "cosine", # kl-divergence, wasserstein, cosine
         dynamic_group: Optional[bool] = False,
+        gpu_memory: Optional[str] = "18GiB",
+        cpu_memory: Optional[str] = "900GiB",
 ):
     print(f"Merge model {model_name} with {num_average_groups} group, {dominant} dominant + {similarity_base} grouping + {merge} merge - {mode}, ingredient: {ingredient}, evaluate on {task}")
     print(f"Cluster: {cluster}, linkage: {linkage}, hierarchical_stopping_metric: {hierarchical_stopping_metric}, overlap_metric: {overlap_metric}, dynamic_group: {dynamic_group}")
+    print(f"Accelerate device-map memory budget: GPU={gpu_memory}, CPU={cpu_memory}")
     
     ### 1. Initialization
     args = Args(
@@ -194,7 +202,10 @@ def run_hcsmoe(
     tokenizer.pad_token_id = tokenizer.eos_token_id
     model = Qwen2MoeForCausalLM.from_pretrained(
         "Qwen/Qwen1.5-MoE-A2.7B-Chat",
-        torch_dtype=torch.bfloat16, device_map="auto"
+        torch_dtype=torch.bfloat16,
+        device_map="auto",
+        max_memory={0: gpu_memory, "cpu": cpu_memory},
+        offload_buffers=True,
     )
     if model_path:
         model.load_state_dict(torch.load(model_name))
@@ -266,6 +277,29 @@ def run_hcsmoe(
         else:
             print(f"Group {name}: {state.tolist()} (DOMs are {dom_experts[name]}, {len(dom_experts[name])})")
 
+    # Preserve the layer-local expert -> group mapping used to create this
+    # merged checkpoint.  It lets a base-Qwen routing trace be annotated with
+    # the C4-calibrated HC-SMoE groups without recalibrating.
+    if not output_path:
+        raise ValueError("--output_path is required when saving a merged HC-SMoE model")
+    grouper.save_group_state_dict(output_path)
+    group_metadata = {
+        "model_name": model_name,
+        "similarity_base": similarity_base,
+        "cluster": cluster,
+        "linkage": linkage,
+        "hierarchical_stopping_metric": hierarchical_stopping_metric,
+        "num_average_groups": num_average_groups,
+        "start_layer": start_layer,
+        "group_limit": group_limit,
+        "merge": merge,
+        "gpu_memory": gpu_memory,
+        "cpu_memory": cpu_memory,
+        "group_mapping_file": "group_state_dict.pt",
+    }
+    with open(os.path.join(output_path, "group_mapping_metadata.json"), "w") as handle:
+        json.dump(group_metadata, handle, indent=2)
+    print(f"[HC-SMoE] Saved group mapping: {os.path.join(output_path, 'group_state_dict.pt')}")
     del grouper
     
     ### 5. Save model

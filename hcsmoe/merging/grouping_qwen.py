@@ -30,6 +30,24 @@ LEGAL_SIMILARITY_BASES = ["weight", "feature", "feature.abs", "weight-feature", 
                           "feature-correlation.lsa", "feature-correlation.max", "expert-output", "weight+expert-output",
                           "router-logits+weight", "router-logits+expert-output", "router-logits+weight+expert-output"]
 
+
+def module_execution_device(module: nn.Module) -> torch.device:
+    """Return the device where an Accelerate-dispatched module executes.
+
+    With ``device_map='auto'``, offloaded parameters deliberately live on the
+    ``meta`` device while their real values are held by Accelerate's offload
+    hook.  A tensor must never be moved to that placeholder device.
+    """
+    hook = getattr(module, "_hf_hook", None)
+    execution_device = getattr(hook, "execution_device", None)
+    if execution_device is not None:
+        return torch.device(execution_device)
+    for parameter in module.parameters():
+        if parameter.device.type != "meta":
+            return parameter.device
+    raise RuntimeError("Cannot infer an execution device for an all-meta module without an Accelerate hook.")
+
+
 class ExpertsGrouperForQwen2MoE(object):
     def __init__(
             self,
@@ -439,7 +457,7 @@ class ExpertsGrouperForQwen2MoE(object):
         moe = model.model.layers[layer_idx].mlp
         
         def _get_hook(_, input, __): # module, input, output
-            moe_input.append(input[0].detach().reshape(-1, input[0].shape[-1])) # .cpu()
+            moe_input.append(input[0].detach().cpu().reshape(-1, input[0].shape[-1]))
         
         with torch.no_grad():
             handle = moe.register_forward_hook(_get_hook)
@@ -447,11 +465,11 @@ class ExpertsGrouperForQwen2MoE(object):
                 batch = {k: v.cuda() for k, v in batch.items()}
                 if "labels" in batch:
                     batch.pop("labels")
-                outputs = model(**batch)
+                outputs = model.model(**batch, use_cache=False)
             handle.remove()
             torch.cuda.empty_cache()
             
-            layer_input = torch.cat(moe_input)
+            layer_input = torch.cat(moe_input).to(module_execution_device(moe.experts[0]))
             expert_outputs = [] # (E, #T, D) -> average -> (E, D)
             for i in range(self.num_experts):
                 expert_outputs.append(model.model.layers[layer_idx].mlp.experts[i](layer_input).mean(dim=0))
@@ -498,7 +516,7 @@ class ExpertsGrouperForQwen2MoE(object):
                 # We don't need to compute loss here, so remove the labels
                 batch.pop("labels")
             with torch.no_grad():
-                outputs = model(**batch)
+                outputs = model.model(**batch, use_cache=False)
                 del outputs
         
         for handle in handles:
@@ -512,7 +530,7 @@ class ExpertsGrouperForQwen2MoE(object):
 
         for layer_idx in tqdm(self.sparse_layer_indices, desc="[HC-SMoE] Computing similarities by expert outputs..."):
             ffn_name = f"model.layers.{layer_idx}.mlp"
-            _device = model.model.layers[layer_idx].mlp.experts[0].gate_proj.weight.device
+            _device = module_execution_device(model.model.layers[layer_idx].mlp.experts[0])
             layer_input = torch.cat(forwarded_hidden_states[ffn_name]).to(_device) # .cuda()
             expert_outputs = [] # (E, #T, D) -> average -> (E, D)
             with torch.no_grad():
@@ -571,7 +589,7 @@ class ExpertsGrouperForQwen2MoE(object):
         for layer_idx in tqdm(self.sparse_layer_indices, desc="[HC-SMoE] Computing similarities by weights and expert outputs..."):
             ffn_name = f"model.layers.{layer_idx}.mlp"
             moe = model.model.layers[layer_idx].mlp
-            _device = model.model.layers[layer_idx].mlp.experts[0].gate_proj.weight.device
+            _device = module_execution_device(model.model.layers[layer_idx].mlp.experts[0])
             layer_input = torch.cat(forwarded_hidden_states[ffn_name]).to(_device) # .cuda()
             expert_outputs = [] # (E, #T, D) -> average -> (E, D)
             weights = []
@@ -739,7 +757,7 @@ class ExpertsGrouperForQwen2MoE(object):
         for layer_idx in tqdm(self.sparse_layer_indices, desc="[HC-SMoE] Computing similarities by router logits..."):
             ffn_name = f"model.layers.{layer_idx}.mlp"
             moe = model.model.layers[layer_idx].mlp
-            _device = model.model.layers[layer_idx].mlp.experts[0].gate_proj.weight.device
+            _device = module_execution_device(model.model.layers[layer_idx].mlp.experts[0])
             layer_input = torch.cat(forwarded_hidden_states[ffn_name]).to(_device)
             expert_outputs = [] # (E, #T, D) -> average -> (E, D)
             for i in range(self.num_experts):
@@ -809,7 +827,7 @@ class ExpertsGrouperForQwen2MoE(object):
         for layer_idx in tqdm(self.sparse_layer_indices, desc="[HC-SMoE] Computing similarities by router logits..."):
             ffn_name = f"model.layers.{layer_idx}.mlp"
             moe = model.model.layers[layer_idx].mlp
-            _device = model.model.layers[layer_idx].mlp.experts[0].gate_proj.weight.device
+            _device = module_execution_device(model.model.layers[layer_idx].mlp.experts[0])
             layer_input = torch.cat(forwarded_hidden_states[ffn_name]).to(_device)
             expert_outputs = [] # (E, #T, D) -> average -> (E, D)
             weights = []
@@ -954,7 +972,7 @@ class ExpertsGrouperForQwen2MoE(object):
                 # We don't need to compute loss here, so remove the labels
                 batch.pop("labels")
             with torch.no_grad():
-                outputs = model(**batch, output_router_logits=True)
+                outputs = model.model(**batch, output_router_logits=True, use_cache=False)
             all_router_logits = outputs.router_logits
             if mode == "frequency":
                 all_router_logits = torch.stack(all_router_logits)  # of shape (num_hidden_layers, num_tokens, num_experts)
