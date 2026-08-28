@@ -236,22 +236,21 @@ def run_hcsmoe(
     if eval_only:
         if not model_path:
             raise ValueError("--eval_only=True requires --model_path.")
-        checkpoint_dir = os.path.dirname(model_path) or "."
-        group_state_path = group_state_path or os.path.join(checkpoint_dir, "group_state_dict.pt")
-        residual_path = residual_path or os.path.join(checkpoint_dir, "residuals.pth")
-        group_state = None
-        if residual_eval_only or os.path.exists(residual_path):
+        if residual_eval_only:
+            checkpoint_dir = os.path.dirname(model_path) or "."
+            group_state_path = group_state_path or os.path.join(checkpoint_dir, "group_state_dict.pt")
+            residual_path = residual_path or os.path.join(checkpoint_dir, "residuals.pth")
             if not os.path.exists(group_state_path):
-                raise FileNotFoundError(f"Residual reload requires {group_state_path}")
+                raise FileNotFoundError(f"--residual_eval_only=True requires group mapping: {group_state_path}")
+            if not os.path.exists(residual_path):
+                raise FileNotFoundError(f"--residual_eval_only=True requires residual checkpoint: {residual_path}")
             group_state = torch.load(group_state_path, map_location="cpu")
             bind_shared_experts_from_group_state(model, group_state)
         state_dict = torch.load(model_path, map_location="cpu")
         load_result = model.load_state_dict(state_dict, strict=True)
         print(f"[HC-SMoE] Static checkpoint loaded: missing={load_result.missing_keys}, unexpected={load_result.unexpected_keys}")
         del state_dict
-        if residual_eval_only or os.path.exists(residual_path):
-            if not os.path.exists(residual_path):
-                raise FileNotFoundError(f"Residual checkpoint not found: {residual_path}")
+        if residual_eval_only:
             payload = torch.load(residual_path, map_location="cpu")
             residual_width = load_residual_state_dict(model, payload, group_state)
             print(f"[Residual] Reloaded width={residual_width} from {residual_path}")
@@ -341,8 +340,8 @@ def run_hcsmoe(
             model=model,
             dataloader=dataloader_for_merging,
             group_state=group_state,
-            usage_frequency=grouper.usage_frequency_state_dict(),
             residual_data_limit=residual_data_limit,
+            residual_batch_size=residual_batch_size,
         )
 
     

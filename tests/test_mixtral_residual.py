@@ -1,4 +1,4 @@
-"""CPU smoke tests for residual-aware Mixtral MoE routing."""
+"""CPU smoke tests matching the HF MixtralSparseMoeBlock residual interface."""
 
 import torch
 import torch.nn as nn
@@ -24,13 +24,15 @@ class TinyExpert(nn.Module):
 
 
 class TinyMoE(nn.Module):
+    """Deliberately has no gate_num_experts, like HF MixtralSparseMoeBlock."""
+
     def __init__(self):
         super().__init__()
         self.hidden_dim = 4
-        self.num_experts = self.gate_num_experts = 6
+        self.num_experts = 8
         self.top_k = 2
-        self.gate = nn.Linear(4, 6, bias=False)
-        self.experts = nn.ModuleList([TinyExpert() for _ in range(6)])
+        self.gate = nn.Linear(4, self.num_experts, bias=False)
+        self.experts = nn.ModuleList([TinyExpert() for _ in range(self.num_experts)])
 
     def forward(self, hidden_states):
         batch, sequence, hidden = hidden_states.shape
@@ -40,7 +42,7 @@ class TinyMoE(nn.Module):
         routing_weights, selected_experts = torch.topk(routing_weights, self.top_k, dim=-1)
         routing_weights = (routing_weights / routing_weights.sum(dim=-1, keepdim=True)).to(hidden_states.dtype)
         output = torch.zeros_like(hidden_states)
-        expert_mask = F.one_hot(selected_experts, num_classes=self.gate_num_experts).permute(2, 1, 0)
+        expert_mask = F.one_hot(selected_experts, num_classes=self.num_experts).permute(2, 1, 0)
         for expert_idx in range(self.num_experts):
             route_idx, token_idx = torch.where(expert_mask[expert_idx])
             if token_idx.numel():
@@ -57,18 +59,25 @@ class TinyModel(nn.Module):
         self.model.layers = nn.ModuleList([layer])
 
 
-def test_residual_moe_handles_imbalanced_groups_and_reloads():
-    torch.manual_seed(13)
-    group_state = {"model.layers.0.block_sparse_moe": torch.tensor([0, 0, 0, 1, 2, 2])}
+def _make_static_model():
     model = TinyModel().eval()
-    moe = model.model.layers[0].block_sparse_moe
-    # Simulate static frequency merging: group sizes are 3, 1, and 2.
-    for members in ((0, 1, 2), (4, 5)):
+    # Imbalanced groups: size 4, singleton, and size 3.
+    for members in ((0, 1, 2, 3), (5, 6, 7)):
         for expert_idx in members[1:]:
-            moe.experts[expert_idx] = moe.experts[members[0]]
+            model.model.layers[0].block_sparse_moe.experts[expert_idx] = (
+                model.model.layers[0].block_sparse_moe.experts[members[0]]
+            )
+    return model
 
+
+def test_residual_moe_hf_interface_imbalanced_groups_and_reload():
+    torch.manual_seed(13)
+    group_state = {"model.layers.0.block_sparse_moe": torch.tensor([0, 0, 0, 0, 1, 2, 2, 2])}
+    model = _make_static_model()
+    moe = model.model.layers[0].block_sparse_moe
     hidden_states = torch.randn(5, 3, 4)
     static_output, static_logits = moe(hidden_states)
+
     attach_residual_experts(model, group_state, residual_width=0)
     width_zero_output, width_zero_logits = moe(hidden_states)
     assert torch.equal(static_output, width_zero_output)
@@ -78,17 +87,32 @@ def test_residual_moe_handles_imbalanced_groups_and_reloads():
     initial_output, residual_logits = moe(hidden_states)
     assert torch.equal(static_output, initial_output)
     assert torch.equal(static_logits, residual_logits)
-    assert set(moe.residual_experts) == {"0", "1", "2", "4", "5"}
+    assert set(moe.residual_experts) == {"0", "1", "2", "3", "5", "6", "7"}
 
+    # A route to singleton expert 4 must remain exactly static even after the
+    # residuals for all non-singleton experts become non-zero.
+    original_gate = moe.gate.weight.detach().clone()
+    original_top_k = moe.top_k
     with torch.no_grad():
-        moe.residual_experts["2"].w2.weight.fill_(0.2)
-    expected_output, _ = moe(hidden_states)
-    payload = residual_state_dict(model, residual_width=3)
+        moe.gate.weight.zero_()
+        moe.gate.weight[4].fill_(1.0)
+        for residual in moe.residual_experts.values():
+            residual.w2.weight.fill_(0.2)
+    moe.top_k = 1
+    singleton_input = torch.ones(1, 1, 4)
+    singleton_output, singleton_logits = moe(singleton_input)
+    assert torch.equal(singleton_output, moe.experts[4](singleton_input))
+    assert torch.equal(singleton_logits, moe.gate(singleton_input.reshape(-1, 4)))
+    moe.top_k = original_top_k
+    with torch.no_grad():
+        moe.gate.weight.copy_(original_gate)
 
-    reloaded = TinyModel().eval()
+    expected_output, expected_logits = moe(hidden_states)
+    payload = residual_state_dict(model, residual_width=3)
+    reloaded = _make_static_model()
     bind_shared_experts_from_group_state(reloaded, group_state)
     reloaded.load_state_dict(model.state_dict(), strict=False)
     load_residual_state_dict(reloaded, payload, group_state)
     actual_output, actual_logits = reloaded.model.layers[0].block_sparse_moe(hidden_states)
     assert torch.equal(expected_output, actual_output)
-    assert torch.equal(static_logits, actual_logits)
+    assert torch.equal(expected_logits, actual_logits)

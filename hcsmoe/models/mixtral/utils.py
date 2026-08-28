@@ -40,7 +40,7 @@ def residual_aware_moe_forward(self, hidden_states: torch.Tensor) -> Tuple[torch
     routing_weights = routing_weights / routing_weights.sum(dim=-1, keepdim=True)
     routing_weights = routing_weights.to(flat_hidden_states.dtype)
     final_hidden_states = torch.zeros_like(flat_hidden_states)
-    expert_mask = F.one_hot(selected_experts, num_classes=self.gate_num_experts).permute(2, 1, 0)
+    expert_mask = F.one_hot(selected_experts, num_classes=self.num_experts).permute(2, 1, 0)
 
     for expert_idx in range(self.num_experts):
         route_idx, token_idx = torch.where(expert_mask[expert_idx])

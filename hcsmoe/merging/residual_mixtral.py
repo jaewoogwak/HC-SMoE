@@ -1,16 +1,11 @@
-"""Calibration and training for Mixtral expert-specific residuals.
-
-The collector intentionally runs before frequency merging.  It keeps only the
-selected tokens (and their target deltas) on CPU, so it never needs a second
-full Mixtral model or a full-model deepcopy.
-"""
+"""Calibration and FP32 training for Mixtral expert-specific residuals."""
 
 from __future__ import annotations
 
 import json
 import os
 from collections import defaultdict
-from typing import Dict, Mapping, Sequence
+from typing import Dict, Mapping
 
 import torch
 import torch.nn.functional as F
@@ -33,27 +28,17 @@ def _expert_device(expert: torch.nn.Module) -> torch.device:
     return next(expert.parameters()).device
 
 
-def _frequency_merged_output(moe, members: Sequence[int], usage: torch.Tensor, hidden_states: torch.Tensor) -> torch.Tensor:
-    """Apply exactly the weights produced by merge=freq, without mutating moe."""
-    expert0 = moe.experts[members[0]]
-    device, dtype = _expert_device(expert0), expert0.w1.weight.dtype
-    hidden_states = hidden_states.to(device=device, dtype=dtype)
-    # Keep usage in its original (normally fp32) dtype.  This mirrors the
-    # promotion and final bf16 copy performed by merge=freq exactly.
-    weights = usage[members].to(device=device)
-    denominator = weights.sum() + FP32_EPS
-
-    def merged_weight(name: str) -> torch.Tensor:
-        # Keep stack -> sum order identical to
-        # _merge_mlp_experts_by_usage_frequency_weighting.
-        stacked = torch.stack(
-            [getattr(moe.experts[idx], name).weight * weights[pos] for pos, idx in enumerate(members)],
-            dim=0,
-        )
-        return torch.sum(stacked, dim=0) / denominator
-
-    w1, w2, w3 = (merged_weight(name).to(dtype=dtype) for name in ("w1", "w2", "w3"))
-    return F.linear(F.silu(F.linear(hidden_states, w1)) * F.linear(hidden_states, w3), w2)
+@torch.no_grad()
+def _expert_outputs_in_chunks(expert, hidden_states: torch.Tensor, chunk_size: int) -> torch.Tensor:
+    """Run one frozen expert without accumulating selected tokens in VRAM."""
+    if chunk_size <= 0:
+        raise ValueError("--residual_batch_size must be positive")
+    device, dtype = _expert_device(expert), expert.w1.weight.dtype
+    outputs = []
+    for start in range(0, hidden_states.shape[0], chunk_size):
+        chunk = hidden_states[start:start + chunk_size].to(device=device, dtype=dtype)
+        outputs.append(expert(chunk).detach().cpu())
+    return torch.cat(outputs, dim=0)
 
 
 @torch.no_grad()
@@ -61,10 +46,10 @@ def collect_residual_calibration(
     model,
     dataloader,
     group_state: Mapping[str, torch.Tensor],
-    usage_frequency: Mapping[str, torch.Tensor],
     residual_data_limit: int,
+    residual_batch_size: int,
 ) -> Dict[str, Dict[str, torch.Tensor]]:
-    """Collect selected C4 inputs, renormalized gates, and E_i-M_g deltas on CPU."""
+    """Store only selected h, post-top-k g_i, and original E_i(h), all on CPU."""
     if residual_data_limit <= 0:
         raise ValueError("--residual_data_limit must be positive when residuals are enabled")
     groups = {name: group_members_from_labels(labels) for name, labels in group_state.items()}
@@ -72,7 +57,7 @@ def collect_residual_calibration(
         name: {expert for members in layer_groups.values() if len(members) > 1 for expert in members}
         for name, layer_groups in groups.items()
     }
-    stored = defaultdict(lambda: {"hidden_states": [], "routing_weights": [], "target_delta": []})
+    stored = defaultdict(lambda: {"hidden_states": [], "routing_weights": [], "original_outputs": []})
     counts = defaultdict(int)
     captured_inputs: Dict[str, torch.Tensor] = {}
     handles = []
@@ -84,7 +69,7 @@ def collect_residual_calibration(
 
     for layer_idx, layer in enumerate(model.model.layers):
         name = f"model.layers.{layer_idx}.block_sparse_moe"
-        if name in selected_members and selected_members[name]:
+        if selected_members.get(name):
             handles.append(layer.block_sparse_moe.register_forward_pre_hook(make_hook(name)))
 
     model.eval()
@@ -99,26 +84,24 @@ def collect_residual_calibration(
             moe = model.model.layers[layer_idx].block_sparse_moe
             routing_weights = F.softmax(router_logits, dim=-1, dtype=torch.float)
             routing_weights, selected_experts = torch.topk(routing_weights, moe.top_k, dim=-1)
-            routing_weights = routing_weights / routing_weights.sum(dim=-1, keepdim=True)
+            routing_weights = (routing_weights / routing_weights.sum(dim=-1, keepdim=True)).detach().cpu()
+            selected_experts = selected_experts.detach().cpu()
             inputs = captured_inputs[name]
             for expert_idx in selected_members[name]:
                 remaining = residual_data_limit - counts[(name, expert_idx)]
                 if remaining <= 0:
                     continue
-                token_idx, route_idx = torch.where(selected_experts.detach().cpu() == expert_idx)
+                token_idx, route_idx = torch.where(selected_experts == expert_idx)
                 if token_idx.numel() == 0:
                     continue
                 token_idx, route_idx = token_idx[:remaining], route_idx[:remaining]
                 selected_inputs = inputs[token_idx]
-                group_label = int(group_state[name][expert_idx].item())
-                members = groups[name][group_label]
-                target_device = _expert_device(moe.experts[expert_idx])
-                original = moe.experts[expert_idx](selected_inputs.to(target_device, dtype=moe.experts[expert_idx].w1.weight.dtype))
-                static = _frequency_merged_output(moe, members, usage_frequency[name], selected_inputs)
                 key = f"{layer_idx}.{expert_idx}"
-                stored[key]["hidden_states"].append(selected_inputs.cpu())
-                stored[key]["routing_weights"].append(routing_weights.detach().cpu()[token_idx, route_idx])
-                stored[key]["target_delta"].append((original - static).detach().cpu())
+                stored[key]["hidden_states"].append(selected_inputs)
+                stored[key]["routing_weights"].append(routing_weights[token_idx, route_idx])
+                stored[key]["original_outputs"].append(
+                    _expert_outputs_in_chunks(moe.experts[expert_idx], selected_inputs, residual_batch_size)
+                )
                 counts[(name, expert_idx)] += token_idx.numel()
         del outputs
         if all(counts[(name, expert)] >= residual_data_limit for name, experts in selected_members.items() for expert in experts):
@@ -140,30 +123,35 @@ def _split_indices(num_samples: int, val_ratio: float, seed: int) -> tuple[torch
 
 
 @torch.no_grad()
-def _reconstruction_metrics(static_expert, residual, data: Mapping[str, torch.Tensor], indices: torch.Tensor) -> Dict[str, float]:
+def _reconstruction_metrics(static_expert, residual, data, indices, batch_size: int) -> Dict[str, float]:
+    """Evaluate M_g and M_g + R_i against stored E_i(h), in bounded batches."""
     if indices.numel() == 0:
         return {"relative_l2": float("nan"), "cosine": float("nan"), "squared_error": 0.0, "target_squared_norm": 0.0, "dot": 0.0, "static_norm": 0.0, "target_norm": 0.0, "count": 0}
-    device, dtype = _expert_device(static_expert), static_expert.w1.weight.dtype
-    hidden_states = data["hidden_states"][indices].to(device=device, dtype=dtype)
-    target_delta = data["target_delta"][indices].to(device=device, dtype=dtype)
-    static = static_expert(hidden_states).float()
-    target = static + target_delta.float()
-    pred = static + residual(hidden_states).float()
-    error = pred - target
-    static_error = static - target
+    device, static_dtype = _expert_device(static_expert), static_expert.w1.weight.dtype
+    totals = defaultdict(float)
+    for start in range(0, indices.numel(), batch_size):
+        batch_indices = indices[start:start + batch_size]
+        static_input = data["hidden_states"][batch_indices].to(device=device, dtype=static_dtype)
+        static = static_expert(static_input).float()
+        original = data["original_outputs"][batch_indices].to(device=device, dtype=torch.float32)
+        residual_input = data["hidden_states"][batch_indices].to(device=device, dtype=torch.float32)
+        pred = static + residual(residual_input)
+        error, static_error = pred - original, static - original
+        totals["squared_error"] += error.square().sum().item()
+        totals["static_squared_error"] += static_error.square().sum().item()
+        totals["target_squared_norm"] += original.square().sum().item()
+        totals["dot"] += (pred * original).sum().item()
+        totals["static_dot"] += (static * original).sum().item()
+        totals["pred_norm"] += pred.square().sum().item()
+        totals["static_norm"] += static.square().sum().item()
+        totals["target_norm"] += original.square().sum().item()
+    target_norm = max(totals["target_squared_norm"], FP32_EPS)
     return {
-        "relative_l2": (torch.linalg.vector_norm(error) / torch.linalg.vector_norm(target).clamp_min(FP32_EPS)).item(),
-        "cosine": F.cosine_similarity(pred.flatten(), target.flatten(), dim=0).item(),
-        "static_relative_l2": (torch.linalg.vector_norm(static_error) / torch.linalg.vector_norm(target).clamp_min(FP32_EPS)).item(),
-        "static_cosine": F.cosine_similarity(static.flatten(), target.flatten(), dim=0).item(),
-        "squared_error": error.square().sum().item(),
-        "static_squared_error": static_error.square().sum().item(),
-        "target_squared_norm": target.square().sum().item(),
-        "dot": (pred * target).sum().item(),
-        "static_dot": (static * target).sum().item(),
-        "pred_norm": pred.square().sum().item(),
-        "static_norm": static.square().sum().item(),
-        "target_norm": target.square().sum().item(),
+        "relative_l2": (totals["squared_error"] / target_norm) ** 0.5,
+        "cosine": totals["dot"] / max((totals["pred_norm"] * totals["target_norm"]) ** 0.5, FP32_EPS),
+        "static_relative_l2": (totals["static_squared_error"] / target_norm) ** 0.5,
+        "static_cosine": totals["static_dot"] / max((totals["static_norm"] * totals["target_norm"]) ** 0.5, FP32_EPS),
+        **totals,
         "count": int(indices.numel()),
     }
 
@@ -180,7 +168,9 @@ def train_residuals(
     residual_patience: int,
     seed: int,
 ) -> Dict[str, object]:
-    """Freeze the static model and optimize one CPU-buffered residual at a time."""
+    """Freeze static M_g and train each R_i in FP32, one residual at a time."""
+    if residual_epochs <= 0:
+        raise ValueError("--residual_epochs must be positive")
     attach_residual_experts(model, group_state, residual_width)
     model.requires_grad_(False)
     metrics: Dict[str, object] = {"experts": {}, "aggregate": {}}
@@ -188,32 +178,36 @@ def train_residuals(
     for key, data in tqdm(calibration.items(), desc="[Residual] training experts"):
         layer_idx, expert_idx = (int(value) for value in key.split("."))
         moe = model.model.layers[layer_idx].block_sparse_moe
-        residual = moe.residual_experts[str(expert_idx)]
-        static_expert = moe.experts[expert_idx]
-        device, dtype = _expert_device(static_expert), static_expert.w1.weight.dtype
-        residual.to(device=device, dtype=dtype).requires_grad_(True)
+        residual, static_expert = moe.residual_experts[str(expert_idx)], moe.experts[expert_idx]
+        device, static_dtype = _expert_device(static_expert), static_expert.w1.weight.dtype
+        residual.to(device=device, dtype=torch.float32).requires_grad_(True)
         train_idx, val_idx = _split_indices(data["hidden_states"].shape[0], residual_val_ratio, seed + layer_idx * 1000 + expert_idx)
         optimizer = torch.optim.AdamW(residual.parameters(), lr=residual_lr)
         best_state, best_val, stale_steps = None, float("inf"), 0
-        for _epoch in range(residual_epochs):
+        for epoch in range(residual_epochs):
             residual.train()
-            permutation = train_idx[torch.randperm(train_idx.numel(), generator=torch.Generator().manual_seed(seed + _epoch + layer_idx * 1000 + expert_idx))]
+            permutation = train_idx[torch.randperm(train_idx.numel(), generator=torch.Generator().manual_seed(seed + epoch + layer_idx * 1000 + expert_idx))]
             for start in range(0, permutation.numel(), residual_batch_size):
                 indices = permutation[start:start + residual_batch_size]
-                h = data["hidden_states"][indices].to(device=device, dtype=dtype)
-                target = data["target_delta"][indices].to(device=device, dtype=dtype)
-                gate = data["routing_weights"][indices].to(device=device, dtype=dtype)
+                static_input = data["hidden_states"][indices].to(device=device, dtype=static_dtype)
+                with torch.no_grad():
+                    static = static_expert(static_input).float()
+                original = data["original_outputs"][indices].to(device=device, dtype=torch.float32)
+                residual_input = data["hidden_states"][indices].to(device=device, dtype=torch.float32)
+                gate = data["routing_weights"][indices].to(device=device, dtype=torch.float32)
                 optimizer.zero_grad(set_to_none=True)
-                loss = (gate.square().unsqueeze(-1) * (residual(h) - target).float().square()).mean()
+                loss = (gate.square().unsqueeze(-1) * (residual(residual_input) - (original - static)).square()).mean()
                 loss.backward()
                 optimizer.step()
             residual.eval()
             if val_idx.numel():
                 with torch.no_grad():
-                    h = data["hidden_states"][val_idx].to(device=device, dtype=dtype)
-                    target = data["target_delta"][val_idx].to(device=device, dtype=dtype)
-                    gate = data["routing_weights"][val_idx].to(device=device, dtype=dtype)
-                    val_loss = (gate.square().unsqueeze(-1) * (residual(h) - target).float().square()).mean().item()
+                    static_input = data["hidden_states"][val_idx].to(device=device, dtype=static_dtype)
+                    static = static_expert(static_input).float()
+                    original = data["original_outputs"][val_idx].to(device=device, dtype=torch.float32)
+                    residual_input = data["hidden_states"][val_idx].to(device=device, dtype=torch.float32)
+                    gate = data["routing_weights"][val_idx].to(device=device, dtype=torch.float32)
+                    val_loss = (gate.square().unsqueeze(-1) * (residual(residual_input) - (original - static)).square()).mean().item()
             else:
                 val_loss = 0.0
             if val_loss < best_val:
@@ -226,7 +220,7 @@ def train_residuals(
         residual.load_state_dict(best_state, strict=True)
         residual.eval()
         heldout = val_idx if val_idx.numel() else train_idx
-        result = _reconstruction_metrics(static_expert, residual, data, heldout)
+        result = _reconstruction_metrics(static_expert, residual, data, heldout, residual_batch_size)
         result.update({
             "layer": layer_idx,
             "expert": expert_idx,
@@ -253,10 +247,8 @@ def train_residuals(
         "residual_cosine": totals["dot"] / max((totals["pred_norm"] * totals["target_norm"]) ** 0.5, FP32_EPS),
         "heldout_tokens": int(totals["count"]),
     }
-    original_expert_params = 0
-    static_expert_params = 0
+    original_expert_params = static_expert_params = residual_params = 0
     seen = set()
-    residual_params = 0
     for layer in model.model.layers:
         moe = layer.block_sparse_moe
         per_expert = sum(parameter.numel() for parameter in moe.experts[0].parameters())
