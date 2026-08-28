@@ -51,7 +51,8 @@ def residual_aware_moe_forward(self, hidden_states: torch.Tensor) -> Tuple[torch
         current_hidden_states = self.experts[expert_idx](current_state)
         residual = self.residual_experts[str(expert_idx)] if str(expert_idx) in self.residual_experts else None
         if residual is not None:
-            if next(residual.parameters()).device != current_state.device:
+            residual_parameter = next(residual.parameters())
+            if residual_parameter.device != current_state.device or residual_parameter.dtype != current_state.dtype:
                 residual.to(device=current_state.device, dtype=current_state.dtype)
             current_hidden_states = current_hidden_states + residual(current_state)
         current_hidden_states = current_hidden_states * routing_weights[token_idx, route_idx, None]

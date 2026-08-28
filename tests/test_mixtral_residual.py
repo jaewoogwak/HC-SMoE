@@ -116,3 +116,16 @@ def test_residual_moe_hf_interface_imbalanced_groups_and_reload():
     actual_output, actual_logits = reloaded.model.layers[0].block_sparse_moe(hidden_states)
     assert torch.equal(expected_output, actual_output)
     assert torch.equal(expected_logits, actual_logits)
+
+
+def test_cpu_bfloat16_input_casts_cpu_float32_residual():
+    group_state = {"model.layers.0.block_sparse_moe": torch.tensor([0, 0, 0, 0, 1, 2, 2, 2])}
+    model = _make_static_model().bfloat16().eval()
+    attach_residual_experts(model, group_state, residual_width=3)
+    moe = model.model.layers[0].block_sparse_moe
+    assert next(moe.residual_experts["0"].parameters()).device.type == "cpu"
+    assert next(moe.residual_experts["0"].parameters()).dtype == torch.float32
+
+    output, _ = moe(torch.randn(2, 3, 4, dtype=torch.bfloat16))
+    assert output.dtype == torch.bfloat16
+    assert next(moe.residual_experts["0"].parameters()).dtype == torch.bfloat16
