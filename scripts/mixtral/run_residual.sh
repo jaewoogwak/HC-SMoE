@@ -6,6 +6,7 @@ export CUDA_LAUNCH_BLOCKING=1
 export TORCH_USE_CUDA_DSA=1
 export TOKENIZERS_PARALLELISM="false"
 export HF_HOME="${HF_HOME:-your-huggingface-home-path}"
+export PYTHONPATH="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd):${PYTHONPATH:-}"
 
 # Reload example:
 # bash scripts/mixtral/run_residual.sh --eval_only=True --residual_eval_only=True \
