@@ -22,6 +22,15 @@ from transformers import MixtralForCausalLM, AutoTokenizer
 from hcsmoe.evaluation import evaluate_fewshot, get_calib_dataloder
 from hcsmoe.merging.grouping_mixtral import ExpertsGrouperForMixtral
 from hcsmoe.merging.grouping_mixtral import merge_by_groups_with_usage_weighted, merge_by_groups_within_and_across_models
+from hcsmoe.merging.residual_mixtral import (
+    collect_residual_calibration,
+    save_residual_artifacts,
+    train_residuals,
+)
+from hcsmoe.models.mixtral.utils import (
+    bind_shared_experts_from_group_state,
+    load_residual_state_dict,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -171,6 +180,17 @@ def run_hcsmoe(
         overlap_metric: Optional[str] = "cosine", # kl-divergence, wasserstein, cosine,
         dynamic_group: Optional[bool] = False,
         eval_only: Optional[bool] = False,
+        residual_width: Optional[int] = 0,
+        residual_data_limit: Optional[int] = 4096,
+        residual_epochs: Optional[int] = 3,
+        residual_lr: Optional[float] = 1e-3,
+        residual_batch_size: Optional[int] = 64,
+        residual_val_ratio: Optional[float] = 0.1,
+        residual_patience: Optional[int] = 2,
+        residual_eval_only: Optional[bool] = False,
+        residual_path: Optional[str] = None,
+        group_state_path: Optional[str] = None,
+        seed: Optional[int] = 0,
 ):
     print(f"Merge model {model_name} with {num_average_groups} group, {dominant} dominant + {similarity_base} grouping + {merge} {mode} merge with ingredient {ingredient}, evaluate on {task}")
     print(f"Cluster: {cluster}, linkage: {linkage}, hierarchical_stopping_metric: {hierarchical_stopping_metric}, overlap_metric: {overlap_metric}, dynamic_group: {dynamic_group}")
@@ -204,7 +224,7 @@ def run_hcsmoe(
         dynamic_group=dynamic_group,
     )
     
-    torch.manual_seed(0)
+    torch.manual_seed(seed)
     eval_ppl = (task == "minipile")
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     tokenizer.pad_token_id = tokenizer.eos_token_id
@@ -213,6 +233,32 @@ def run_hcsmoe(
         model_name,
         torch_dtype=torch.bfloat16, device_map="auto"
     )
+    if eval_only:
+        if not model_path:
+            raise ValueError("--eval_only=True requires --model_path.")
+        checkpoint_dir = os.path.dirname(model_path) or "."
+        group_state_path = group_state_path or os.path.join(checkpoint_dir, "group_state_dict.pt")
+        residual_path = residual_path or os.path.join(checkpoint_dir, "residuals.pth")
+        group_state = None
+        if residual_eval_only or os.path.exists(residual_path):
+            if not os.path.exists(group_state_path):
+                raise FileNotFoundError(f"Residual reload requires {group_state_path}")
+            group_state = torch.load(group_state_path, map_location="cpu")
+            bind_shared_experts_from_group_state(model, group_state)
+        state_dict = torch.load(model_path, map_location="cpu")
+        load_result = model.load_state_dict(state_dict, strict=True)
+        print(f"[HC-SMoE] Static checkpoint loaded: missing={load_result.missing_keys}, unexpected={load_result.unexpected_keys}")
+        del state_dict
+        if residual_eval_only or os.path.exists(residual_path):
+            if not os.path.exists(residual_path):
+                raise FileNotFoundError(f"Residual checkpoint not found: {residual_path}")
+            payload = torch.load(residual_path, map_location="cpu")
+            residual_width = load_residual_state_dict(model, payload, group_state)
+            print(f"[Residual] Reloaded width={residual_width} from {residual_path}")
+        print(f"[HC-SMoE] Evaluating saved model from {model_path}")
+        model.eval()
+        evaluation(args, model, tokenizer)
+        return
     if model_path:
         state_dict = torch.load(model_path, map_location="cpu")
         load_result = model.load_state_dict(state_dict)
@@ -242,13 +288,6 @@ def run_hcsmoe(
             if not matches_checkpoint:
                 raise RuntimeError(f"Checkpoint smoke check failed: {checkpoint_key}")
         del state_dict
-    if eval_only:
-        if not model_path:
-            raise ValueError("--eval_only=True requires --model_path.")
-        print(f"[HC-SMoE] Evaluating saved model from {model_path}")
-        model.eval()
-        evaluation(args, model, tokenizer)
-        return
     model.eval()
     
     # Generation C4 calibration dataset 
@@ -292,6 +331,20 @@ def run_hcsmoe(
         raise ValueError(
             f"Accepted dominant are `random`, `frequency`, `no`, but the input is `{dominant}`")
 
+    residual_calibration = None
+    group_state = grouper.group_state_dict()
+    if residual_width > 0:
+        if merge != "freq":
+            raise ValueError("Expert-specific residual PoC currently requires --merge=freq to match the static baseline exactly.")
+        print(f"[Residual] Collecting up to {residual_data_limit} selected C4 tokens per non-singleton expert")
+        residual_calibration = collect_residual_calibration(
+            model=model,
+            dataloader=dataloader_for_merging,
+            group_state=group_state,
+            usage_frequency=grouper.usage_frequency_state_dict(),
+            residual_data_limit=residual_data_limit,
+        )
+
     
     ### 3. Merge experts
     if merge == "no":
@@ -330,6 +383,7 @@ def run_hcsmoe(
         # trace into HC-SMoE groups without rerunning the C4 calibration.
         if not output_path:
             raise ValueError("--output_path is required when saving a merged HC-SMoE model")
+        os.makedirs(output_path, exist_ok=True)
         grouper.save_group_state_dict(output_path)
         group_metadata = {
             "model_name": model_name,
@@ -363,6 +417,34 @@ def run_hcsmoe(
         os.makedirs(output_path)
     torch.save(model.state_dict(), output_path+"/model.pth")
     torch.cuda.empty_cache()
+
+    if residual_width > 0:
+        residual_metrics = train_residuals(
+            model=model,
+            group_state=group_state,
+            calibration=residual_calibration,
+            residual_width=residual_width,
+            residual_epochs=residual_epochs,
+            residual_lr=residual_lr,
+            residual_batch_size=residual_batch_size,
+            residual_val_ratio=residual_val_ratio,
+            residual_patience=residual_patience,
+            seed=seed,
+        )
+        residual_config = {
+            "residual_width": residual_width,
+            "residual_data_limit": residual_data_limit,
+            "residual_epochs": residual_epochs,
+            "residual_lr": residual_lr,
+            "residual_batch_size": residual_batch_size,
+            "residual_val_ratio": residual_val_ratio,
+            "residual_patience": residual_patience,
+            "seed": seed,
+            "merge": merge,
+            "model_name": model_name,
+        }
+        save_residual_artifacts(output_path, model, residual_width, residual_metrics, residual_config)
+        print(f"[Residual] Saved residual artifacts in {output_path}")
 
     ### 6. Evaluation
     evaluation(args, model, tokenizer)
