@@ -3,7 +3,9 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from types import SimpleNamespace
 
+from hcsmoe.merging.residual_mixtral import _expert_device
 from hcsmoe.models.mixtral.utils import (
     attach_residual_experts,
     bind_shared_experts_from_group_state,
@@ -129,3 +131,10 @@ def test_cpu_bfloat16_input_casts_cpu_float32_residual():
     output, _ = moe(torch.randn(2, 3, 4, dtype=torch.bfloat16))
     assert output.dtype == torch.bfloat16
     assert next(moe.residual_experts["0"].parameters()).dtype == torch.bfloat16
+
+
+def test_offloaded_meta_expert_uses_accelerate_execution_device():
+    expert = TinyExpert().to(device="meta", dtype=torch.bfloat16)
+    expert._hf_hook = SimpleNamespace(execution_device=torch.device("cpu"))
+
+    assert _expert_device(expert) == torch.device("cpu")

@@ -19,7 +19,12 @@ from tqdm import tqdm
 from typing import Optional
 from transformers import MixtralForCausalLM, AutoTokenizer
 
-from hcsmoe.evaluation import evaluate_fewshot, get_calib_dataloder
+from hcsmoe.evaluation import (
+    evaluate_fewshot,
+    evaluate_generation,
+    get_calib_dataloder,
+    validate_generation_tasks,
+)
 from hcsmoe.merging.grouping_mixtral import ExpertsGrouperForMixtral
 from hcsmoe.merging.grouping_mixtral import merge_by_groups_with_usage_weighted, merge_by_groups_within_and_across_models
 from hcsmoe.merging.residual_mixtral import (
@@ -143,6 +148,31 @@ def evaluation(args, model, tokenizer):
             log=True,
         )
 
+
+def run_requested_evaluation(
+        args,
+        model,
+        tokenizer,
+        eval_generation: bool,
+        eval_coding: bool,
+        eval_math: bool,
+        eval_limit: Optional[int],
+):
+    """Keep existing MC evaluation unchanged; generation is an explicit suite."""
+    if eval_generation or eval_coding or eval_math:
+        generation_output_path = args.output_path or os.path.dirname(args.result_path) or "."
+        evaluate_generation(
+            model=model,
+            tokenizer=tokenizer,
+            eval_coding=eval_generation or eval_coding,
+            eval_math=eval_generation or eval_math,
+            eval_batch_size=args.eval_batch_size,
+            output_path=generation_output_path,
+            eval_limit=eval_limit,
+        )
+        return
+    evaluation(args, model, tokenizer)
+
 def print_usage_frequency(usage_dict):
     for k in usage_dict:
         for num in usage_dict[k]:
@@ -191,6 +221,10 @@ def run_hcsmoe(
         residual_path: Optional[str] = None,
         group_state_path: Optional[str] = None,
         seed: Optional[int] = 0,
+        eval_generation: Optional[bool] = False,
+        eval_coding: Optional[bool] = False,
+        eval_math: Optional[bool] = False,
+        eval_limit: Optional[int] = None,
 ):
     print(f"Merge model {model_name} with {num_average_groups} group, {dominant} dominant + {similarity_base} grouping + {merge} {mode} merge with ingredient {ingredient}, evaluate on {task}")
     print(f"Cluster: {cluster}, linkage: {linkage}, hierarchical_stopping_metric: {hierarchical_stopping_metric}, overlap_metric: {overlap_metric}, dynamic_group: {dynamic_group}")
@@ -223,6 +257,9 @@ def run_hcsmoe(
         overlap_metric=overlap_metric,
         dynamic_group=dynamic_group,
     )
+
+    if eval_generation or eval_coding or eval_math:
+        validate_generation_tasks(eval_generation or eval_coding, eval_generation or eval_math)
     
     torch.manual_seed(seed)
     eval_ppl = (task == "minipile")
@@ -256,7 +293,9 @@ def run_hcsmoe(
             print(f"[Residual] Reloaded width={residual_width} from {residual_path}")
         print(f"[HC-SMoE] Evaluating saved model from {model_path}")
         model.eval()
-        evaluation(args, model, tokenizer)
+        run_requested_evaluation(
+            args, model, tokenizer, eval_generation, eval_coding, eval_math, eval_limit
+        )
         return
     if model_path:
         state_dict = torch.load(model_path, map_location="cpu")
@@ -446,7 +485,9 @@ def run_hcsmoe(
         print(f"[Residual] Saved residual artifacts in {output_path}")
 
     ### 6. Evaluation
-    evaluation(args, model, tokenizer)
+    run_requested_evaluation(
+        args, model, tokenizer, eval_generation, eval_coding, eval_math, eval_limit
+    )
 
 if __name__ == "__main__":
     Fire(run_hcsmoe)

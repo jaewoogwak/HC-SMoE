@@ -25,7 +25,20 @@ def _input_device(model: torch.nn.Module) -> torch.device:
 
 
 def _expert_device(expert: torch.nn.Module) -> torch.device:
-    return next(expert.parameters()).device
+    # `device_map="auto"` leaves offloaded parameters on meta while the
+    # Accelerate hook records the real device used for each direct forward.
+    hook = getattr(expert, "_hf_hook", None)
+    execution_device = getattr(hook, "execution_device", None)
+    if execution_device is not None:
+        device = torch.device(execution_device)
+        if device.type != "meta":
+            return device
+    for parameter in expert.parameters():
+        if not parameter.is_meta:
+            return parameter.device
+    raise RuntimeError(
+        "Expert parameters are offloaded to meta but no Accelerate execution_device is available."
+    )
 
 
 @torch.no_grad()
