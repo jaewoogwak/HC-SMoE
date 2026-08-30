@@ -80,6 +80,49 @@ def bind_shared_experts_from_group_state(model, group_state: Mapping[str, torch.
                 layer.block_sparse_moe.experts[expert_idx] = layer.block_sparse_moe.experts[representative]
 
 
+def validate_shared_expert_topology(model, group_state: Mapping[str, torch.Tensor]) -> Dict[str, int]:
+    """Assert that each saved HC-SMoE group is represented by one module."""
+    group_counts: Dict[str, int] = {}
+    for layer_idx, layer in enumerate(model.model.layers):
+        name = f"model.layers.{layer_idx}.block_sparse_moe"
+        if name not in group_state:
+            raise KeyError(f"Missing group mapping for evaluation layer: {name}")
+        groups = group_members_from_labels(group_state[name])
+        moe = layer.block_sparse_moe
+        unique_experts = {id(expert) for expert in moe.experts}
+        if len(unique_experts) != len(groups):
+            raise AssertionError(
+                f"{name}: unique expert count {len(unique_experts)} != group count {len(groups)}"
+            )
+        for members in groups.values():
+            if len({id(moe.experts[expert_idx]) for expert_idx in members}) != 1:
+                raise AssertionError(f"{name}: experts {members} do not share one Python module")
+        group_counts[name] = len(groups)
+    return group_counts
+
+
+def expand_shared_expert_state_dict(state_dict: Dict[str, torch.Tensor], group_state: Mapping[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
+    """Fill alias keys omitted by offload-aware state-dict serialization."""
+    for layer_name, labels in group_state.items():
+        groups = group_members_from_labels(labels)
+        for members in groups.values():
+            source_prefix = None
+            for expert_idx in members:
+                prefix = f"{layer_name}.experts.{expert_idx}."
+                if any(name.startswith(prefix) for name in state_dict):
+                    source_prefix = prefix
+                    break
+            if source_prefix is None:
+                raise KeyError(f"No saved static expert weights for {layer_name} group {members}")
+            source_keys = [name for name in state_dict if name.startswith(source_prefix)]
+            for expert_idx in members:
+                target_prefix = f"{layer_name}.experts.{expert_idx}."
+                for source_key in source_keys:
+                    target_key = target_prefix + source_key[len(source_prefix):]
+                    state_dict.setdefault(target_key, state_dict[source_key])
+    return state_dict
+
+
 def attach_residual_experts(model, group_state: Mapping[str, torch.Tensor], residual_width: int) -> None:
     """Attach CPU-resident residuals and install the residual-aware forward."""
     if residual_width <= 0:

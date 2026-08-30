@@ -17,13 +17,13 @@ export PYTHONPATH="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd):${PYTHONP
 #   --eval_only=True \
 #   --residual_eval_only=True
 
-accelerate launch --config_file static/finetune_config.yaml \
-  --main_process_port 29512 \
-  hcsmoe/merging-mixtral.py \
+export PYTORCH_CUDA_ALLOC_CONF="${PYTORCH_CUDA_ALLOC_CONF:-expandable_segments:True}"
+
+python hcsmoe/merging-mixtral.py \
   --task=arc_challenge \
   --num_average_groups=4 \
   --eval_only=True \
   --eval_generation=True \
-  --eval_batch_size=16 \
+  --eval_batch_size=1 \
   --result_path=results/generation_eval.txt \
   "$@"

@@ -8,6 +8,7 @@
 import inspect
 import os
 import json
+import time
 import numpy as np
 from pathlib import Path
 from typing import Any, Mapping, Optional
@@ -34,6 +35,30 @@ TASK_TO_NUM_FEWSHOT = {
 
 CODING_GENERATION_TASKS = ("humaneval", "humaneval_plus", "mbpp", "mbpp_plus")
 MATH_GENERATION_TASKS = ("gsm8k", "hendrycks_math500")
+
+
+class _GenerationStats:
+    def __init__(self) -> None:
+        self.elapsed_seconds = 0.0
+        self.generated_tokens = 0
+
+
+def _track_generate(original_generate, stats: _GenerationStats):
+    """Wrap model.generate to report generated-token throughput without changing tasks."""
+    def tracked_generate(*args, **kwargs):
+        input_ids = kwargs.get("input_ids")
+        if input_ids is None:
+            input_ids = kwargs.get("inputs")
+        if input_ids is None and args:
+            input_ids = args[0]
+        started = time.perf_counter()
+        output = original_generate(*args, **kwargs)
+        stats.elapsed_seconds += time.perf_counter() - started
+        sequences = getattr(output, "sequences", output)
+        if hasattr(input_ids, "shape") and hasattr(sequences, "shape") and sequences.ndim >= 2:
+            stats.generated_tokens += max(0, int(sequences.shape[-1] - input_ids.shape[-1])) * int(sequences.shape[0])
+        return output
+    return tracked_generate
 
 
 def _handle_non_serializable(o):
@@ -182,7 +207,10 @@ def evaluate_generation(
     """Run latest lm-eval generation tasks without changing MC few-shot behavior."""
     tasks = validate_generation_tasks(eval_coding, eval_math)
     evaluation_kwargs = {
-        "model": HFLM(pretrained=model, tokenizer=tokenizer, batch_size=eval_batch_size, device_map="auto"),
+        # The caller already placed this compressed model on CUDA. Passing
+        # device_map here re-dispatches an initialized model and can reintroduce
+        # CPU offload for autoregressive generation.
+        "model": HFLM(pretrained=model, tokenizer=tokenizer, batch_size=eval_batch_size),
         "tasks": tasks,
         # None preserves each task YAML's num_fewshot setting (not the MC CLI default).
         "num_fewshot": None,
@@ -201,11 +229,26 @@ def evaluate_generation(
         # Retain compatibility with harness code paths that also inspect this environment variable.
         os.environ["HF_ALLOW_CODE_EVAL"] = "1"
         evaluation_kwargs["confirm_run_unsafe_code"] = True
-    raw_results = evaluator.simple_evaluate(**evaluation_kwargs)
+    stats = _GenerationStats()
+    original_generate = model.generate
+    model.generate = _track_generate(original_generate, stats)
+    started = time.perf_counter()
+    try:
+        raw_results = evaluator.simple_evaluate(**evaluation_kwargs)
+    finally:
+        model.generate = original_generate
+    elapsed_seconds = time.perf_counter() - started
+    runtime = {
+        "elapsed_seconds": elapsed_seconds,
+        "model_generate_seconds": stats.elapsed_seconds,
+        "generated_tokens": stats.generated_tokens,
+        "tokens_per_second": stats.generated_tokens / stats.elapsed_seconds if stats.elapsed_seconds else 0.0,
+    }
     summary = _generation_summary(raw_results, tasks)
-    payload = {"summary": summary, "raw_lm_eval_results": raw_results}
+    payload = {"summary": summary, "generation_runtime": runtime, "raw_lm_eval_results": raw_results}
     print("[Generation] Summary:")
     print(json.dumps(summary, indent=2, default=_handle_non_serializable))
+    print("[Generation] Runtime: " + json.dumps(runtime, sort_keys=True))
     if output_path:
         os.makedirs(output_path, exist_ok=True)
         destination = os.path.join(output_path, "generation_results.json")

@@ -9,8 +9,10 @@ from hcsmoe.merging.residual_mixtral import _expert_device
 from hcsmoe.models.mixtral.utils import (
     attach_residual_experts,
     bind_shared_experts_from_group_state,
+    expand_shared_expert_state_dict,
     load_residual_state_dict,
     residual_state_dict,
+    validate_shared_expert_topology,
 )
 
 
@@ -138,3 +140,45 @@ def test_offloaded_meta_expert_uses_accelerate_execution_device():
     expert._hf_hook = SimpleNamespace(execution_device=torch.device("cpu"))
 
     assert _expert_device(expert) == torch.device("cpu")
+
+
+def test_group_binding_restores_unique_expert_topology():
+    group_state = {"model.layers.0.block_sparse_moe": torch.tensor([0, 0, 0, 0, 1, 2, 2, 2])}
+    model = TinyModel()
+    bind_shared_experts_from_group_state(model, group_state)
+
+    assert validate_shared_expert_topology(model, group_state) == {
+        "model.layers.0.block_sparse_moe": 3
+    }
+
+
+def test_meta_checkpoint_reload_preserves_shared_expert_topology():
+    group_state = {"model.layers.0.block_sparse_moe": torch.tensor([0, 0, 0, 0, 1, 2, 2, 2])}
+    source = _make_static_model()
+    state_dict = {name: value.detach().clone() for name, value in source.state_dict().items()}
+    reloaded = TinyModel().to("meta")
+    bind_shared_experts_from_group_state(reloaded, group_state)
+    reloaded.load_state_dict(state_dict, strict=True, assign=True)
+
+    assert not any(parameter.is_meta for parameter in reloaded.parameters())
+    assert validate_shared_expert_topology(reloaded, group_state) == {
+        "model.layers.0.block_sparse_moe": 3
+    }
+
+
+def test_expand_shared_expert_state_dict_restores_omitted_aliases():
+    group_state = {"model.layers.0.block_sparse_moe": torch.tensor([0, 0, 0, 0, 1, 2, 2, 2])}
+    source = _make_static_model()
+    state_dict = {name: value.detach().clone() for name, value in source.state_dict().items()}
+    for expert_idx in (1, 2, 3, 6, 7):
+        prefix = f"model.layers.0.block_sparse_moe.experts.{expert_idx}."
+        for name in [name for name in state_dict if name.startswith(prefix)]:
+            del state_dict[name]
+
+    expanded = expand_shared_expert_state_dict(state_dict, group_state)
+    reloaded = TinyModel().to("meta")
+    bind_shared_experts_from_group_state(reloaded, group_state)
+    reloaded.load_state_dict(expanded, strict=True, assign=True)
+    assert validate_shared_expert_topology(reloaded, group_state) == {
+        "model.layers.0.block_sparse_moe": 3
+    }

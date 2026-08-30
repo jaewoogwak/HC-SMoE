@@ -17,7 +17,9 @@ import itertools
 from fire import Fire
 from tqdm import tqdm
 from typing import Optional
-from transformers import MixtralForCausalLM, AutoTokenizer
+from accelerate import init_empty_weights
+from accelerate.utils.modeling import get_state_dict_offloaded_model
+from transformers import MixtralConfig, MixtralForCausalLM, AutoTokenizer
 
 from hcsmoe.evaluation import (
     evaluate_fewshot,
@@ -34,7 +36,9 @@ from hcsmoe.merging.residual_mixtral import (
 )
 from hcsmoe.models.mixtral.utils import (
     bind_shared_experts_from_group_state,
+    expand_shared_expert_state_dict,
     load_residual_state_dict,
+    validate_shared_expert_topology,
 )
 
 logger = logging.getLogger(__name__)
@@ -173,6 +177,54 @@ def run_requested_evaluation(
         return
     evaluation(args, model, tokenizer)
 
+
+def load_compressed_model_for_evaluation(
+        model_name: str,
+        model_path: str,
+        group_state_path: str,
+        residual_eval_only: bool,
+        residual_path: Optional[str],
+):
+    """Restore shared experts before materializing a static/residual checkpoint."""
+    if not torch.cuda.is_available():
+        raise RuntimeError("Compressed Mixtral eval-only mode requires a CUDA device.")
+    if not os.path.exists(group_state_path):
+        raise FileNotFoundError(f"--eval_only=True requires group mapping: {group_state_path}")
+    group_state = torch.load(group_state_path, map_location="cpu")
+    state_dict = torch.load(model_path, map_location="cpu")
+    meta_keys = [name for name, value in state_dict.items() if isinstance(value, torch.Tensor) and value.is_meta]
+    if meta_keys:
+        raise RuntimeError(
+            f"Checkpoint {model_path} contains {len(meta_keys)} meta tensors (for example {meta_keys[0]}), "
+            "which have no saved data. Regenerate the static checkpoint with the current HC-SMoE code."
+        )
+    expand_shared_expert_state_dict(state_dict, group_state)
+    config = MixtralConfig.from_pretrained(model_name)
+    with init_empty_weights():
+        model = MixtralForCausalLM(config)
+    bind_shared_experts_from_group_state(model, group_state)
+    load_result = model.load_state_dict(state_dict, strict=True, assign=True)
+    del state_dict
+    print(f"[HC-SMoE] Static checkpoint loaded: missing={load_result.missing_keys}, unexpected={load_result.unexpected_keys}")
+    if residual_eval_only:
+        if not residual_path or not os.path.exists(residual_path):
+            raise FileNotFoundError(f"--residual_eval_only=True requires residual checkpoint: {residual_path}")
+        payload = torch.load(residual_path, map_location="cpu")
+        residual_width = load_residual_state_dict(model, payload, group_state)
+        print(f"[Residual] Reloaded width={residual_width} from {residual_path}")
+    model.to(device=torch.device("cuda:0"), dtype=torch.bfloat16)
+    group_counts = validate_shared_expert_topology(model, group_state)
+    for name, group_count in group_counts.items():
+        print(f"[HC-SMoE] {name}: unique expert count={group_count}, group count={group_count}, shared_identity=True")
+    parameters = list(model.parameters())
+    invalid = [name for name, parameter in model.named_parameters() if parameter.is_meta or parameter.device.type != "cuda"]
+    if invalid:
+        raise AssertionError(f"Evaluation model has CPU/meta parameters: {invalid[:5]}")
+    unique_parameter_count = sum(parameter.numel() for parameter in parameters)
+    vram_gib = torch.cuda.memory_allocated("cuda:0") / (1024 ** 3)
+    print(f"[HC-SMoE] Evaluation placement: unique_parameters={unique_parameter_count:,}, vram_allocated_gib={vram_gib:.2f}, cpu_meta_parameters=0")
+    return model, group_state
+
 def print_usage_frequency(usage_dict):
     for k in usage_dict:
         for num in usage_dict[k]:
@@ -266,37 +318,25 @@ def run_hcsmoe(
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     tokenizer.pad_token_id = tokenizer.eos_token_id
 
-    model = MixtralForCausalLM.from_pretrained(
-        model_name,
-        torch_dtype=torch.bfloat16, device_map="auto"
-    )
     if eval_only:
         if not model_path:
             raise ValueError("--eval_only=True requires --model_path.")
-        if residual_eval_only:
-            checkpoint_dir = os.path.dirname(model_path) or "."
-            group_state_path = group_state_path or os.path.join(checkpoint_dir, "group_state_dict.pt")
-            residual_path = residual_path or os.path.join(checkpoint_dir, "residuals.pth")
-            if not os.path.exists(group_state_path):
-                raise FileNotFoundError(f"--residual_eval_only=True requires group mapping: {group_state_path}")
-            if not os.path.exists(residual_path):
-                raise FileNotFoundError(f"--residual_eval_only=True requires residual checkpoint: {residual_path}")
-            group_state = torch.load(group_state_path, map_location="cpu")
-            bind_shared_experts_from_group_state(model, group_state)
-        state_dict = torch.load(model_path, map_location="cpu")
-        load_result = model.load_state_dict(state_dict, strict=True)
-        print(f"[HC-SMoE] Static checkpoint loaded: missing={load_result.missing_keys}, unexpected={load_result.unexpected_keys}")
-        del state_dict
-        if residual_eval_only:
-            payload = torch.load(residual_path, map_location="cpu")
-            residual_width = load_residual_state_dict(model, payload, group_state)
-            print(f"[Residual] Reloaded width={residual_width} from {residual_path}")
+        checkpoint_dir = os.path.dirname(model_path) or "."
+        group_state_path = group_state_path or os.path.join(checkpoint_dir, "group_state_dict.pt")
+        residual_path = residual_path or os.path.join(checkpoint_dir, "residuals.pth")
+        model, _ = load_compressed_model_for_evaluation(
+            model_name, model_path, group_state_path, residual_eval_only, residual_path
+        )
         print(f"[HC-SMoE] Evaluating saved model from {model_path}")
         model.eval()
         run_requested_evaluation(
             args, model, tokenizer, eval_generation, eval_coding, eval_math, eval_limit
         )
         return
+    model = MixtralForCausalLM.from_pretrained(
+        model_name,
+        torch_dtype=torch.bfloat16, device_map="auto"
+    )
     if model_path:
         state_dict = torch.load(model_path, map_location="cpu")
         load_result = model.load_state_dict(state_dict)
@@ -453,7 +493,10 @@ def run_hcsmoe(
         model.config.num_experts_per_tok = num_average_groups
     if not os.path.exists(output_path):
         os.makedirs(output_path)
-    torch.save(model.state_dict(), output_path+"/model.pth")
+    # device_map="auto" may offload inactive modules to meta. Materialize their
+    # CPU values before serialization so eval-only reload is lossless.
+    static_state_dict = get_state_dict_offloaded_model(model)
+    torch.save(expand_shared_expert_state_dict(static_state_dict, group_state), output_path+"/model.pth")
     torch.cuda.empty_cache()
 
     if residual_width > 0:
