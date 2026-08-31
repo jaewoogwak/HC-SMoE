@@ -83,7 +83,8 @@ def main():
         "batch_size": a.batch_size,
         "sampling_seed": a.seed,
         "moe_reconstruction_limit": a.moe_reconstruction_limit,
-        "metric_accumulation_dtype": "fp32",
+        "moe_forward_dtype": "bfloat16",
+        "metric_dtype": "float32",
         "output_definition": "frozen-routing reconstructed MoE output",
     }
     summary = format_moe_reconstruction_summary(metrics)

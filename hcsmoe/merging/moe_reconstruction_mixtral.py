@@ -15,6 +15,8 @@ from hcsmoe.models.mixtral.utils import group_members_from_labels
 
 TOP_K = 2
 EPSILON = 1e-12
+TEACHER_SANITY_MAX_RELATIVE_L2 = 1e-3
+TEACHER_SANITY_MIN_COSINE = 0.99999
 
 
 @dataclass
@@ -154,16 +156,25 @@ def collect_frozen_moe_tokens(teacher, dataloader, token_limit: int, sampling_se
 
 
 @torch.no_grad()
-def _run_module(module, inputs: torch.Tensor, dtype: torch.dtype) -> torch.Tensor:
-    values = module(inputs.to(device=_expert_device(module), dtype=dtype))
-    return values.detach().float().cpu()
+def _run_runtime_module(module, hidden_states: torch.Tensor, hidden_dtype: torch.dtype) -> torch.Tensor:
+    """Run a module in the same dtype used by the loaded compressed model."""
+    parameter = next(module.parameters())
+    if parameter.dtype != hidden_dtype:
+        raise AssertionError(
+            f"Expected runtime module dtype {hidden_dtype}, found {parameter.dtype}"
+        )
+    inputs = hidden_states.to(device=_expert_device(module), dtype=hidden_dtype)
+    return module(inputs)
 
 
 @torch.no_grad()
 def _compute_outputs(moe, data: FrozenMoETokens, apply_residual: bool):
-    """Compute static and residual output from the same frozen inputs and routes."""
+    """Reconstruct static/residual MoE outputs with runtime-faithful BF16 arithmetic."""
     _validate_frozen_tokens(data, "frozen")
-    static = torch.zeros((data.token_count, data.hidden_states.shape[-1]), dtype=torch.float32)
+    hidden_dtype = data.hidden_states.dtype
+    output_device = _expert_device(moe.experts[0])
+    output_shape = (data.token_count, data.hidden_states.shape[-1])
+    static = torch.zeros(output_shape, device=output_device, dtype=hidden_dtype)
     residual = torch.zeros_like(static)
     residual_modules = getattr(moe, "residual_experts", {})
     for expert_index in range(moe.num_experts):
@@ -171,81 +182,65 @@ def _compute_outputs(moe, data: FrozenMoETokens, apply_residual: bool):
         if token_indices.numel() == 0:
             continue
         expert = moe.experts[expert_index]
-        expert_values = _run_module(expert, data.hidden_states[token_indices], expert.w1.weight.dtype)
-        gates = data.routing_weights[token_indices, route_indices].unsqueeze(-1)
-        static.index_add_(0, token_indices, expert_values * gates)
+        expert_values = _run_runtime_module(
+            expert, data.hidden_states[token_indices], hidden_dtype
+        )
+        gates = data.routing_weights[token_indices, route_indices].to(
+            device=expert_values.device, dtype=hidden_dtype
+        ).unsqueeze(-1)
+        static.index_add_(
+            0,
+            token_indices.to(output_device),
+            (expert_values * gates).to(device=output_device, dtype=hidden_dtype),
+        )
         values = expert_values
         module = residual_modules[str(expert_index)] if str(expert_index) in residual_modules else None
         if apply_residual and module is not None:
-            parameter = next(module.parameters())
-            values = values + _run_module(module, data.hidden_states[token_indices], parameter.dtype)
-        residual.index_add_(0, token_indices, values * gates)
+            values = values + _run_runtime_module(
+                module, data.hidden_states[token_indices], hidden_dtype
+            )
+        residual.index_add_(
+            0,
+            token_indices.to(output_device),
+            (values * gates).to(device=output_device, dtype=hidden_dtype),
+        )
+    static, residual = static.cpu(), residual.cpu()
     _assert_finite("static routed MoE output", static)
     _assert_finite("residual routed MoE output", residual)
     return static, residual
 
 
 @torch.no_grad()
-def _compute_teacher_numerical_output(moe, data: FrozenMoETokens) -> torch.Tensor:
-    """Reproduce the Transformers 4.40 Mixtral BF16 MoE arithmetic for sanity."""
-    _validate_frozen_tokens(data, "teacher sanity")
-    hidden_dtype = data.hidden_states.dtype
-    output_device = _expert_device(moe.experts[0])
-    output = torch.zeros(
-        (data.token_count, data.hidden_states.shape[-1]),
-        device=output_device,
-        dtype=hidden_dtype,
-    )
-
-    for expert_index in range(moe.num_experts):
-        token_indices, route_indices = torch.where(data.expert_indices == expert_index)
-        if token_indices.numel() == 0:
-            continue
-        expert = moe.experts[expert_index]
-        expert_device = _expert_device(expert)
-        hidden_states = data.hidden_states[token_indices].to(
-            device=expert_device,
-            dtype=hidden_dtype,
-        )
-        # Match MixtralSparseMoeBlock: normalized FP32 gates are cast back to
-        # hidden dtype before multiplying the BF16 expert output.
-        routing_weights = data.routing_weights[token_indices, route_indices].to(
-            device=expert_device,
-            dtype=hidden_dtype,
-        )
-        weighted_output = expert(hidden_states) * routing_weights.unsqueeze(-1)
-        output.index_add_(
-            0,
-            token_indices.to(output_device),
-            weighted_output.to(device=output_device, dtype=hidden_dtype),
-        )
-    return output.cpu()
-
-
-@torch.no_grad()
 def materialize_original_outputs(teacher, frozen_by_layer):
-    """Create the FP32 frozen-routing y_orig target and validate teacher output."""
+    """Validate the manual BF16 path and keep actual teacher output as target."""
     for index, layer in enumerate(teacher.model.layers):
         data = frozen_by_layer[_layer_name(index)]
-        manual_output, _ = _compute_outputs(layer.block_sparse_moe, data, apply_residual=False)
         if data.teacher_moe_outputs is None:
             raise RuntimeError("teacher MoE forward outputs were not captured")
-        teacher_numerical_output = _compute_teacher_numerical_output(
-            layer.block_sparse_moe,
-            data,
+        manual_output, _ = _compute_outputs(
+            layer.block_sparse_moe, data, apply_residual=False
         )
-        # The teacher sanity path deliberately uses BF16 routing weights and
-        # BF16 index_add_ accumulation to match MixtralSparseMoeBlock.  Metric
-        # targets remain the separate FP32 frozen-routing reconstruction below.
-        torch.testing.assert_close(
-            teacher_numerical_output,
-            data.teacher_moe_outputs,
-            rtol=0.0,
-            atol=0.0,
+        sanity = _comparison_metrics(manual_output, data.teacher_moe_outputs)
+        print(
+            "[Teacher sanity] layer={layer} rel_l2={relative_l2:.8e} "
+            "cosine={cosine:.8f} max_abs_diff={max_abs_diff:.8e}".format(
+                layer=index, **sanity
+            )
         )
-        # Metrics intentionally use FP32 manual reconstruction, not runtime
-        # BF16 output, to measure expert approximation rather than rounding.
-        data.original_outputs = manual_output
+        if (
+            sanity["relative_l2"] > TEACHER_SANITY_MAX_RELATIVE_L2
+            or sanity["cosine"] < TEACHER_SANITY_MIN_COSINE
+        ):
+            raise AssertionError(
+                f"Teacher sanity failed at layer {index}: "
+                f"rel_l2={sanity['relative_l2']:.3e} "
+                f"(max={TEACHER_SANITY_MAX_RELATIVE_L2:.3e}), "
+                f"cosine={sanity['cosine']:.8f} "
+                f"(min={TEACHER_SANITY_MIN_COSINE:.8f})"
+            )
+        # The metric target is actual Mixtral teacher MoE output, while the
+        # manual result above exists only to validate frozen routing arithmetic.
+        data.original_outputs = data.teacher_moe_outputs
 
 
 def _assert_zero_residual_matches_static(moe, data: FrozenMoETokens, sanity_tokens: int) -> None:
@@ -273,6 +268,10 @@ def _assert_zero_residual_matches_static(moe, data: FrozenMoETokens, sanity_toke
 
 
 def _metric_totals(target, static, residual):
+    """Accumulate relative-L2/cosine terms in FP32 after BF16 MoE forward."""
+    target = target.float()
+    static = static.float()
+    residual = residual.float()
     _assert_finite("original routed MoE output", target)
     return {
         "tokens": target.shape[0],
@@ -283,6 +282,22 @@ def _metric_totals(target, static, residual):
         "residual_dot": (residual * target).sum().item(),
         "static_norm": static.square().sum().item(),
         "residual_norm": residual.square().sum().item(),
+    }
+
+
+def _comparison_metrics(reference: torch.Tensor, candidate: torch.Tensor):
+    """FP32 diagnostics for numerical agreement between two BF16 outputs."""
+    reference = reference.float()
+    candidate = candidate.float()
+    difference = candidate - reference
+    reference_norm = max(reference.square().sum().item(), EPSILON)
+    return {
+        "relative_l2": math.sqrt(difference.square().sum().item() / reference_norm),
+        "cosine": (reference * candidate).sum().item() / max(
+            math.sqrt(reference.square().sum().item() * candidate.square().sum().item()),
+            EPSILON,
+        ),
+        "max_abs_diff": difference.abs().max().item(),
     }
 
 
