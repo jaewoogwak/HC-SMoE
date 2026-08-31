@@ -186,6 +186,43 @@ def _compute_outputs(moe, data: FrozenMoETokens, apply_residual: bool):
 
 
 @torch.no_grad()
+def _compute_teacher_numerical_output(moe, data: FrozenMoETokens) -> torch.Tensor:
+    """Reproduce the Transformers 4.40 Mixtral BF16 MoE arithmetic for sanity."""
+    _validate_frozen_tokens(data, "teacher sanity")
+    hidden_dtype = data.hidden_states.dtype
+    output_device = _expert_device(moe.experts[0])
+    output = torch.zeros(
+        (data.token_count, data.hidden_states.shape[-1]),
+        device=output_device,
+        dtype=hidden_dtype,
+    )
+
+    for expert_index in range(moe.num_experts):
+        token_indices, route_indices = torch.where(data.expert_indices == expert_index)
+        if token_indices.numel() == 0:
+            continue
+        expert = moe.experts[expert_index]
+        expert_device = _expert_device(expert)
+        hidden_states = data.hidden_states[token_indices].to(
+            device=expert_device,
+            dtype=hidden_dtype,
+        )
+        # Match MixtralSparseMoeBlock: normalized FP32 gates are cast back to
+        # hidden dtype before multiplying the BF16 expert output.
+        routing_weights = data.routing_weights[token_indices, route_indices].to(
+            device=expert_device,
+            dtype=hidden_dtype,
+        )
+        weighted_output = expert(hidden_states) * routing_weights.unsqueeze(-1)
+        output.index_add_(
+            0,
+            token_indices.to(output_device),
+            weighted_output.to(device=output_device, dtype=hidden_dtype),
+        )
+    return output.cpu()
+
+
+@torch.no_grad()
 def materialize_original_outputs(teacher, frozen_by_layer):
     """Create the FP32 frozen-routing y_orig target and validate teacher output."""
     for index, layer in enumerate(teacher.model.layers):
@@ -193,15 +230,21 @@ def materialize_original_outputs(teacher, frozen_by_layer):
         manual_output, _ = _compute_outputs(layer.block_sparse_moe, data, apply_residual=False)
         if data.teacher_moe_outputs is None:
             raise RuntimeError("teacher MoE forward outputs were not captured")
-        # This compares the manual g1E_i1(h)+g2E_i2(h) reconstruction with the
-        # actual teacher MoE forward output.  FP32 manual accumulation is kept as
-        # the metric target, so all three reconstruction variants share one dtype.
-        torch.testing.assert_close(
-            manual_output,
-            data.teacher_moe_outputs.float(),
-            rtol=1e-2,
-            atol=2e-2,
+        teacher_numerical_output = _compute_teacher_numerical_output(
+            layer.block_sparse_moe,
+            data,
         )
+        # The teacher sanity path deliberately uses BF16 routing weights and
+        # BF16 index_add_ accumulation to match MixtralSparseMoeBlock.  Metric
+        # targets remain the separate FP32 frozen-routing reconstruction below.
+        torch.testing.assert_close(
+            teacher_numerical_output,
+            data.teacher_moe_outputs,
+            rtol=0.0,
+            atol=0.0,
+        )
+        # Metrics intentionally use FP32 manual reconstruction, not runtime
+        # BF16 output, to measure expert approximation rather than rounding.
         data.original_outputs = manual_output
 
 
