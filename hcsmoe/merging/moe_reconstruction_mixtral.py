@@ -24,6 +24,7 @@ class FrozenMoETokens:
     hidden_states: torch.Tensor
     expert_indices: torch.Tensor
     routing_weights: torch.Tensor
+    teacher_moe_outputs: Optional[torch.Tensor] = None
     original_outputs: Optional[torch.Tensor] = None
 
     @property
@@ -54,62 +55,101 @@ def _validate_frozen_tokens(data: FrozenMoETokens, name: str) -> None:
         raise AssertionError(f"{name}: expert indices must be [tokens, {TOP_K}]")
     if data.routing_weights.shape != data.expert_indices.shape:
         raise AssertionError(f"{name}: routing weights must align with expert indices")
+    if data.teacher_moe_outputs is not None and data.teacher_moe_outputs.shape != data.hidden_states.shape:
+        raise AssertionError(f"{name}: teacher MoE outputs must align with hidden states")
     _assert_finite(f"{name} hidden states", data.hidden_states)
     _assert_normalized_weights(data.routing_weights, name)
 
 
-def _capture_hook(name, limit, buffers, counts):
-    """Capture h and both teacher routes together, never by individual expert."""
+class _TokenPairReservoir:
+    """Bounded deterministic priority reservoir for complete routed tokens."""
+
+    def __init__(self, limit: int, seed: int) -> None:
+        self.limit = limit
+        self.seen = 0
+        self.generator = torch.Generator(device="cpu").manual_seed(seed)
+        self.priorities = torch.empty(0)
+        self.data = {}
+
+    def add(self, **candidate_tensors: torch.Tensor) -> None:
+        candidate_count = next(iter(candidate_tensors.values())).shape[0]
+        if any(value.shape[0] != candidate_count for value in candidate_tensors.values()):
+            raise AssertionError("all fields of a routed token pair must have the same length")
+        priorities = torch.rand(candidate_count, generator=self.generator)
+        self.seen += candidate_count
+
+        if not self.data:
+            combined = candidate_tensors
+            combined_priorities = priorities
+        else:
+            combined = {
+                name: torch.cat([self.data[name], value.cpu()])
+                for name, value in candidate_tensors.items()
+            }
+            combined_priorities = torch.cat([self.priorities, priorities])
+        selected_count = min(self.limit, combined_priorities.numel())
+        selected = torch.topk(combined_priorities, selected_count, largest=False).indices
+        self.priorities = combined_priorities[selected]
+        self.data = {name: value[selected] for name, value in combined.items()}
+
+
+def _capture_hook(name, reservoir: _TokenPairReservoir):
+    """Capture h, top-2 routes, and actual teacher output as one token record."""
     def hook(_module, inputs, output):
-        if counts[name] >= limit:
-            return
         if not isinstance(output, (tuple, list)) or len(output) < 2:
             raise RuntimeError(f"{name}: expected MoE output with router logits")
         hidden_states = inputs[0].detach().reshape(-1, inputs[0].shape[-1])
+        teacher_moe_outputs = output[0].detach().reshape_as(hidden_states)
         router_logits = output[1].detach().reshape(hidden_states.shape[0], -1)
         probabilities = F.softmax(router_logits, dim=-1, dtype=torch.float)
         weights, indices = torch.topk(probabilities, TOP_K, dim=-1)
         weights = weights / weights.sum(dim=-1, keepdim=True)
-        take = min(limit - counts[name], hidden_states.shape[0])
-        buffers[name]["hidden_states"].append(hidden_states[:take].cpu())
-        buffers[name]["expert_indices"].append(indices[:take].cpu())
-        buffers[name]["routing_weights"].append(weights[:take].cpu())
-        counts[name] += take
+        reservoir.add(
+            hidden_states=hidden_states.cpu(),
+            expert_indices=indices.cpu(),
+            routing_weights=weights.cpu(),
+            teacher_moe_outputs=teacher_moe_outputs.cpu(),
+        )
     return hook
 
 
 @torch.no_grad()
-def collect_frozen_moe_tokens(teacher, dataloader, token_limit: int):
-    """Run the original teacher and save its fixed h/top-2/g for each layer."""
+def collect_frozen_moe_tokens(teacher, dataloader, token_limit: int, sampling_seed: int):
+    """Run all calibration blocks, then sample complete teacher token pairs."""
     if token_limit <= 0:
         raise ValueError("--moe-reconstruction-limit must be positive")
-    buffers = defaultdict(lambda: defaultdict(list))
-    counts, names, handles = {}, [], []
+    reservoirs, names, handles = {}, [], []
     for index, layer in enumerate(teacher.model.layers):
         moe = layer.block_sparse_moe
         if moe.top_k != TOP_K:
             raise ValueError(f"Layer {index}: expected top_k={TOP_K}, got {moe.top_k}")
         name = _layer_name(index)
-        counts[name] = 0
         names.append(name)
-        handles.append(moe.register_forward_hook(_capture_hook(name, token_limit, buffers, counts)))
+        reservoirs[name] = _TokenPairReservoir(token_limit, sampling_seed + index)
+        handles.append(moe.register_forward_hook(_capture_hook(name, reservoirs[name])))
     try:
         teacher.eval()
         for batch in tqdm(dataloader, desc="[MoE reconstruction] teacher C4 pairs"):
             inputs = {key: value.to(_input_device(teacher)) for key, value in batch.items() if key != "labels"}
             teacher.model(**inputs, use_cache=False, return_dict=True)
-            if all(counts[name] >= token_limit for name in names):
-                break
     finally:
         for handle in handles:
             handle.remove()
     result = {}
     for name in names:
-        if not buffers[name]["hidden_states"]:
+        reservoir = reservoirs[name]
+        if not reservoir.data:
             raise RuntimeError(f"{name}: calibration produced no tokens")
-        data = FrozenMoETokens(**{key: torch.cat(values) for key, values in buffers[name].items()})
+        data = FrozenMoETokens(**reservoir.data)
         _validate_frozen_tokens(data, name)
         result[name] = data
+    print("[MoE reconstruction] Calibration tokens seen per layer: " + ", ".join(
+        f"{index}={reservoirs[name].seen}" for index, name in enumerate(names)
+    ))
+    print("[MoE reconstruction] Selected frozen tokens per layer: " + ", ".join(
+        f"{index}={result[name].token_count}" for index, name in enumerate(names)
+    ))
+    print(f"[MoE reconstruction] Sampling seed: {sampling_seed}")
     return result
 
 
@@ -147,12 +187,46 @@ def _compute_outputs(moe, data: FrozenMoETokens, apply_residual: bool):
 
 @torch.no_grad()
 def materialize_original_outputs(teacher, frozen_by_layer):
-    """Create y_orig from original experts using the teacher's saved routes."""
+    """Create the FP32 frozen-routing y_orig target and validate teacher output."""
     for index, layer in enumerate(teacher.model.layers):
         data = frozen_by_layer[_layer_name(index)]
-        original, disabled = _compute_outputs(layer.block_sparse_moe, data, apply_residual=False)
-        torch.testing.assert_close(original, disabled, rtol=0.0, atol=0.0)
-        data.original_outputs = original
+        manual_output, _ = _compute_outputs(layer.block_sparse_moe, data, apply_residual=False)
+        if data.teacher_moe_outputs is None:
+            raise RuntimeError("teacher MoE forward outputs were not captured")
+        # This compares the manual g1E_i1(h)+g2E_i2(h) reconstruction with the
+        # actual teacher MoE forward output.  FP32 manual accumulation is kept as
+        # the metric target, so all three reconstruction variants share one dtype.
+        torch.testing.assert_close(
+            manual_output,
+            data.teacher_moe_outputs.float(),
+            rtol=1e-2,
+            atol=2e-2,
+        )
+        data.original_outputs = manual_output
+
+
+def _assert_zero_residual_matches_static(moe, data: FrozenMoETokens, sanity_tokens: int) -> None:
+    """Temporarily replace residual forward outputs with zeros without mutation."""
+    count = min(sanity_tokens, data.token_count)
+    if count == 0:
+        return
+    subset = FrozenMoETokens(
+        hidden_states=data.hidden_states[:count],
+        expert_indices=data.expert_indices[:count],
+        routing_weights=data.routing_weights[:count],
+    )
+    static_output, _ = _compute_outputs(moe, subset, apply_residual=False)
+    hooks = []
+    for residual in getattr(moe, "residual_experts", {}).values():
+        hooks.append(residual.register_forward_hook(
+            lambda _module, _inputs, output: torch.zeros_like(output)
+        ))
+    try:
+        _, zero_residual_output = _compute_outputs(moe, subset, apply_residual=True)
+    finally:
+        for hook in hooks:
+            hook.remove()
+    torch.testing.assert_close(static_output, zero_residual_output, rtol=0.0, atol=0.0)
 
 
 def _metric_totals(target, static, residual):
@@ -193,10 +267,7 @@ def evaluate_frozen_moe_reconstruction(model, group_state, frozen_by_layer, use_
                 raise AssertionError(f"{name}: singleton expert {members[0]} has a residual")
         if data.original_outputs is None:
             raise RuntimeError(f"{name}: missing original output")
-        if sanity_tokens:
-            subset = FrozenMoETokens(data.hidden_states[:sanity_tokens], data.expert_indices[:sanity_tokens], data.routing_weights[:sanity_tokens])
-            static, disabled = _compute_outputs(layer.block_sparse_moe, subset, apply_residual=False)
-            torch.testing.assert_close(static, disabled, rtol=0.0, atol=0.0)
+        _assert_zero_residual_matches_static(layer.block_sparse_moe, data, sanity_tokens)
         static, residual = _compute_outputs(layer.block_sparse_moe, data, apply_residual=use_residual)
         if not use_residual:
             torch.testing.assert_close(static, residual, rtol=0.0, atol=0.0)

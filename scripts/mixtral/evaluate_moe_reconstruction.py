@@ -60,14 +60,32 @@ def main():
     loader = calibration_loader("c4", tokenizer, a.max_block_size, a.calibration_blocks, a.batch_size, a.num_workers, seed=a.seed)
     print(f"[MoE reconstruction] Loading original teacher: {a.model_name}")
     teacher = MixtralForCausalLM.from_pretrained(a.model_name, torch_dtype=torch.bfloat16, device_map="auto"); teacher.eval()
-    frozen = collect_frozen_moe_tokens(teacher, loader, a.moe_reconstruction_limit)
+    frozen = collect_frozen_moe_tokens(
+        teacher,
+        loader,
+        a.moe_reconstruction_limit,
+        sampling_seed=a.seed,
+    )
     materialize_original_outputs(teacher, frozen)
     del teacher; gc.collect()
     if torch.cuda.is_available(): torch.cuda.empty_cache()
     model, groups = load_compressed_model_for_evaluation(a.model_name, a.static_model_path, a.group_state_path, a.use_residual, a.residual_path)
     model.eval()
     metrics = evaluate_frozen_moe_reconstruction(model, groups, frozen, a.use_residual, a.sanity_tokens)
-    metrics["config"] = {"model_name": a.model_name, "static_model_path": a.static_model_path, "group_state_path": a.group_state_path, "residual_path": a.residual_path, "residual_enabled": a.use_residual, "calibration_blocks": a.calibration_blocks, "max_block_size": a.max_block_size, "batch_size": a.batch_size, "seed": a.seed, "moe_reconstruction_limit": a.moe_reconstruction_limit}
+    metrics["config"] = {
+        "model_name": a.model_name,
+        "static_model_path": a.static_model_path,
+        "group_state_path": a.group_state_path,
+        "residual_path": a.residual_path,
+        "residual_enabled": a.use_residual,
+        "calibration_blocks": a.calibration_blocks,
+        "max_block_size": a.max_block_size,
+        "batch_size": a.batch_size,
+        "sampling_seed": a.seed,
+        "moe_reconstruction_limit": a.moe_reconstruction_limit,
+        "metric_accumulation_dtype": "fp32",
+        "output_definition": "frozen-routing reconstructed MoE output",
+    }
     summary = format_moe_reconstruction_summary(metrics)
     json_path, text_path = paths(a.output_path); json_path.parent.mkdir(parents=True, exist_ok=True)
     json_path.write_text(json.dumps(metrics, indent=2, sort_keys=True)); text_path.write_text(summary + "\n")
