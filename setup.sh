@@ -10,12 +10,17 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ENV_NAME="${MIXTRAL_ENV_NAME:-mixtral}"
 PYTORCH_INDEX_URL="${PYTORCH_INDEX_URL:-https://download.pytorch.org/whl/cu126}"
 
-if ! command -v conda >/dev/null 2>&1; then
+CONDA_COMMAND="${CONDA_EXE:-$(command -v conda 2>/dev/null || true)}"
+if [[ -z "$CONDA_COMMAND" && -x /opt/miniforge3/bin/conda ]]; then
+    CONDA_COMMAND=/opt/miniforge3/bin/conda
+fi
+
+if [[ -z "$CONDA_COMMAND" ]]; then
     echo "conda is required. Install Miniforge/Conda, then run this script again." >&2
     exit 1
 fi
 
-eval "$(conda shell.bash hook)"
+eval "$("$CONDA_COMMAND" shell.bash hook)"
 
 if ! conda env list | awk '{print $1}' | grep -Fxq "$ENV_NAME"; then
     echo "Creating Conda environment: $ENV_NAME"
