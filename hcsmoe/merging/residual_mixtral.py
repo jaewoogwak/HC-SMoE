@@ -135,12 +135,21 @@ def _split_indices(num_samples: int, val_ratio: float, seed: int) -> tuple[torch
     return permutation[val_count:], permutation[:val_count]
 
 
-def _parse_diagnostic_experts(spec: Optional[str]) -> set[tuple[int, int]]:
+def _parse_diagnostic_experts(spec: Optional[object]) -> set[tuple[int, int]]:
     """Parse the comma-separated ``layer.expert`` diagnostic selector."""
-    if not spec or not spec.strip():
+    if not spec:
         return set()
+    if isinstance(spec, str):
+        if not spec.strip():
+            return set()
+        items = spec.split(",")
+    elif isinstance(spec, (list, tuple)):
+        # Fire parses an unquoted ``3.4,4.6`` value into a tuple of floats.
+        items = [str(item) for item in spec]
+    else:
+        raise ValueError("--residual_diagnostic_experts must be a string or sequence of layer.expert values")
     experts = set()
-    for item in spec.split(","):
+    for item in items:
         try:
             layer, expert = (int(value.strip()) for value in item.split("."))
         except ValueError as error:
@@ -263,6 +272,82 @@ def _print_residual_diagnostic(layer: int, expert: int, epoch: int, values: Mapp
     )
 
 
+def save_residual_loss_curves(output_path: str, diagnostics: Mapping[str, object]) -> None:
+    """Save log-scale per-expert and combined batch-loss curves for diagnostics."""
+    import matplotlib
+
+    matplotlib.use("Agg")
+    from matplotlib import pyplot as plt
+
+    curve_dir = os.path.join(output_path, "residual_loss_curves")
+    os.makedirs(curve_dir, exist_ok=True)
+
+    def plotting_value(value: object) -> float:
+        return max(float(value), FP32_EPS)
+
+    def plot_validation(ax, entry: Mapping[str, object]) -> None:
+        validation = [
+            (item["end_global_step"], item["val_loss"])
+            for item in entry["epochs"]
+            if item["epoch"] > 0 and item["val_loss"] is not None
+        ]
+        if validation:
+            x_values, y_values = zip(*validation)
+            ax.scatter(x_values, [plotting_value(value) for value in y_values], marker="o", label="Validation loss", zorder=3)
+
+    for key, raw_entry in diagnostics.items():
+        entry = raw_entry
+        steps = entry["steps"]
+        layer, expert = entry["layer"], entry["expert"]
+        figure, axis = plt.subplots(figsize=(8, 4.5))
+        if steps:
+            axis.plot(
+                [item["global_step"] for item in steps],
+                [plotting_value(item["train_loss"]) for item in steps],
+                label="Train batch loss",
+            )
+        plot_validation(axis, entry)
+        for item in entry["epochs"]:
+            if item["epoch"] > 0:
+                axis.axvline(item["end_global_step"], color="gray", linestyle=":", linewidth=0.6, alpha=0.5)
+        axis.set_yscale("log")
+        axis.set_xlabel("Optimization step")
+        axis.set_ylabel("Gate-weighted MSE loss")
+        axis.set_title(f"Residual Training Loss — Layer {layer} Expert {expert}")
+        if steps or any(item["epoch"] > 0 for item in entry["epochs"]):
+            axis.legend()
+        figure.tight_layout()
+        path = os.path.join(curve_dir, f"layer_{layer}_expert_{expert}.png")
+        figure.savefig(path, dpi=150)
+        plt.close(figure)
+        print(f"[ResidualDiag] Saved loss curve: {path}")
+
+    figure, axis = plt.subplots(figsize=(9, 5))
+    has_lines = False
+    for key, raw_entry in diagnostics.items():
+        entry = raw_entry
+        steps = entry["steps"]
+        if not steps:
+            continue
+        axis.plot(
+            [item["global_step"] for item in steps],
+            [plotting_value(item["train_loss"]) for item in steps],
+            label=f"L{entry['layer']}-E{entry['expert']}",
+        )
+        has_lines = True
+    axis.set_yscale("log")
+    axis.set_xlabel("Optimization step")
+    axis.set_ylabel("Gate-weighted MSE loss")
+    axis.set_title("Residual Training Loss — All Diagnostic Experts")
+    if has_lines:
+        axis.legend()
+    figure.tight_layout()
+    path = os.path.join(curve_dir, "all_diagnostic_experts.png")
+    figure.savefig(path, dpi=150)
+    plt.close(figure)
+    print(f"[ResidualDiag] Saved loss curve: {path}")
+
+
 @torch.no_grad()
 def _reconstruction_metrics(static_expert, residual, data, indices, batch_size: int) -> Dict[str, float]:
     """Evaluate M_g and M_g + R_i against stored E_i(h), in bounded batches."""
@@ -332,14 +417,15 @@ def train_residuals(
         best_state, best_val, stale_steps = None, float("inf"), 0
         best_epoch = None
         diagnostic_entry = None
+        global_step = 0
         if (layer_idx, expert_idx) in diagnostic_experts:
             if diagnostics is None:  # Kept for type checkers; initialized above when needed.
                 raise AssertionError("Diagnostic output was not initialized")
-            diagnostic_entry = {"layer": layer_idx, "expert": expert_idx, "epochs": []}
+            diagnostic_entry = {"layer": layer_idx, "expert": expert_idx, "epochs": [], "steps": []}
             diagnostics[key] = diagnostic_entry
             residual.eval()
             epoch_zero = _residual_diagnostic_metrics(static_expert, residual, data, val_idx, residual_batch_size)
-            epoch_zero.update({"epoch": 0, "train_loss": None})
+            epoch_zero.update({"epoch": 0, "train_loss": None, "end_global_step": -1})
             diagnostic_entry["epochs"].append(epoch_zero)
             _print_residual_diagnostic(layer_idx, expert_idx, 0, epoch_zero)
         for epoch in range(residual_epochs):
@@ -358,10 +444,24 @@ def train_residuals(
                 optimizer.zero_grad(set_to_none=True)
                 loss = (gate.square().unsqueeze(-1) * (residual(residual_input) - (original - static)).square()).mean()
                 loss.backward()
-                optimizer.step()
                 if diagnostic_entry is not None:
-                    train_loss_sum += loss.detach().item() * indices.numel()
+                    train_loss = loss.detach().item()
+                    grad_norm_squared = sum(
+                        parameter.grad.detach().float().square().sum().item()
+                        for parameter in residual.parameters()
+                        if parameter.grad is not None
+                    )
+                    diagnostic_entry["steps"].append({
+                        "global_step": global_step,
+                        "epoch": epoch + 1,
+                        "step_in_epoch": start // residual_batch_size,
+                        "train_loss": train_loss,
+                        "grad_norm": grad_norm_squared ** 0.5,
+                    })
+                    train_loss_sum += train_loss * indices.numel()
                     train_sample_count += indices.numel()
+                optimizer.step()
+                global_step += 1
             residual.eval()
             if val_idx.numel():
                 with torch.no_grad():
@@ -385,6 +485,7 @@ def train_residuals(
                     "epoch": epoch + 1,
                     "train_loss": train_loss_sum / train_sample_count if train_sample_count else None,
                     "val_loss": val_loss,
+                    "end_global_step": global_step - 1,
                 })
                 diagnostic_entry["epochs"].append(epoch_metrics)
                 _print_residual_diagnostic(layer_idx, expert_idx, epoch + 1, epoch_metrics)

@@ -28,7 +28,7 @@ accelerate launch --config_file static/finetune_config.yaml \
   --residual_width=256 \
   --residual_data_limit=4096 \
   --residual_epochs=3 \
-  --residual_lr=0.001 \
+  --residual_lr=0.0001 \
   --residual_batch_size=64 \
   --residual_val_ratio=0.1 \
   --residual_patience=2 \

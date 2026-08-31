@@ -31,8 +31,10 @@ from hcsmoe.merging.grouping_mixtral import ExpertsGrouperForMixtral
 from hcsmoe.merging.grouping_mixtral import merge_by_groups_with_usage_weighted, merge_by_groups_within_and_across_models
 from hcsmoe.merging.residual_mixtral import (
     collect_residual_calibration,
+    save_residual_loss_curves,
     save_residual_artifacts,
     train_residuals,
+    _parse_diagnostic_experts,
 )
 from hcsmoe.models.mixtral.utils import (
     expand_shared_expert_state_dict,
@@ -452,7 +454,7 @@ def run_hcsmoe(
     torch.cuda.empty_cache()
 
     if residual_width > 0:
-        residual_diagnostics = {} if residual_diagnostic_experts and residual_diagnostic_experts.strip() else None
+        residual_diagnostics = {} if _parse_diagnostic_experts(residual_diagnostic_experts) else None
         residual_metrics = train_residuals(
             model=model,
             group_state=group_state,
@@ -485,6 +487,7 @@ def run_hcsmoe(
             with open(diagnostic_path, "w") as handle:
                 json.dump(residual_diagnostics, handle, indent=2, sort_keys=True)
             print(f"[ResidualDiag] Saved training diagnostics in {diagnostic_path}")
+            save_residual_loss_curves(output_path, residual_diagnostics)
         print(f"[Residual] Saved residual artifacts in {output_path}")
 
     ### 6. Evaluation

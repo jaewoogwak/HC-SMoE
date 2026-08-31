@@ -1,11 +1,18 @@
 """CPU smoke tests matching the HF MixtralSparseMoeBlock residual interface."""
 
+import os
+import tempfile
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from types import SimpleNamespace
 
-from hcsmoe.merging.residual_mixtral import _expert_device, train_residuals
+from hcsmoe.merging.residual_mixtral import (
+    _expert_device,
+    _parse_diagnostic_experts,
+    save_residual_loss_curves,
+    train_residuals,
+)
 from hcsmoe.models.mixtral.utils import (
     attach_residual_experts,
     bind_shared_experts_from_group_state,
@@ -176,8 +183,12 @@ def test_residual_training_diagnostics_include_zero_residual_epoch():
     entry = diagnostics["0.0"]
     assert [item["epoch"] for item in entry["epochs"]] == [0, 1, 2]
     assert entry["epochs"][0]["train_loss"] is None
+    assert entry["epochs"][0]["end_global_step"] == -1
     assert entry["epochs"][0]["residual_relative_to_original"] == 0.0
     assert entry["epochs"][0]["token_residual_ratio"]["max"] == 0.0
+    assert [item["global_step"] for item in entry["steps"]] == list(range(len(entry["steps"])))
+    assert all(item["grad_norm"] >= 0.0 for item in entry["steps"])
+    assert entry["epochs"][-1]["end_global_step"] == entry["steps"][-1]["global_step"]
     assert entry["best_trained_epoch"] in (1, 2)
     assert "did_training_beat_static_baseline" in entry
 
@@ -225,6 +236,26 @@ def test_residual_diagnostics_do_not_change_training_result():
     assert baseline_metrics == instrumented_metrics
     for name, tensor in residual_state_dict(baseline, 3)["state_dict"].items():
         assert torch.equal(tensor, residual_state_dict(instrumented, 3)["state_dict"][name])
+
+
+def test_residual_loss_curve_output_and_fire_tuple_selector():
+    assert _parse_diagnostic_experts((3.4, 4.6)) == {(3, 4), (4, 6)}
+    diagnostics = {
+        "3.4": {
+            "layer": 3,
+            "expert": 4,
+            "steps": [{"global_step": 0, "train_loss": 1e-3}],
+            "epochs": [
+                {"epoch": 0, "end_global_step": -1, "val_loss": 1e-3},
+                {"epoch": 1, "end_global_step": 0, "val_loss": 2e-3},
+            ],
+        }
+    }
+    with tempfile.TemporaryDirectory() as output_path:
+        save_residual_loss_curves(output_path, diagnostics)
+        curve_dir = os.path.join(output_path, "residual_loss_curves")
+        assert os.path.isfile(os.path.join(curve_dir, "layer_3_expert_4.png"))
+        assert os.path.isfile(os.path.join(curve_dir, "all_diagnostic_experts.png"))
 
 
 def test_group_binding_restores_unique_expert_topology():
