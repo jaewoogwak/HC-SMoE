@@ -431,6 +431,91 @@ def _residual_magnitude(totals):
     }
 
 
+def _expert_diagnostics(data, static_experts, residual_experts, num_experts):
+    """Compute route-occurrence diagnostics without additional expert forwards."""
+    if data.teacher_expert_outputs is None:
+        raise RuntimeError("missing frozen original expert outputs for diagnostics")
+    diagnostics = {}
+    static_weighted_error = 0.0
+    residual_weighted_error = 0.0
+
+    for expert_index in range(num_experts):
+        token_indices, route_indices = torch.where(data.expert_indices == expert_index)
+        route_count = int(token_indices.numel())
+        if route_count == 0:
+            diagnostics[str(expert_index)] = {"routes": 0}
+            continue
+
+        original = data.teacher_expert_outputs[token_indices, route_indices].float()
+        static = static_experts[token_indices, route_indices].float()
+        residual = residual_experts[token_indices, route_indices].float()
+        residual_value = residual - static
+        gates = data.routing_weights[token_indices, route_indices].float()
+
+        original_energy = original.square().sum().item()
+        static_energy = static.square().sum().item()
+        static_error = (static - original).square().sum().item()
+        residual_error = (residual - original).square().sum().item()
+        residual_energy = residual_value.square().sum().item()
+        weighted_original_energy = (gates.square().unsqueeze(-1) * original.square()).sum().item()
+        weighted_static_error = (gates.square().unsqueeze(-1) * (static - original).square()).sum().item()
+        weighted_residual_error = (gates.square().unsqueeze(-1) * (residual - original).square()).sum().item()
+        static_relative_l2 = math.sqrt(static_error / max(original_energy, EPSILON))
+        residual_relative_l2 = math.sqrt(residual_error / max(original_energy, EPSILON))
+
+        diagnostics[str(expert_index)] = {
+            "routes": route_count,
+            "static_relative_l2": static_relative_l2,
+            "residual_relative_l2": residual_relative_l2,
+            "relative_l2_improvement_percent": (
+                100.0 * (static_relative_l2 - residual_relative_l2)
+                / max(static_relative_l2, EPSILON)
+            ),
+            "residual_relative_to_original": math.sqrt(
+                residual_energy / max(original_energy, EPSILON)
+            ),
+            "residual_relative_to_static": math.sqrt(
+                residual_energy / max(static_energy, EPSILON)
+            ),
+            "weighted_static_relative_l2": math.sqrt(
+                weighted_static_error / max(weighted_original_energy, EPSILON)
+            ),
+            "weighted_residual_relative_l2": math.sqrt(
+                weighted_residual_error / max(weighted_original_energy, EPSILON)
+            ),
+        }
+        static_weighted_error += weighted_static_error
+        residual_weighted_error += weighted_residual_error
+    return diagnostics, static_weighted_error, residual_weighted_error
+
+
+def _assert_expert_self_matches_decomposition(static_error, residual_error, decomposition):
+    """Self terms equal the sum of gate-squared routed expert errors."""
+    if not math.isclose(static_error, decomposition["static_self_raw"], rel_tol=1e-5, abs_tol=1e-5):
+        raise AssertionError("static expert diagnostics do not sum to decomposition self term")
+    if not math.isclose(residual_error, decomposition["residual_self_raw"], rel_tol=1e-5, abs_tol=1e-5):
+        raise AssertionError("residual expert diagnostics do not sum to decomposition self term")
+
+
+def _expert_diagnostic_summary(diagnostics):
+    active = [(int(index), value) for index, value in diagnostics.items() if value["routes"] > 0]
+    if not active:
+        return {"improved_experts": 0, "degraded_experts": 0}
+    worst = max(active, key=lambda item: item[1]["residual_relative_l2"])
+    largest_original = max(active, key=lambda item: item[1]["residual_relative_to_original"])
+    largest_static = max(active, key=lambda item: item[1]["residual_relative_to_static"])
+    return {
+        "worst_residual_relative_l2_expert": worst[0],
+        "worst_residual_relative_l2": worst[1]["residual_relative_l2"],
+        "largest_residual_relative_to_original_expert": largest_original[0],
+        "largest_residual_relative_to_original": largest_original[1]["residual_relative_to_original"],
+        "largest_residual_relative_to_static_expert": largest_static[0],
+        "largest_residual_relative_to_static": largest_static[1]["residual_relative_to_static"],
+        "improved_experts": sum(value["relative_l2_improvement_percent"] > 0 for _, value in active),
+        "degraded_experts": sum(value["relative_l2_improvement_percent"] < 0 for _, value in active),
+    }
+
+
 @torch.no_grad()
 def evaluate_frozen_moe_reconstruction(model, group_state, frozen_by_layer, use_residual, sanity_tokens=8):
     """Measure static/residual reconstruction against y_orig, layer by layer."""
@@ -477,8 +562,21 @@ def evaluate_frozen_moe_reconstruction(model, group_state, frozen_by_layer, use_
             decomposition_totals[subset_name] = subset_totals
             decomposition[subset_name] = _normalized_decomposition(subset_totals)
             _add_totals(aggregate_decomposition[subset_name], subset_totals)
+        expert_diagnostics, static_self, residual_self = _expert_diagnostics(
+            data,
+            static_experts,
+            residual_experts,
+            layer.block_sparse_moe.num_experts,
+        )
+        _assert_expert_self_matches_decomposition(
+            static_self,
+            residual_self,
+            decomposition_totals["all"],
+        )
         layer_metrics["decomposition"] = decomposition
         layer_metrics["residual_magnitude"] = _residual_magnitude(decomposition_totals["all"])
+        layer_metrics["expert_diagnostics"] = expert_diagnostics
+        layer_metrics["expert_diagnostic_summary"] = _expert_diagnostic_summary(expert_diagnostics)
         layers[str(index)] = layer_metrics
         for key, value in totals.items():
             aggregate[key] += value
@@ -491,6 +589,54 @@ def evaluate_frozen_moe_reconstruction(model, group_state, frozen_by_layer, use_
     }
     result["residual_magnitude"] = _residual_magnitude(aggregate_decomposition["all"])
     return {"layers": layers, "aggregate": result}
+
+
+def _format_expert_value(value, precision=".4f"):
+    return "N/A" if value is None else format(value, precision)
+
+
+def _append_expert_diagnostics(lines, layer_index, values):
+    """Append all experts, including zero-route experts, as a compact table."""
+    lines.append(f"Expert diagnostics [Layer {layer_index}]")
+    lines.append("Expert Routes StaticRelL2 ResidualRelL2 Improve% R/E R/M WStatic WResidual")
+    for expert_index in sorted(values["expert_diagnostics"], key=int):
+        diagnostic = values["expert_diagnostics"][expert_index]
+        if diagnostic["routes"] == 0:
+            lines.append(f"{expert_index:<6} {0:<6} N/A N/A N/A N/A N/A N/A N/A")
+            continue
+        lines.append(
+            "{expert:<6} {routes:<6} {static:<11} {residual:<13} {improvement:<9} "
+            "{relative_original:<8} {relative_static:<8} {weighted_static:<8} {weighted_residual:<8}".format(
+                expert=expert_index,
+                routes=diagnostic["routes"],
+                static=_format_expert_value(diagnostic["static_relative_l2"]),
+                residual=_format_expert_value(diagnostic["residual_relative_l2"]),
+                improvement=_format_expert_value(diagnostic["relative_l2_improvement_percent"], "+.1f"),
+                relative_original=_format_expert_value(diagnostic["residual_relative_to_original"]),
+                relative_static=_format_expert_value(diagnostic["residual_relative_to_static"]),
+                weighted_static=_format_expert_value(diagnostic["weighted_static_relative_l2"]),
+                weighted_residual=_format_expert_value(diagnostic["weighted_residual_relative_l2"]),
+            )
+        )
+    summary = values["expert_diagnostic_summary"]
+    lines.extend([
+        f"Expert diagnostic summary [Layer {layer_index}]",
+        "  worst residual rel_L2: expert {expert} = {value:.6f}".format(
+            expert=summary["worst_residual_relative_l2_expert"],
+            value=summary["worst_residual_relative_l2"],
+        ),
+        "  largest R/E:           expert {expert} = {value:.6f}".format(
+            expert=summary["largest_residual_relative_to_original_expert"],
+            value=summary["largest_residual_relative_to_original"],
+        ),
+        "  largest R/M:           expert {expert} = {value:.6f}".format(
+            expert=summary["largest_residual_relative_to_static_expert"],
+            value=summary["largest_residual_relative_to_static"],
+        ),
+        f"  improved experts:      {summary['improved_experts']}/8",
+        f"  degraded experts:      {summary['degraded_experts']}/8",
+        "",
+    ])
 
 
 def format_moe_reconstruction_summary(metrics):
@@ -515,6 +661,7 @@ def format_moe_reconstruction_summary(metrics):
             f"  ||R|| / ||M|| = {magnitude['relative_to_static']:.6e}",
             "",
         ])
+        _append_expert_diagnostics(lines, index, values)
     values = metrics["aggregate"]
     lines.extend(["Aggregate", f"Static   rel_L2={values['static_relative_l2']:.6f} cosine={values['static_cosine']:.6f}", f"Residual rel_L2={values['residual_relative_l2']:.6f} cosine={values['residual_cosine']:.6f}", "Improvement:", f"  relative_L2: {values['relative_l2_improvement_percent']:.2f}%"])
     for subset_name, title in (("all", "All"), ("same_group", "Same-group"), ("different_group", "Different-group")):
