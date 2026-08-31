@@ -431,19 +431,25 @@ def _residual_magnitude(totals):
     }
 
 
-def _expert_diagnostics(data, static_experts, residual_experts, num_experts):
+def _expert_diagnostics(data, static_experts, residual_experts, group_labels, num_experts):
     """Compute route-occurrence diagnostics without additional expert forwards."""
     if data.teacher_expert_outputs is None:
         raise RuntimeError("missing frozen original expert outputs for diagnostics")
     diagnostics = {}
+    group_sizes = {
+        int(group): int((group_labels == group).sum().item())
+        for group in group_labels.unique()
+    }
     static_weighted_error = 0.0
     residual_weighted_error = 0.0
 
     for expert_index in range(num_experts):
         token_indices, route_indices = torch.where(data.expert_indices == expert_index)
         route_count = int(token_indices.numel())
+        group = int(group_labels[expert_index].item())
+        base = {"group": group, "group_size": group_sizes[group], "routes": route_count}
         if route_count == 0:
-            diagnostics[str(expert_index)] = {"routes": 0}
+            diagnostics[str(expert_index)] = base
             continue
 
         original = data.teacher_expert_outputs[token_indices, route_indices].float()
@@ -464,7 +470,7 @@ def _expert_diagnostics(data, static_experts, residual_experts, num_experts):
         residual_relative_l2 = math.sqrt(residual_error / max(original_energy, EPSILON))
 
         diagnostics[str(expert_index)] = {
-            "routes": route_count,
+            **base,
             "static_relative_l2": static_relative_l2,
             "residual_relative_l2": residual_relative_l2,
             "relative_l2_improvement_percent": (
@@ -566,6 +572,7 @@ def evaluate_frozen_moe_reconstruction(model, group_state, frozen_by_layer, use_
             data,
             static_experts,
             residual_experts,
+            group_state[name],
             layer.block_sparse_moe.num_experts,
         )
         _assert_expert_self_matches_decomposition(
@@ -598,16 +605,21 @@ def _format_expert_value(value, precision=".4f"):
 def _append_expert_diagnostics(lines, layer_index, values):
     """Append all experts, including zero-route experts, as a compact table."""
     lines.append(f"Expert diagnostics [Layer {layer_index}]")
-    lines.append("Expert Routes StaticRelL2 ResidualRelL2 Improve% R/E R/M WStatic WResidual")
+    lines.append("Expert Group Size Routes StaticRelL2 ResidualRelL2 Improve% R/E R/M WStatic WResidual")
     for expert_index in sorted(values["expert_diagnostics"], key=int):
         diagnostic = values["expert_diagnostics"][expert_index]
         if diagnostic["routes"] == 0:
-            lines.append(f"{expert_index:<6} {0:<6} N/A N/A N/A N/A N/A N/A N/A")
+            lines.append(
+                f"{expert_index:<6} {diagnostic['group']:<5} {diagnostic['group_size']:<4} "
+                f"{0:<6} N/A N/A N/A N/A N/A N/A N/A"
+            )
             continue
         lines.append(
-            "{expert:<6} {routes:<6} {static:<11} {residual:<13} {improvement:<9} "
+            "{expert:<6} {group:<5} {group_size:<4} {routes:<6} {static:<11} {residual:<13} {improvement:<9} "
             "{relative_original:<8} {relative_static:<8} {weighted_static:<8} {weighted_residual:<8}".format(
                 expert=expert_index,
+                group=diagnostic["group"],
+                group_size=diagnostic["group_size"],
                 routes=diagnostic["routes"],
                 static=_format_expert_value(diagnostic["static_relative_l2"]),
                 residual=_format_expert_value(diagnostic["residual_relative_l2"]),
