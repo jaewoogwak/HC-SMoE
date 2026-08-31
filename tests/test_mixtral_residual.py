@@ -5,7 +5,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from types import SimpleNamespace
 
-from hcsmoe.merging.residual_mixtral import _expert_device
+from hcsmoe.merging.residual_mixtral import _expert_device, train_residuals
 from hcsmoe.models.mixtral.utils import (
     attach_residual_experts,
     bind_shared_experts_from_group_state,
@@ -140,6 +140,91 @@ def test_offloaded_meta_expert_uses_accelerate_execution_device():
     expert._hf_hook = SimpleNamespace(execution_device=torch.device("cpu"))
 
     assert _expert_device(expert) == torch.device("cpu")
+
+
+def test_residual_training_diagnostics_include_zero_residual_epoch():
+    torch.manual_seed(7)
+    group_state = {"model.layers.0.block_sparse_moe": torch.tensor([0, 0, 0, 0, 1, 2, 2, 2])}
+    model = _make_static_model().eval()
+    inputs = torch.randn(10, 4)
+    static = model.model.layers[0].block_sparse_moe.experts[0](inputs).detach()
+    calibration = {
+        "0.0": {
+            "hidden_states": inputs,
+            "routing_weights": torch.full((10,), 0.5),
+            "original_outputs": static + 0.1,
+        }
+    }
+    diagnostics = {}
+
+    metrics = train_residuals(
+        model=model,
+        group_state=group_state,
+        calibration=calibration,
+        residual_width=3,
+        residual_epochs=2,
+        residual_lr=1e-3,
+        residual_batch_size=3,
+        residual_val_ratio=0.2,
+        residual_patience=2,
+        seed=0,
+        residual_diagnostic_experts="0.0",
+        diagnostics=diagnostics,
+    )
+
+    assert "diagnostics" not in metrics
+    entry = diagnostics["0.0"]
+    assert [item["epoch"] for item in entry["epochs"]] == [0, 1, 2]
+    assert entry["epochs"][0]["train_loss"] is None
+    assert entry["epochs"][0]["residual_relative_to_original"] == 0.0
+    assert entry["epochs"][0]["token_residual_ratio"]["max"] == 0.0
+    assert entry["best_trained_epoch"] in (1, 2)
+    assert "did_training_beat_static_baseline" in entry
+
+
+def test_residual_diagnostics_do_not_change_training_result():
+    torch.manual_seed(17)
+    group_state = {"model.layers.0.block_sparse_moe": torch.tensor([0, 0, 0, 0, 1, 2, 2, 2])}
+    source = _make_static_model().eval()
+    model_state = source.state_dict()
+    inputs = torch.randn(10, 4)
+    static = source.model.layers[0].block_sparse_moe.experts[0](inputs).detach()
+    calibration = {
+        "0.0": {
+            "hidden_states": inputs,
+            "routing_weights": torch.full((10,), 0.5),
+            "original_outputs": static + 0.1,
+        }
+    }
+    kwargs = dict(
+        group_state=group_state,
+        calibration=calibration,
+        residual_width=3,
+        residual_epochs=2,
+        residual_lr=1e-3,
+        residual_batch_size=3,
+        residual_val_ratio=0.2,
+        residual_patience=2,
+        seed=0,
+    )
+    baseline, instrumented = _make_static_model().eval(), _make_static_model().eval()
+    baseline.load_state_dict(model_state)
+    instrumented.load_state_dict(model_state)
+
+    torch.manual_seed(19)
+    baseline_metrics = train_residuals(model=baseline, **kwargs)
+    diagnostics = {}
+    torch.manual_seed(19)
+    instrumented_metrics = train_residuals(
+        model=instrumented,
+        residual_diagnostic_experts="0.0",
+        diagnostics=diagnostics,
+        **kwargs,
+    )
+
+    assert baseline_metrics == instrumented_metrics
+    for name, tensor in residual_state_dict(baseline, 3)["state_dict"].items():
+        assert torch.equal(tensor, residual_state_dict(instrumented, 3)["state_dict"][name])
 
 
 def test_group_binding_restores_unique_expert_topology():

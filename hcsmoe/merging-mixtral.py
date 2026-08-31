@@ -220,6 +220,7 @@ def run_hcsmoe(
         residual_batch_size: Optional[int] = 64,
         residual_val_ratio: Optional[float] = 0.1,
         residual_patience: Optional[int] = 2,
+        residual_diagnostic_experts: Optional[str] = "",
         residual_eval_only: Optional[bool] = False,
         residual_path: Optional[str] = None,
         group_state_path: Optional[str] = None,
@@ -451,6 +452,7 @@ def run_hcsmoe(
     torch.cuda.empty_cache()
 
     if residual_width > 0:
+        residual_diagnostics = {} if residual_diagnostic_experts and residual_diagnostic_experts.strip() else None
         residual_metrics = train_residuals(
             model=model,
             group_state=group_state,
@@ -462,6 +464,8 @@ def run_hcsmoe(
             residual_val_ratio=residual_val_ratio,
             residual_patience=residual_patience,
             seed=seed,
+            residual_diagnostic_experts=residual_diagnostic_experts,
+            diagnostics=residual_diagnostics,
         )
         residual_config = {
             "residual_width": residual_width,
@@ -476,6 +480,11 @@ def run_hcsmoe(
             "model_name": model_name,
         }
         save_residual_artifacts(output_path, model, residual_width, residual_metrics, residual_config)
+        if residual_diagnostics is not None:
+            diagnostic_path = os.path.join(output_path, "residual_training_diagnostics.json")
+            with open(diagnostic_path, "w") as handle:
+                json.dump(residual_diagnostics, handle, indent=2, sort_keys=True)
+            print(f"[ResidualDiag] Saved training diagnostics in {diagnostic_path}")
         print(f"[Residual] Saved residual artifacts in {output_path}")
 
     ### 6. Evaluation

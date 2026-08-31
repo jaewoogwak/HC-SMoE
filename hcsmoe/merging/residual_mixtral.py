@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import os
 from collections import defaultdict
-from typing import Dict, Mapping
+from typing import Dict, Mapping, MutableMapping, Optional
 
 import torch
 import torch.nn.functional as F
@@ -135,6 +135,134 @@ def _split_indices(num_samples: int, val_ratio: float, seed: int) -> tuple[torch
     return permutation[val_count:], permutation[:val_count]
 
 
+def _parse_diagnostic_experts(spec: Optional[str]) -> set[tuple[int, int]]:
+    """Parse the comma-separated ``layer.expert`` diagnostic selector."""
+    if not spec or not spec.strip():
+        return set()
+    experts = set()
+    for item in spec.split(","):
+        try:
+            layer, expert = (int(value.strip()) for value in item.split("."))
+        except ValueError as error:
+            raise ValueError(
+                "--residual_diagnostic_experts must be a comma-separated list "
+                "of layer.expert values, e.g. 3.4,4.6"
+            ) from error
+        if layer < 0 or expert < 0:
+            raise ValueError("--residual_diagnostic_experts indices must be non-negative")
+        experts.add((layer, expert))
+    return experts
+
+
+def _quantile_summary(values: torch.Tensor, quantiles: Mapping[str, float], include_mean: bool = False) -> Dict[str, Optional[float]]:
+    """Return JSON-ready FP32 summary statistics for a CPU or GPU vector."""
+    if values.numel() == 0:
+        result = {name: None for name in quantiles}
+        if include_mean:
+            result["mean"] = None
+        return result
+    values = values.detach().float().cpu()
+    result = {name: float(torch.quantile(values, quantile).item()) for name, quantile in quantiles.items()}
+    if include_mean:
+        result = {"mean": float(values.mean().item()), **result}
+    return result
+
+
+@torch.no_grad()
+def _residual_diagnostic_metrics(static_expert, residual, data, indices, batch_size: int) -> Dict[str, object]:
+    """Compute bounded-batch FP32 validation diagnostics for one residual expert."""
+    if indices.numel() == 0:
+        empty = {"mean": None, "p50": None, "p90": None, "p95": None, "p99": None, "max": None}
+        return {
+            "val_loss": None,
+            "static_relative_l2": None,
+            "residual_relative_l2": None,
+            "weighted_static_relative_l2": None,
+            "weighted_residual_relative_l2": None,
+            "residual_relative_to_original": None,
+            "residual_relative_to_static": None,
+            "token_residual_ratio": empty,
+            "original_norm": {"p01": None, "p50": None, "p99": None, "min": None, "max": None},
+            "residual_norm": {"p50": None, "p95": None, "p99": None, "max": None},
+        }
+
+    device, static_dtype = _expert_device(static_expert), static_expert.w1.weight.dtype
+    totals = defaultdict(float)
+    token_ratios, original_norms, residual_norms = [], [], []
+    for start in range(0, indices.numel(), batch_size):
+        batch_indices = indices[start:start + batch_size]
+        static_input = data["hidden_states"][batch_indices].to(device=device, dtype=static_dtype)
+        static = static_expert(static_input).float()
+        original = data["original_outputs"][batch_indices].to(device=device, dtype=torch.float32)
+        residual_input = data["hidden_states"][batch_indices].to(device=device, dtype=torch.float32)
+        residual_output = residual(residual_input).float()
+        gate = data["routing_weights"][batch_indices].to(device=device, dtype=torch.float32)
+
+        static_error = static - original
+        residual_error = static + residual_output - original
+        weight = gate.square().unsqueeze(-1)
+        totals["val_loss_sum"] += (weight * (residual_output - (original - static)).square()).sum().item()
+        totals["val_loss_count"] += residual_output.numel()
+        totals["static_squared_error"] += static_error.square().sum().item()
+        totals["residual_squared_error"] += residual_error.square().sum().item()
+        totals["original_squared_norm"] += original.square().sum().item()
+        totals["static_squared_norm"] += static.square().sum().item()
+        totals["residual_squared_norm"] += residual_output.square().sum().item()
+        totals["weighted_static_squared_error"] += (weight * static_error.square()).sum().item()
+        totals["weighted_residual_squared_error"] += (weight * residual_error.square()).sum().item()
+        totals["weighted_original_squared_norm"] += (weight * original.square()).sum().item()
+
+        original_token_norm = original.norm(dim=-1)
+        residual_token_norm = residual_output.norm(dim=-1)
+        token_ratios.append((residual_token_norm / original_token_norm.clamp_min(1e-8)).cpu())
+        original_norms.append(original_token_norm.cpu())
+        residual_norms.append(residual_token_norm.cpu())
+
+    original_squared_norm = max(totals["original_squared_norm"], FP32_EPS)
+    static_squared_norm = max(totals["static_squared_norm"], FP32_EPS)
+    weighted_original_squared_norm = max(totals["weighted_original_squared_norm"], FP32_EPS)
+    original_norm = torch.cat(original_norms)
+    residual_norm = torch.cat(residual_norms)
+    return {
+        "val_loss": totals["val_loss_sum"] / totals["val_loss_count"],
+        "static_relative_l2": (totals["static_squared_error"] / original_squared_norm) ** 0.5,
+        "residual_relative_l2": (totals["residual_squared_error"] / original_squared_norm) ** 0.5,
+        "weighted_static_relative_l2": (totals["weighted_static_squared_error"] / weighted_original_squared_norm) ** 0.5,
+        "weighted_residual_relative_l2": (totals["weighted_residual_squared_error"] / weighted_original_squared_norm) ** 0.5,
+        "residual_relative_to_original": (totals["residual_squared_norm"] / original_squared_norm) ** 0.5,
+        "residual_relative_to_static": (totals["residual_squared_norm"] / static_squared_norm) ** 0.5,
+        "token_residual_ratio": _quantile_summary(
+            torch.cat(token_ratios), {"p50": 0.50, "p90": 0.90, "p95": 0.95, "p99": 0.99, "max": 1.0}, include_mean=True
+        ),
+        "original_norm": {
+            **_quantile_summary(original_norm, {"p01": 0.01, "p50": 0.50, "p99": 0.99, "max": 1.0}),
+            "min": float(original_norm.min().item()),
+        },
+        "residual_norm": _quantile_summary(residual_norm, {"p50": 0.50, "p95": 0.95, "p99": 0.99, "max": 1.0}),
+    }
+
+
+def _print_residual_diagnostic(layer: int, expert: int, epoch: int, values: Mapping[str, object]) -> None:
+    def display(value: object) -> str:
+        return "N/A" if value is None else f"{float(value):.6g}"
+
+    print(f"[ResidualDiag] layer={layer} expert={expert} epoch={epoch}")
+    print(f"  train_loss={display(values['train_loss'])}")
+    print(f"  val_loss={display(values['val_loss'])}")
+    print(
+        "  static_rel_l2={static} residual_rel_l2={residual} "
+        "weighted_static={weighted_static} weighted_residual={weighted_residual} "
+        "R/E={residual_original} R/M={residual_static}".format(
+            static=display(values["static_relative_l2"]),
+            residual=display(values["residual_relative_l2"]),
+            weighted_static=display(values["weighted_static_relative_l2"]),
+            weighted_residual=display(values["weighted_residual_relative_l2"]),
+            residual_original=display(values["residual_relative_to_original"]),
+            residual_static=display(values["residual_relative_to_static"]),
+        )
+    )
+
+
 @torch.no_grad()
 def _reconstruction_metrics(static_expert, residual, data, indices, batch_size: int) -> Dict[str, float]:
     """Evaluate M_g and M_g + R_i against stored E_i(h), in bounded batches."""
@@ -180,12 +308,17 @@ def train_residuals(
     residual_val_ratio: float,
     residual_patience: int,
     seed: int,
+    residual_diagnostic_experts: Optional[str] = "",
+    diagnostics: Optional[MutableMapping[str, object]] = None,
 ) -> Dict[str, object]:
     """Freeze static M_g and train each R_i in FP32, one residual at a time."""
     if residual_epochs <= 0:
         raise ValueError("--residual_epochs must be positive")
     attach_residual_experts(model, group_state, residual_width)
     model.requires_grad_(False)
+    diagnostic_experts = _parse_diagnostic_experts(residual_diagnostic_experts)
+    if diagnostic_experts and diagnostics is None:
+        diagnostics = {}
     metrics: Dict[str, object] = {"experts": {}, "aggregate": {}}
     totals = defaultdict(float)
     for key, data in tqdm(calibration.items(), desc="[Residual] training experts"):
@@ -197,9 +330,23 @@ def train_residuals(
         train_idx, val_idx = _split_indices(data["hidden_states"].shape[0], residual_val_ratio, seed + layer_idx * 1000 + expert_idx)
         optimizer = torch.optim.AdamW(residual.parameters(), lr=residual_lr)
         best_state, best_val, stale_steps = None, float("inf"), 0
+        best_epoch = None
+        diagnostic_entry = None
+        if (layer_idx, expert_idx) in diagnostic_experts:
+            if diagnostics is None:  # Kept for type checkers; initialized above when needed.
+                raise AssertionError("Diagnostic output was not initialized")
+            diagnostic_entry = {"layer": layer_idx, "expert": expert_idx, "epochs": []}
+            diagnostics[key] = diagnostic_entry
+            residual.eval()
+            epoch_zero = _residual_diagnostic_metrics(static_expert, residual, data, val_idx, residual_batch_size)
+            epoch_zero.update({"epoch": 0, "train_loss": None})
+            diagnostic_entry["epochs"].append(epoch_zero)
+            _print_residual_diagnostic(layer_idx, expert_idx, 0, epoch_zero)
         for epoch in range(residual_epochs):
             residual.train()
             permutation = train_idx[torch.randperm(train_idx.numel(), generator=torch.Generator().manual_seed(seed + epoch + layer_idx * 1000 + expert_idx))]
+            train_loss_sum = 0.0
+            train_sample_count = 0
             for start in range(0, permutation.numel(), residual_batch_size):
                 indices = permutation[start:start + residual_batch_size]
                 static_input = data["hidden_states"][indices].to(device=device, dtype=static_dtype)
@@ -212,6 +359,9 @@ def train_residuals(
                 loss = (gate.square().unsqueeze(-1) * (residual(residual_input) - (original - static)).square()).mean()
                 loss.backward()
                 optimizer.step()
+                if diagnostic_entry is not None:
+                    train_loss_sum += loss.detach().item() * indices.numel()
+                    train_sample_count += indices.numel()
             residual.eval()
             if val_idx.numel():
                 with torch.no_grad():
@@ -223,15 +373,46 @@ def train_residuals(
                     val_loss = (gate.square().unsqueeze(-1) * (residual(residual_input) - (original - static)).square()).mean().item()
             else:
                 val_loss = 0.0
-            if val_loss < best_val:
+            improved = val_loss < best_val
+            if improved:
                 best_val, stale_steps = val_loss, 0
+                best_epoch = epoch + 1
                 best_state = {name: value.detach().cpu().clone() for name, value in residual.state_dict().items()}
-            else:
+            if diagnostic_entry is not None:
+                epoch_metrics = _residual_diagnostic_metrics(static_expert, residual, data, val_idx, residual_batch_size)
+                # Keep this exactly aligned with the existing checkpoint-selection loss.
+                epoch_metrics.update({
+                    "epoch": epoch + 1,
+                    "train_loss": train_loss_sum / train_sample_count if train_sample_count else None,
+                    "val_loss": val_loss,
+                })
+                diagnostic_entry["epochs"].append(epoch_metrics)
+                _print_residual_diagnostic(layer_idx, expert_idx, epoch + 1, epoch_metrics)
+            if not improved:
                 stale_steps += 1
                 if stale_steps >= residual_patience:
                     break
         residual.load_state_dict(best_state, strict=True)
         residual.eval()
+        if diagnostic_entry is not None:
+            epoch_zero = diagnostic_entry["epochs"][0]
+            best_epoch_metrics = next(item for item in diagnostic_entry["epochs"] if item["epoch"] == best_epoch)
+            diagnostic_entry.update({
+                "best_trained_epoch": best_epoch,
+                "best_trained_val_loss": best_val,
+                "epoch0_val_loss": epoch_zero["val_loss"],
+                "epoch0_weighted_rel_l2": epoch_zero["weighted_static_relative_l2"],
+                "best_trained_weighted_rel_l2": best_epoch_metrics["weighted_residual_relative_l2"],
+                "did_training_beat_static_baseline": best_val < epoch_zero["val_loss"],
+            })
+            print(
+                f"[ResidualDiag] layer={layer_idx} expert={expert_idx} "
+                f"best_trained_epoch={best_epoch} best_trained_val_loss={best_val:.6g} "
+                f"epoch0_val_loss={epoch_zero['val_loss']:.6g} "
+                f"epoch0_weighted_rel_l2={epoch_zero['weighted_static_relative_l2']:.6g} "
+                f"best_trained_weighted_rel_l2={best_epoch_metrics['weighted_residual_relative_l2']:.6g} "
+                f"did_training_beat_static_baseline={diagnostic_entry['did_training_beat_static_baseline']}"
+            )
         heldout = val_idx if val_idx.numel() else train_idx
         result = _reconstruction_metrics(static_expert, residual, data, heldout, residual_batch_size)
         result.update({
