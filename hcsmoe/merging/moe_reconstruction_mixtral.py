@@ -27,6 +27,7 @@ class FrozenMoETokens:
     expert_indices: torch.Tensor
     routing_weights: torch.Tensor
     teacher_moe_outputs: Optional[torch.Tensor] = None
+    teacher_expert_outputs: Optional[torch.Tensor] = None
     original_outputs: Optional[torch.Tensor] = None
 
     @property
@@ -168,7 +169,7 @@ def _run_runtime_module(module, hidden_states: torch.Tensor, hidden_dtype: torch
 
 
 @torch.no_grad()
-def _compute_outputs(moe, data: FrozenMoETokens, apply_residual: bool):
+def _compute_outputs(moe, data: FrozenMoETokens, apply_residual: bool, return_expert_outputs: bool = False):
     """Reconstruct static/residual MoE outputs with runtime-faithful BF16 arithmetic."""
     _validate_frozen_tokens(data, "frozen")
     hidden_dtype = data.hidden_states.dtype
@@ -176,6 +177,11 @@ def _compute_outputs(moe, data: FrozenMoETokens, apply_residual: bool):
     output_shape = (data.token_count, data.hidden_states.shape[-1])
     static = torch.zeros(output_shape, device=output_device, dtype=hidden_dtype)
     residual = torch.zeros_like(static)
+    static_expert_outputs = (
+        torch.zeros((data.token_count, TOP_K, data.hidden_states.shape[-1]), dtype=hidden_dtype)
+        if return_expert_outputs else None
+    )
+    residual_expert_outputs = torch.zeros_like(static_expert_outputs) if return_expert_outputs else None
     residual_modules = getattr(moe, "residual_experts", {})
     for expert_index in range(moe.num_experts):
         token_indices, route_indices = torch.where(data.expert_indices == expert_index)
@@ -185,6 +191,8 @@ def _compute_outputs(moe, data: FrozenMoETokens, apply_residual: bool):
         expert_values = _run_runtime_module(
             expert, data.hidden_states[token_indices], hidden_dtype
         )
+        if return_expert_outputs:
+            static_expert_outputs[token_indices, route_indices] = expert_values.cpu()
         gates = data.routing_weights[token_indices, route_indices].to(
             device=expert_values.device, dtype=hidden_dtype
         ).unsqueeze(-1)
@@ -199,6 +207,8 @@ def _compute_outputs(moe, data: FrozenMoETokens, apply_residual: bool):
             values = values + _run_runtime_module(
                 module, data.hidden_states[token_indices], hidden_dtype
             )
+        if return_expert_outputs:
+            residual_expert_outputs[token_indices, route_indices] = values.cpu()
         residual.index_add_(
             0,
             token_indices.to(output_device),
@@ -207,6 +217,8 @@ def _compute_outputs(moe, data: FrozenMoETokens, apply_residual: bool):
     static, residual = static.cpu(), residual.cpu()
     _assert_finite("static routed MoE output", static)
     _assert_finite("residual routed MoE output", residual)
+    if return_expert_outputs:
+        return static, residual, static_expert_outputs, residual_expert_outputs
     return static, residual
 
 
@@ -222,8 +234,11 @@ def materialize_original_outputs(teacher, frozen_by_layer):
         data = frozen_by_layer[_layer_name(index)]
         if data.teacher_moe_outputs is None:
             raise RuntimeError("teacher MoE forward outputs were not captured")
-        manual_output, _ = _compute_outputs(
-            layer.block_sparse_moe, data, apply_residual=False
+        manual_output, _, manual_expert_outputs, _ = _compute_outputs(
+            layer.block_sparse_moe,
+            data,
+            apply_residual=False,
+            return_expert_outputs=True,
         )
         sanity = _comparison_metrics(manual_output, data.teacher_moe_outputs)
         print(
@@ -247,6 +262,7 @@ def materialize_original_outputs(teacher, frozen_by_layer):
         # The metric target is actual Mixtral teacher MoE output; the manual
         # result above is only a frozen-routing implementation diagnostic.
         data.original_outputs = data.teacher_moe_outputs
+        data.teacher_expert_outputs = manual_expert_outputs
     _print_teacher_sanity_summary(sanity_results)
 
 
@@ -348,10 +364,82 @@ def _metrics(totals):
     }
 
 
+def _decomposition_totals(data, static_experts, residual_experts, token_mask):
+    """Aggregate top-2 self/cross error terms for one token subset in FP32."""
+    if data.teacher_expert_outputs is None:
+        raise RuntimeError("missing frozen original expert outputs for decomposition")
+    original = data.teacher_expert_outputs[token_mask].float()
+    static = static_experts[token_mask].float()
+    residual = residual_experts[token_mask].float()
+    gates = data.routing_weights[token_mask].float()
+    target = data.original_outputs[token_mask].float()
+
+    def terms(approximation):
+        error = approximation - original
+        self_term = (gates.square() * error.square().sum(dim=-1)).sum(dim=-1)
+        cross_term = 2 * gates[:, 0] * gates[:, 1] * (error[:, 0] * error[:, 1]).sum(dim=-1)
+        total_term = self_term + cross_term
+        direct_total = (gates.unsqueeze(-1) * error).sum(dim=1).square().sum(dim=-1)
+        if not torch.allclose(total_term, direct_total, rtol=1e-4, atol=1e-5):
+            raise AssertionError("top-2 decomposition does not match direct routed error")
+        return self_term.sum().item(), cross_term.sum().item(), total_term.sum().item()
+
+    static_self, static_cross, static_total = terms(static)
+    residual_self, residual_cross, residual_total = terms(residual)
+    residual_value = residual - static
+    return {
+        "tokens": int(token_mask.sum().item()),
+        "target_energy": target.square().sum().item(),
+        "static_self_raw": static_self,
+        "static_cross_raw": static_cross,
+        "static_total_raw": static_total,
+        "residual_self_raw": residual_self,
+        "residual_cross_raw": residual_cross,
+        "residual_total_raw": residual_total,
+        "residual_energy": residual_value.square().sum().item(),
+        "original_expert_energy": original.square().sum().item(),
+        "static_expert_energy": static.square().sum().item(),
+    }
+
+
+def _normalized_decomposition(totals):
+    denominator = max(totals["target_energy"], EPSILON)
+    return {
+        "tokens": int(totals["tokens"]),
+        "static_self": totals["static_self_raw"] / denominator,
+        "static_cross": totals["static_cross_raw"] / denominator,
+        "static_total": totals["static_total_raw"] / denominator,
+        "residual_self": totals["residual_self_raw"] / denominator,
+        "residual_cross": totals["residual_cross_raw"] / denominator,
+        "residual_total": totals["residual_total_raw"] / denominator,
+    }
+
+
+def _add_totals(destination, source):
+    for key, value in source.items():
+        destination[key] += value
+
+
+def _residual_magnitude(totals):
+    return {
+        "relative_to_original": math.sqrt(
+            totals["residual_energy"] / max(totals["original_expert_energy"], EPSILON)
+        ),
+        "relative_to_static": math.sqrt(
+            totals["residual_energy"] / max(totals["static_expert_energy"], EPSILON)
+        ),
+    }
+
+
 @torch.no_grad()
 def evaluate_frozen_moe_reconstruction(model, group_state, frozen_by_layer, use_residual, sanity_tokens=8):
     """Measure static/residual reconstruction against y_orig, layer by layer."""
     aggregate = defaultdict(float)
+    aggregate_decomposition = {
+        "all": defaultdict(float),
+        "same_group": defaultdict(float),
+        "different_group": defaultdict(float),
+    }
     layers = {}
     for index, layer in enumerate(model.model.layers):
         name, data = _layer_name(index), frozen_by_layer[_layer_name(index)]
@@ -361,16 +449,47 @@ def evaluate_frozen_moe_reconstruction(model, group_state, frozen_by_layer, use_
         if data.original_outputs is None:
             raise RuntimeError(f"{name}: missing original output")
         _assert_zero_residual_matches_static(layer.block_sparse_moe, data, sanity_tokens)
-        static, residual = _compute_outputs(layer.block_sparse_moe, data, apply_residual=use_residual)
+        static, residual, static_experts, residual_experts = _compute_outputs(
+            layer.block_sparse_moe,
+            data,
+            apply_residual=use_residual,
+            return_expert_outputs=True,
+        )
         if not use_residual:
             torch.testing.assert_close(static, residual, rtol=0.0, atol=0.0)
         totals = _metric_totals(data.original_outputs, static, residual)
-        layers[str(index)] = _metrics(totals)
+        layer_metrics = _metrics(totals)
+        group_ids = group_state[name][data.expert_indices]
+        subset_masks = {
+            "all": torch.ones(data.token_count, dtype=torch.bool),
+            "same_group": group_ids[:, 0] == group_ids[:, 1],
+            "different_group": group_ids[:, 0] != group_ids[:, 1],
+        }
+        decomposition = {}
+        decomposition_totals = {}
+        for subset_name, mask in subset_masks.items():
+            subset_totals = _decomposition_totals(
+                data,
+                static_experts,
+                residual_experts,
+                mask,
+            )
+            decomposition_totals[subset_name] = subset_totals
+            decomposition[subset_name] = _normalized_decomposition(subset_totals)
+            _add_totals(aggregate_decomposition[subset_name], subset_totals)
+        layer_metrics["decomposition"] = decomposition
+        layer_metrics["residual_magnitude"] = _residual_magnitude(decomposition_totals["all"])
+        layers[str(index)] = layer_metrics
         for key, value in totals.items():
             aggregate[key] += value
     result = _metrics(aggregate)
     result["residual_enabled"] = bool(use_residual)
     result["relative_l2_improvement_percent"] = 100 * (result["static_relative_l2"] - result["residual_relative_l2"]) / max(result["static_relative_l2"], EPSILON)
+    result["decomposition"] = {
+        subset_name: _normalized_decomposition(totals)
+        for subset_name, totals in aggregate_decomposition.items()
+    }
+    result["residual_magnitude"] = _residual_magnitude(aggregate_decomposition["all"])
     return {"layers": layers, "aggregate": result}
 
 
@@ -378,6 +497,31 @@ def format_moe_reconstruction_summary(metrics):
     lines = []
     for index, values in metrics["layers"].items():
         lines.extend([f"Layer {index} (tokens={values['tokens']})", f"Static   rel_L2={values['static_relative_l2']:.6f} cosine={values['static_cosine']:.6f}", f"Residual rel_L2={values['residual_relative_l2']:.6f} cosine={values['residual_cosine']:.6f}", ""])
+        for subset_name, title in (
+            ("all", "All"),
+            ("same_group", "Same-group"),
+            ("different_group", "Different-group"),
+        ):
+            decomposition = values["decomposition"][subset_name]
+            lines.extend([
+                f"Error decomposition [{title}] (tokens={decomposition['tokens']})",
+                "  Static   self={static_self:.6e} cross={static_cross:.6e} total={static_total:.6e}".format(**decomposition),
+                "  Residual self={residual_self:.6e} cross={residual_cross:.6e} total={residual_total:.6e}".format(**decomposition),
+            ])
+        magnitude = values["residual_magnitude"]
+        lines.extend([
+            "Residual magnitude:",
+            f"  ||R|| / ||E|| = {magnitude['relative_to_original']:.6e}",
+            f"  ||R|| / ||M|| = {magnitude['relative_to_static']:.6e}",
+            "",
+        ])
     values = metrics["aggregate"]
     lines.extend(["Aggregate", f"Static   rel_L2={values['static_relative_l2']:.6f} cosine={values['static_cosine']:.6f}", f"Residual rel_L2={values['residual_relative_l2']:.6f} cosine={values['residual_cosine']:.6f}", "Improvement:", f"  relative_L2: {values['relative_l2_improvement_percent']:.2f}%"])
+    for subset_name, title in (("all", "All"), ("same_group", "Same-group"), ("different_group", "Different-group")):
+        decomposition = values["decomposition"][subset_name]
+        lines.extend([
+            f"Aggregate decomposition [{title}] (tokens={decomposition['tokens']})",
+            "  Static   self={static_self:.6e} cross={static_cross:.6e} total={static_total:.6e}".format(**decomposition),
+            "  Residual self={residual_self:.6e} cross={residual_cross:.6e} total={residual_total:.6e}".format(**decomposition),
+        ])
     return "\n".join(lines)
