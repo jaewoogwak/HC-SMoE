@@ -36,6 +36,7 @@ from hcsmoe.merging.residual_mixtral import (
     train_residuals,
     _parse_diagnostic_experts,
 )
+from hcsmoe.merging.lora_mixtral import save_lora_artifacts, train_lora_experts
 from hcsmoe.models.mixtral.utils import (
     expand_shared_expert_state_dict,
 )
@@ -225,6 +226,16 @@ def run_hcsmoe(
         residual_diagnostic_experts: Optional[str] = "",
         residual_eval_only: Optional[bool] = False,
         residual_path: Optional[str] = None,
+        lora_rank: Optional[int] = 0,
+        lora_alpha: Optional[float] = 56,
+        lora_data_limit: Optional[int] = 4096,
+        lora_epochs: Optional[int] = 3,
+        lora_lr: Optional[float] = 1e-4,
+        lora_batch_size: Optional[int] = 64,
+        lora_val_ratio: Optional[float] = 0.1,
+        lora_patience: Optional[int] = 2,
+        lora_eval_only: Optional[bool] = False,
+        lora_path: Optional[str] = None,
         group_state_path: Optional[str] = None,
         seed: Optional[int] = 0,
         eval_generation: Optional[bool] = False,
@@ -273,13 +284,17 @@ def run_hcsmoe(
     tokenizer.pad_token_id = tokenizer.eos_token_id
 
     if eval_only:
+        if residual_eval_only and lora_eval_only:
+            raise ValueError("--residual_eval_only and --lora_eval_only are mutually exclusive")
         if not model_path:
             raise ValueError("--eval_only=True requires --model_path.")
         checkpoint_dir = os.path.dirname(model_path) or "."
         group_state_path = group_state_path or os.path.join(checkpoint_dir, "group_state_dict.pt")
         residual_path = residual_path or os.path.join(checkpoint_dir, "residuals.pth")
+        lora_path = lora_path or os.path.join(checkpoint_dir, "lora.pth")
         model, _ = load_compressed_model_for_evaluation(
-            model_name, model_path, group_state_path, residual_eval_only, residual_path
+            model_name, model_path, group_state_path, residual_eval_only, residual_path,
+            lora_eval_only=lora_eval_only, lora_path=lora_path,
         )
         print(f"[HC-SMoE] Evaluating saved model from {model_path}")
         model.eval()
@@ -363,18 +378,26 @@ def run_hcsmoe(
         raise ValueError(
             f"Accepted dominant are `random`, `frequency`, `no`, but the input is `{dominant}`")
 
+    if residual_width > 0 and lora_rank > 0:
+        raise ValueError("TinySwiGLU residual and LoRA experiments are mutually exclusive")
+    lora_enabled = lora_rank > 0
+    if lora_enabled and merge != "freq":
+        raise ValueError("LoRA weight correction currently requires --merge=freq to match the static baseline exactly.")
     residual_calibration = None
     group_state = grouper.group_state_dict()
-    if residual_width > 0:
+    if residual_width > 0 or lora_enabled:
         if merge != "freq":
             raise ValueError("Expert-specific residual PoC currently requires --merge=freq to match the static baseline exactly.")
-        print(f"[Residual] Collecting up to {residual_data_limit} selected C4 tokens per non-singleton expert")
+        calibration_limit = residual_data_limit if residual_width > 0 else lora_data_limit
+        calibration_batch_size = residual_batch_size if residual_width > 0 else lora_batch_size
+        calibration_label = "Residual" if residual_width > 0 else "LoRA"
+        print(f"[{calibration_label}] Collecting up to {calibration_limit} selected C4 tokens per non-singleton expert")
         residual_calibration = collect_residual_calibration(
             model=model,
             dataloader=dataloader_for_merging,
             group_state=group_state,
-            residual_data_limit=residual_data_limit,
-            residual_batch_size=residual_batch_size,
+            residual_data_limit=calibration_limit,
+            residual_batch_size=calibration_batch_size,
         )
 
     
@@ -489,6 +512,36 @@ def run_hcsmoe(
             print(f"[ResidualDiag] Saved training diagnostics in {diagnostic_path}")
             save_residual_loss_curves(output_path, residual_diagnostics)
         print(f"[Residual] Saved residual artifacts in {output_path}")
+
+    if lora_enabled:
+        lora_metrics = train_lora_experts(
+            model=model,
+            group_state=group_state,
+            calibration=residual_calibration,
+            lora_rank=lora_rank,
+            lora_alpha=lora_alpha,
+            lora_epochs=lora_epochs,
+            lora_lr=lora_lr,
+            lora_batch_size=lora_batch_size,
+            lora_val_ratio=lora_val_ratio,
+            lora_patience=lora_patience,
+            seed=seed,
+        )
+        lora_config = {
+            "lora_rank": lora_rank,
+            "lora_alpha": lora_alpha,
+            "lora_data_limit": lora_data_limit,
+            "lora_epochs": lora_epochs,
+            "lora_lr": lora_lr,
+            "lora_batch_size": lora_batch_size,
+            "lora_val_ratio": lora_val_ratio,
+            "lora_patience": lora_patience,
+            "seed": seed,
+            "merge": merge,
+            "model_name": model_name,
+        }
+        save_lora_artifacts(output_path, model, lora_rank, lora_alpha, lora_metrics, lora_config)
+        print(f"[LoRA] Saved LoRA artifacts in {output_path}")
 
     ### 6. Evaluation
     run_requested_evaluation(

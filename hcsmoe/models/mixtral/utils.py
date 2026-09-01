@@ -26,6 +26,81 @@ class TinySwiGLUResidual(nn.Module):
         return self.w2(F.silu(self.w1(hidden_states)) * self.w3(hidden_states))
 
 
+class LoRAProjection(nn.Module):
+    """One bias-free LoRA update ``B @ A`` for an expert projection."""
+
+    def __init__(self, in_features: int, out_features: int, rank: int) -> None:
+        super().__init__()
+        self.A = nn.Linear(in_features, rank, bias=False)
+        self.B = nn.Linear(rank, out_features, bias=False)
+        nn.init.kaiming_uniform_(self.A.weight, a=math.sqrt(5))
+        nn.init.zeros_(self.B.weight)
+
+    def forward(self, hidden_states: torch.Tensor) -> torch.Tensor:
+        return self.B(self.A(hidden_states))
+
+
+class ExpertLoRA(nn.Module):
+    """Original-expert-specific LoRA updates for all three Mixtral MLP weights."""
+
+    def __init__(self, hidden_size: int, intermediate_size: int, rank: int, alpha: float) -> None:
+        super().__init__()
+        if rank <= 0:
+            raise ValueError("LoRA rank must be positive")
+        self.w1 = LoRAProjection(hidden_size, intermediate_size, rank)
+        self.w2 = LoRAProjection(intermediate_size, hidden_size, rank)
+        self.w3 = LoRAProjection(hidden_size, intermediate_size, rank)
+        self.rank = int(rank)
+        self.alpha = float(alpha)
+        self.scale = self.alpha / self.rank
+
+
+def lora_expert_output(static_expert: nn.Module, adapter: ExpertLoRA, hidden_states: torch.Tensor) -> torch.Tensor:
+    """Apply LoRA inside the SwiGLU MLP, mathematically ``f(x; W + BA)``."""
+    base_dtype = static_expert.w1.weight.dtype
+    adapter_dtype = next(adapter.parameters()).dtype
+    base_input = hidden_states.to(dtype=base_dtype)
+    lora_input = hidden_states.to(dtype=adapter_dtype)
+    z1 = static_expert.w1(base_input).to(adapter_dtype) + adapter.scale * adapter.w1(lora_input)
+    z3 = static_expert.w3(base_input).to(adapter_dtype) + adapter.scale * adapter.w3(lora_input)
+    activation = F.silu(z1) * z3
+    base_output = static_expert.w2(activation.to(dtype=base_dtype)).to(adapter_dtype)
+    return base_output + adapter.scale * adapter.w2(activation)
+
+
+def lora_aware_moe_forward(self, hidden_states: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    """Mixtral MoE forward using original-expert-specific weight-space LoRA."""
+    batch_size, sequence_length, hidden_dim = hidden_states.shape
+    if self.training and getattr(self, "jitter_noise", 0.0) > 0:
+        hidden_states = hidden_states * torch.empty_like(hidden_states).uniform_(
+            1.0 - self.jitter_noise, 1.0 + self.jitter_noise
+        )
+    flat_hidden_states = hidden_states.reshape(-1, hidden_dim)
+    router_logits = self.gate(flat_hidden_states)
+    routing_weights = F.softmax(router_logits, dim=1, dtype=torch.float)
+    routing_weights, selected_experts = torch.topk(routing_weights, self.top_k, dim=-1)
+    routing_weights = (routing_weights / routing_weights.sum(dim=-1, keepdim=True)).to(flat_hidden_states.dtype)
+    final_hidden_states = torch.zeros_like(flat_hidden_states)
+    expert_mask = F.one_hot(selected_experts, num_classes=self.num_experts).permute(2, 1, 0)
+
+    for expert_idx in range(self.num_experts):
+        route_idx, token_idx = torch.where(expert_mask[expert_idx])
+        if token_idx.numel() == 0:
+            continue
+        current_state = flat_hidden_states[token_idx]
+        adapter = self.lora_experts[str(expert_idx)] if str(expert_idx) in self.lora_experts else None
+        if adapter is None:
+            current_hidden_states = self.experts[expert_idx](current_state)
+        else:
+            parameter = next(adapter.parameters())
+            if parameter.device != current_state.device or parameter.dtype != current_state.dtype:
+                adapter.to(device=current_state.device, dtype=current_state.dtype)
+            current_hidden_states = lora_expert_output(self.experts[expert_idx], adapter, current_state)
+        current_hidden_states = current_hidden_states * routing_weights[token_idx, route_idx, None]
+        final_hidden_states.index_add_(0, token_idx, current_hidden_states.to(flat_hidden_states.dtype))
+    return final_hidden_states.reshape(batch_size, sequence_length, hidden_dim), router_logits
+
+
 def residual_aware_moe_forward(self, hidden_states: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
     """Mixtral MoE forward with residuals keyed by original expert indices."""
     batch_size, sequence_length, hidden_dim = hidden_states.shape
@@ -129,6 +204,8 @@ def attach_residual_experts(model, group_state: Mapping[str, torch.Tensor], resi
         return
     for layer_idx, layer in enumerate(model.model.layers):
         moe = layer.block_sparse_moe
+        if hasattr(moe, "lora_experts"):
+            raise ValueError("Residual and LoRA adapters are mutually exclusive")
         name = f"model.layers.{layer_idx}.block_sparse_moe"
         if name not in group_state:
             continue
@@ -143,6 +220,68 @@ def attach_residual_experts(model, group_state: Mapping[str, torch.Tensor], resi
             expert_idx: len(members) for members in groups.values() for expert_idx in members
         }
         moe.forward = types.MethodType(residual_aware_moe_forward, moe)
+
+
+def attach_lora_experts(model, group_state: Mapping[str, torch.Tensor], lora_rank: int, lora_alpha: float) -> None:
+    """Attach CPU FP32 LoRA adapters and install the LoRA-only MoE forward."""
+    if lora_rank <= 0:
+        return
+    for layer_idx, layer in enumerate(model.model.layers):
+        moe = layer.block_sparse_moe
+        if hasattr(moe, "residual_experts"):
+            raise ValueError("Residual and LoRA adapters are mutually exclusive")
+        name = f"model.layers.{layer_idx}.block_sparse_moe"
+        if name not in group_state:
+            continue
+        groups = group_members_from_labels(group_state[name])
+        adapters = nn.ModuleDict()
+        for members in groups.values():
+            if len(members) > 1:
+                for expert_idx in members:
+                    adapters[str(expert_idx)] = ExpertLoRA(
+                        moe.hidden_dim, moe.experts[0].w1.out_features, lora_rank, lora_alpha
+                    )
+        moe.lora_experts = adapters
+        moe.lora_group_sizes = {
+            expert_idx: len(members) for members in groups.values() for expert_idx in members
+        }
+        moe.forward = types.MethodType(lora_aware_moe_forward, moe)
+
+
+def lora_params_per_expert(hidden_size: int, intermediate_size: int, lora_rank: int) -> int:
+    """Parameter count for W1/W2/W3 LoRA updates of one original expert."""
+    return 3 * (hidden_size + intermediate_size) * lora_rank
+
+
+def lora_state_dict(model, lora_rank: int, lora_alpha: float) -> Dict[str, object]:
+    """Serialize only original-expert-specific LoRA A/B weights."""
+    state: Dict[str, torch.Tensor] = {}
+    for layer_idx, layer in enumerate(model.model.layers):
+        adapters = getattr(layer.block_sparse_moe, "lora_experts", None)
+        if adapters is None:
+            continue
+        for expert_idx, adapter in adapters.items():
+            for name, tensor in adapter.state_dict().items():
+                state[f"{layer_idx}.{expert_idx}.{name}"] = tensor.detach().cpu().clone()
+    return {"lora_rank": int(lora_rank), "lora_alpha": float(lora_alpha), "state_dict": state}
+
+
+def load_lora_state_dict(model, payload: Mapping[str, object], group_state: Mapping[str, torch.Tensor]) -> tuple[int, float]:
+    """Attach LoRA adapters and restore their saved A/B weights."""
+    lora_rank, lora_alpha = int(payload["lora_rank"]), float(payload["lora_alpha"])
+    attach_lora_experts(model, group_state, lora_rank, lora_alpha)
+    state = payload["state_dict"]
+    for layer_idx, layer in enumerate(model.model.layers):
+        adapters = getattr(layer.block_sparse_moe, "lora_experts", None)
+        if adapters is None:
+            continue
+        for expert_idx, adapter in adapters.items():
+            prefix = f"{layer_idx}.{expert_idx}."
+            local_state = {key[len(prefix):]: value for key, value in state.items() if key.startswith(prefix)}
+            if not local_state:
+                raise KeyError(f"Missing LoRA state for layer {layer_idx}, expert {expert_idx}")
+            adapter.load_state_dict(local_state, strict=True)
+    return lora_rank, lora_alpha
 
 
 def residual_state_dict(model, residual_width: int) -> Dict[str, object]:

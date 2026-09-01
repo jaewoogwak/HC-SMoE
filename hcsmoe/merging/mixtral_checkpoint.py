@@ -9,6 +9,7 @@ from transformers import MixtralConfig, MixtralForCausalLM
 from hcsmoe.models.mixtral.utils import (
     bind_shared_experts_from_group_state,
     expand_shared_expert_state_dict,
+    load_lora_state_dict,
     load_residual_state_dict,
     validate_shared_expert_topology,
 )
@@ -20,8 +21,12 @@ def load_compressed_model_for_evaluation(
     group_state_path: str,
     residual_eval_only: bool,
     residual_path: str | None,
+    lora_eval_only: bool = False,
+    lora_path: str | None = None,
 ):
     """Restore aliases, static weights, and optionally residual weights."""
+    if residual_eval_only and lora_eval_only:
+        raise ValueError("--residual_eval_only and --lora_eval_only are mutually exclusive")
     if not torch.cuda.is_available():
         raise RuntimeError("Compressed Mixtral eval-only mode requires a CUDA device.")
     if not os.path.exists(group_state_path):
@@ -48,6 +53,12 @@ def load_compressed_model_for_evaluation(
         payload = torch.load(residual_path, map_location="cpu")
         residual_width = load_residual_state_dict(model, payload, group_state)
         print(f"[Residual] Reloaded width={residual_width} from {residual_path}")
+    if lora_eval_only:
+        if not lora_path or not os.path.exists(lora_path):
+            raise FileNotFoundError(f"--lora_eval_only=True requires LoRA checkpoint: {lora_path}")
+        payload = torch.load(lora_path, map_location="cpu")
+        lora_rank, lora_alpha = load_lora_state_dict(model, payload, group_state)
+        print(f"[LoRA] Reloaded rank={lora_rank} alpha={lora_alpha:g} from {lora_path}")
     model.to(device=torch.device("cuda:0"), dtype=torch.bfloat16)
     group_counts = validate_shared_expert_topology(model, group_state)
     for name, group_count in group_counts.items():

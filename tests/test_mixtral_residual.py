@@ -13,11 +13,18 @@ from hcsmoe.merging.residual_mixtral import (
     save_residual_loss_curves,
     train_residuals,
 )
+from hcsmoe.merging.lora_mixtral import train_lora_experts
 from hcsmoe.models.mixtral.utils import (
+    ExpertLoRA,
+    attach_lora_experts,
     attach_residual_experts,
     bind_shared_experts_from_group_state,
     expand_shared_expert_state_dict,
+    load_lora_state_dict,
     load_residual_state_dict,
+    lora_expert_output,
+    lora_params_per_expert,
+    lora_state_dict,
     residual_state_dict,
     validate_shared_expert_topology,
 )
@@ -68,6 +75,7 @@ class TinyModel(nn.Module):
         layer.block_sparse_moe = TinyMoE()
         self.model = nn.Module()
         self.model.layers = nn.ModuleList([layer])
+        self.config = SimpleNamespace(hidden_size=4, intermediate_size=7)
 
 
 def _make_static_model():
@@ -137,9 +145,133 @@ def test_cpu_bfloat16_input_casts_cpu_float32_residual():
     assert next(moe.residual_experts["0"].parameters()).device.type == "cpu"
     assert next(moe.residual_experts["0"].parameters()).dtype == torch.float32
 
-    output, _ = moe(torch.randn(2, 3, 4, dtype=torch.bfloat16))
+    with torch.no_grad():
+        moe.gate.weight.zero_()
+        moe.gate.weight[0].fill_(1.0)
+    moe.top_k = 1
+    output, _ = moe(torch.ones(2, 3, 4, dtype=torch.bfloat16))
     assert output.dtype == torch.bfloat16
     assert next(moe.residual_experts["0"].parameters()).dtype == torch.bfloat16
+
+
+def test_lora_zero_init_weight_space_forward_and_singleton():
+    torch.manual_seed(23)
+    group_state = {"model.layers.0.block_sparse_moe": torch.tensor([0, 0, 0, 0, 1, 2, 2, 2])}
+    model = _make_static_model().eval()
+    moe = model.model.layers[0].block_sparse_moe
+    hidden_states = torch.randn(3, 2, 4)
+    static_output, static_logits = moe(hidden_states)
+
+    attach_lora_experts(model, group_state, lora_rank=3, lora_alpha=3)
+    lora_output, lora_logits = moe(hidden_states)
+    assert torch.equal(static_output, lora_output)
+    assert torch.equal(static_logits, lora_logits)
+    assert set(moe.lora_experts) == {"0", "1", "2", "3", "5", "6", "7"}
+
+    bf16_model = _make_static_model().bfloat16().eval()
+    bf16_moe = bf16_model.model.layers[0].block_sparse_moe
+    with torch.no_grad():
+        bf16_moe.gate.weight.zero_()
+        bf16_moe.gate.weight[0].fill_(1.0)
+    bf16_moe.top_k = 1
+    bf16_inputs = torch.ones(2, 2, 4, dtype=torch.bfloat16)
+    bf16_static, _ = bf16_moe(bf16_inputs)
+    attach_lora_experts(bf16_model, group_state, lora_rank=3, lora_alpha=3)
+    bf16_lora, _ = bf16_moe(bf16_inputs)
+    assert torch.equal(bf16_static, bf16_lora)
+    assert next(bf16_moe.lora_experts["0"].parameters()).dtype == torch.bfloat16
+
+    with torch.no_grad():
+        moe.gate.weight.zero_()
+        moe.gate.weight[4].fill_(1.0)
+        for adapter in moe.lora_experts.values():
+            adapter.w2.B.weight.fill_(0.2)
+    moe.top_k = 1
+    singleton_input = torch.ones(1, 1, 4)
+    singleton_output, _ = moe(singleton_input)
+    assert torch.equal(singleton_output, moe.experts[4](singleton_input))
+
+
+def test_lora_matches_explicit_materialized_weights_and_expert_identity():
+    torch.manual_seed(29)
+    expert = TinyExpert().float()
+    adapter = ExpertLoRA(hidden_size=4, intermediate_size=7, rank=3, alpha=3).float()
+    with torch.no_grad():
+        for projection in (adapter.w1, adapter.w2, adapter.w3):
+            projection.A.weight.copy_(torch.randn_like(projection.A.weight))
+            projection.B.weight.copy_(torch.randn_like(projection.B.weight))
+    inputs = torch.randn(5, 4)
+    actual = lora_expert_output(expert, adapter, inputs)
+    w1 = expert.w1.weight + adapter.w1.B.weight @ adapter.w1.A.weight
+    w2 = expert.w2.weight + adapter.w2.B.weight @ adapter.w2.A.weight
+    w3 = expert.w3.weight + adapter.w3.B.weight @ adapter.w3.A.weight
+    expected = F.linear(F.silu(F.linear(inputs, w1)) * F.linear(inputs, w3), w2)
+    assert torch.allclose(actual, expected, rtol=1e-5, atol=1e-6)
+
+    group_state = {"model.layers.0.block_sparse_moe": torch.tensor([0, 0, 0, 0, 1, 2, 2, 2])}
+    model = _make_static_model().eval()
+    moe = model.model.layers[0].block_sparse_moe
+    attach_lora_experts(model, group_state, lora_rank=3, lora_alpha=3)
+    with torch.no_grad():
+        moe.lora_experts["0"].w2.B.weight.fill_(0.1)
+        moe.lora_experts["1"].w2.B.weight.fill_(-0.2)
+    assert id(moe.experts[0]) == id(moe.experts[1])
+    assert not torch.equal(
+        lora_expert_output(moe.experts[0], moe.lora_experts["0"], inputs),
+        lora_expert_output(moe.experts[1], moe.lora_experts["1"], inputs),
+    )
+
+
+def test_lora_save_reload_and_parameter_count():
+    torch.manual_seed(31)
+    group_state = {"model.layers.0.block_sparse_moe": torch.tensor([0, 0, 0, 0, 1, 2, 2, 2])}
+    model = _make_static_model().eval()
+    attach_lora_experts(model, group_state, lora_rank=3, lora_alpha=3)
+    with torch.no_grad():
+        model.model.layers[0].block_sparse_moe.lora_experts["0"].w1.B.weight.fill_(0.25)
+    hidden_states = torch.randn(2, 2, 4)
+    expected, _ = model.model.layers[0].block_sparse_moe(hidden_states)
+    payload = lora_state_dict(model, lora_rank=3, lora_alpha=3)
+    reloaded = _make_static_model().eval()
+    bind_shared_experts_from_group_state(reloaded, group_state)
+    reloaded.load_state_dict(model.state_dict(), strict=False)
+    load_lora_state_dict(reloaded, payload, group_state)
+    actual, _ = reloaded.model.layers[0].block_sparse_moe(hidden_states)
+    assert torch.equal(expected, actual)
+    assert lora_params_per_expert(4096, 14336, 56) == 3_096_576
+
+
+def test_lora_training_uses_output_reconstruction_and_reports_budget():
+    torch.manual_seed(37)
+    group_state = {"model.layers.0.block_sparse_moe": torch.tensor([0, 0, 0, 0, 1, 2, 2, 2])}
+    model = _make_static_model().eval()
+    inputs = torch.randn(10, 4)
+    static = model.model.layers[0].block_sparse_moe.experts[0](inputs).detach()
+    calibration = {
+        "0.0": {
+            "hidden_states": inputs,
+            "routing_weights": torch.full((10,), 0.5),
+            "original_outputs": static + 0.1,
+        }
+    }
+    metrics = train_lora_experts(
+        model=model,
+        group_state=group_state,
+        calibration=calibration,
+        lora_rank=2,
+        lora_alpha=2,
+        lora_epochs=2,
+        lora_lr=1e-3,
+        lora_batch_size=3,
+        lora_val_ratio=0.2,
+        lora_patience=2,
+        seed=0,
+    )
+    result = metrics["experts"]["0.0"]
+    assert result["epoch0_validation_loss"] > 0.0
+    assert result["best_epoch"] in (1, 2)
+    assert "weighted_lora_relative_l2" in result
+    assert metrics["aggregate"]["lora_params_per_adapted_expert"] == 3 * (4 + 7) * 2
 
 
 def test_offloaded_meta_expert_uses_accelerate_execution_device():
