@@ -235,8 +235,11 @@ def train_lora_experts(
         })
         print(
             "[LoRA] layer={layer} group={group} expert={expert} size={group_size} samples={training_samples} "
-            "static_rel_l2={static_relative_l2:.6f} lora_rel_l2={lora_relative_l2:.6f} "
-            "static_cos={static_cosine:.6f} lora_cos={lora_cosine:.6f}".format(**result)
+            "epoch0_val_loss={epoch0_validation_loss:.6g} "
+            "best_epoch={best_epoch} best_val_loss={best_validation_loss:.6g} "
+            "final_val_loss={final_val_loss:.6g}".format(
+                final_val_loss=epoch_history[-1]["validation_loss"], **result
+            )
         )
         metrics["experts"][key] = result
         for field in (
