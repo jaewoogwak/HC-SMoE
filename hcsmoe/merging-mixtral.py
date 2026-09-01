@@ -36,7 +36,7 @@ from hcsmoe.merging.residual_mixtral import (
     train_residuals,
     _parse_diagnostic_experts,
 )
-from hcsmoe.merging.lora_mixtral import save_lora_artifacts, train_lora_experts
+from hcsmoe.merging.lora_mixtral import save_lora_artifacts, save_lora_loss_curves, train_lora_experts
 from hcsmoe.models.mixtral.utils import (
     expand_shared_expert_state_dict,
 )
@@ -541,6 +541,7 @@ def run_hcsmoe(
             "model_name": model_name,
         }
         save_lora_artifacts(output_path, model, lora_rank, lora_alpha, lora_metrics, lora_config)
+        save_lora_loss_curves(output_path, lora_metrics)
         print(f"[LoRA] Saved LoRA artifacts in {output_path}")
 
     ### 6. Evaluation

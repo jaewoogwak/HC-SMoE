@@ -87,6 +87,67 @@ def _lora_validation_loss(static_expert, adapter, data, indices, batch_size: int
     return total / element_count
 
 
+def save_lora_loss_curves(output_path: str, metrics: Mapping[str, object]) -> None:
+    """Save log-scale epoch train/validation loss curves for LoRA experts."""
+    import matplotlib
+
+    matplotlib.use("Agg")
+    from matplotlib import pyplot as plt
+
+    curve_dir = os.path.join(output_path, "lora_loss_curves")
+    os.makedirs(curve_dir, exist_ok=True)
+
+    def plot_value(value: float) -> float:
+        return max(float(value), FP32_EPS)
+
+    experts = metrics["experts"]
+    for key, result in experts.items():
+        epochs = result["epochs"]
+        figure, axis = plt.subplots(figsize=(7, 4.5))
+        trained = [item for item in epochs if item["train_loss"] is not None]
+        if trained:
+            axis.plot(
+                [item["epoch"] for item in trained],
+                [plot_value(item["train_loss"]) for item in trained],
+                marker="o", label="Train loss",
+            )
+        axis.plot(
+            [item["epoch"] for item in epochs],
+            [plot_value(item["validation_loss"]) for item in epochs],
+            marker="o", label="Validation loss",
+        )
+        axis.set_yscale("log")
+        axis.set_xlabel("Epoch")
+        axis.set_ylabel("Gate-weighted MSE loss")
+        axis.set_title(f"LoRA Training Loss — Layer {result['layer']} Expert {result['expert']}")
+        axis.legend()
+        figure.tight_layout()
+        path = os.path.join(curve_dir, f"layer_{result['layer']}_expert_{result['expert']}.png")
+        figure.savefig(path, dpi=150)
+        plt.close(figure)
+        print(f"[LoRA] Saved loss curve: {path}")
+
+    figure, axis = plt.subplots(figsize=(10, 5.5))
+    for key, result in experts.items():
+        epochs = result["epochs"]
+        axis.plot(
+            [item["epoch"] for item in epochs],
+            [plot_value(item["validation_loss"]) for item in epochs],
+            marker="o", label=f"L{result['layer']}-E{result['expert']}",
+        )
+    axis.set_yscale("log")
+    axis.set_xlabel("Epoch")
+    axis.set_ylabel("Gate-weighted validation MSE loss")
+    axis.set_title("LoRA Validation Loss — All Adapted Experts")
+    if experts:
+        axis.legend(ncol=2, fontsize="small")
+    figure.tight_layout()
+    path = os.path.join(curve_dir, "all_lora_experts.png")
+    figure.savefig(path, dpi=150)
+    plt.close(figure)
+    print(f"[LoRA] Saved loss curve: {path}")
+
+
 def train_lora_experts(
     model,
     group_state: Mapping[str, torch.Tensor],
@@ -119,10 +180,12 @@ def train_lora_experts(
         train_idx, val_idx = _split_indices(data["hidden_states"].shape[0], lora_val_ratio, seed + layer_idx * 1000 + expert_idx)
         optimizer = torch.optim.AdamW(adapter.parameters(), lr=lora_lr)
         epoch0_loss = _lora_validation_loss(static_expert, adapter, data, val_idx, lora_batch_size)
+        epoch_history = [{"epoch": 0, "train_loss": None, "validation_loss": epoch0_loss}]
         best_state, best_val, best_epoch, stale_steps = None, float("inf"), None, 0
         for epoch in range(lora_epochs):
             adapter.train()
             permutation = train_idx[torch.randperm(train_idx.numel(), generator=torch.Generator().manual_seed(seed + epoch + layer_idx * 1000 + expert_idx))]
+            train_loss_sum, train_sample_count = 0.0, 0
             for start in range(0, permutation.numel(), lora_batch_size):
                 indices = permutation[start:start + lora_batch_size]
                 hidden_states = data["hidden_states"][indices].to(device=device, dtype=torch.float32)
@@ -133,12 +196,24 @@ def train_lora_experts(
                 loss = (gate.square().unsqueeze(-1) * (prediction - original).square()).mean()
                 loss.backward()
                 optimizer.step()
+                train_loss_sum += loss.detach().item() * indices.numel()
+                train_sample_count += indices.numel()
             adapter.eval()
             val_loss = _lora_validation_loss(static_expert, adapter, data, val_idx, lora_batch_size)
-            if val_loss < best_val:
+            improved = val_loss < best_val
+            if improved:
                 best_val, best_epoch, stale_steps = val_loss, epoch + 1, 0
                 best_state = {name: value.detach().cpu().clone() for name, value in adapter.state_dict().items()}
-            else:
+            epoch_history.append({
+                "epoch": epoch + 1,
+                "train_loss": train_loss_sum / train_sample_count if train_sample_count else None,
+                "validation_loss": val_loss,
+            })
+            print(
+                f"[LoRA] layer={layer_idx} expert={expert_idx} epoch={epoch + 1} "
+                f"train_loss={epoch_history[-1]['train_loss']:.6g} val_loss={val_loss:.6g}"
+            )
+            if not improved:
                 stale_steps += 1
                 if stale_steps >= lora_patience:
                     break
@@ -153,6 +228,7 @@ def train_lora_experts(
             "group_size": int(moe.lora_group_sizes[expert_idx]),
             "training_samples": int(train_idx.numel()),
             "validation_samples": int(val_idx.numel()),
+            "epochs": epoch_history,
             "epoch0_validation_loss": epoch0_loss,
             "best_validation_loss": best_val,
             "best_epoch": best_epoch,

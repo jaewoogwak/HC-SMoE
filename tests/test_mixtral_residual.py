@@ -13,7 +13,7 @@ from hcsmoe.merging.residual_mixtral import (
     save_residual_loss_curves,
     train_residuals,
 )
-from hcsmoe.merging.lora_mixtral import train_lora_experts
+from hcsmoe.merging.lora_mixtral import save_lora_loss_curves, train_lora_experts
 from hcsmoe.models.mixtral.utils import (
     ExpertLoRA,
     attach_lora_experts,
@@ -271,7 +271,13 @@ def test_lora_training_uses_output_reconstruction_and_reports_budget():
     assert result["epoch0_validation_loss"] > 0.0
     assert result["best_epoch"] in (1, 2)
     assert "weighted_lora_relative_l2" in result
+    assert [item["epoch"] for item in result["epochs"]] == [0, 1, 2]
     assert metrics["aggregate"]["lora_params_per_adapted_expert"] == 3 * (4 + 7) * 2
+    with tempfile.TemporaryDirectory() as output_path:
+        save_lora_loss_curves(output_path, metrics)
+        curve_dir = os.path.join(output_path, "lora_loss_curves")
+        assert os.path.isfile(os.path.join(curve_dir, "layer_0_expert_0.png"))
+        assert os.path.isfile(os.path.join(curve_dir, "all_lora_experts.png"))
 
 
 def test_offloaded_meta_expert_uses_accelerate_execution_device():
