@@ -24,6 +24,13 @@ from hcsmoe.utils.constants import FP32_EPS
 from hcsmoe.models.mixtral.utils import merged_moe_forward, MoEWrapper
 from hcsmoe.merging.clustering import compute_silhouette_score, group_experts_by_clustering
 from hcsmoe.merging.overlap import compute_kl_divergence, get_prob_distributions, compute_wasserstein_distance
+from hcsmoe.merging.pairwise_scores import (
+    accumulate_corouting,
+    build_output_score_matrices,
+    compute_output_fingerprint,
+    module_execution_device,
+    validate_pairwise_scores,
+)
 
 SIMILARITY_MAPPING_FUNCTION = {
     "cosine": lambda x, y: (F.cosine_similarity(x, y, dim=-1, eps=FP32_EPS) + 1).item() / 2,
@@ -913,6 +920,81 @@ class ExpertsGrouperForMixtral(object):
                 most_similar_group_label = self._group_state_dict[moe_name][most_similar_core]
                 self._group_state_dict[moe_name][i] = most_similar_group_label
         return core_experts
+
+    def compute_pairwise_score_matrices(
+            self,
+            model: MixtralForCausalLM,
+            dataloader: DataLoader,
+            chunk_size: int = 256,
+    ) -> Dict[str, Dict[str, object]]:
+        """Collect C4-only output and routing pairwise scores without grouping."""
+        if chunk_size <= 0:
+            raise ValueError("chunk_size must be positive")
+        model.eval()
+        layer_inputs = {}
+        routing_counts = {}
+        usage_counts = {}
+        handles = []
+
+        def _activation_hook(name):
+            def hook(_, inputs, __):
+                hidden = inputs[0].detach().reshape(-1, inputs[0].shape[-1]).cpu()
+                layer_inputs[name].append(hidden)
+            return hook
+
+        for layer_idx in self.sparse_layer_indices:
+            ffn_name = f"model.layers.{layer_idx}.block_sparse_moe"
+            layer_inputs[ffn_name] = []
+            routing_counts[ffn_name] = torch.zeros(
+                (self.num_experts, self.num_experts), dtype=torch.int64, device="cpu"
+            )
+            usage_counts[ffn_name] = torch.zeros(self.num_experts, dtype=torch.int64, device="cpu")
+            moe = model.model.layers[layer_idx].block_sparse_moe
+            handles.append(moe.register_forward_hook(_activation_hook(ffn_name)))
+
+        input_device = module_execution_device(model.model.embed_tokens)
+        try:
+            for batch in tqdm(dataloader, desc="[HC-SMoE] Collecting pairwise C4 scores"):
+                batch = {
+                    key: value.to(input_device) if torch.is_tensor(value) else value
+                    for key, value in batch.items() if key != "labels"
+                }
+                with torch.no_grad():
+                    outputs = model(**batch, output_router_logits=True, use_cache=False)
+                for layer_idx in self.sparse_layer_indices:
+                    ffn_name = f"model.layers.{layer_idx}.block_sparse_moe"
+                    accumulate_corouting(
+                        routing_counts[ffn_name], usage_counts[ffn_name],
+                        outputs.router_logits[layer_idx].detach(), self.topk,
+                    )
+                del outputs
+        finally:
+            for handle in handles:
+                handle.remove()
+
+        layers = {}
+        for layer_idx in tqdm(self.sparse_layer_indices, desc="[HC-SMoE] Computing expert output fingerprints"):
+            ffn_name = f"model.layers.{layer_idx}.block_sparse_moe"
+            layer_input = torch.cat(layer_inputs.pop(ffn_name), dim=0)
+            moe = model.model.layers[layer_idx].block_sparse_moe
+            fingerprints = torch.stack([
+                compute_output_fingerprint(expert, layer_input, chunk_size)
+                for expert in moe.experts
+            ])
+            scores = build_output_score_matrices(fingerprints)
+            num_tokens = layer_input.shape[0]
+            scores.update({
+                "routing_count": routing_counts[ffn_name],
+                "routing_rate": routing_counts[ffn_name].float() / num_tokens,
+                "usage_count": usage_counts[ffn_name],
+                "num_tokens": int(num_tokens),
+            })
+            layers[ffn_name] = scores
+            del layer_input, fingerprints
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+        validate_pairwise_scores(layers)
+        return layers
 
     def compute_all_usages(
             self,

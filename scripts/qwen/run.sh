@@ -22,4 +22,5 @@ accelerate launch --config_file static/finetune_config.yaml \
   --gpu_memory="14GiB" \
   --cpu_memory="900GiB" \
   --result_path="results/results_qwen_test.txt" \
-  --output_path="results/qwen/merge-45e/test" |& tee results/log_45e_test
+  --output_path="results/qwen/merge-45e/test" \
+  "$@" |& tee results/log_45e_test

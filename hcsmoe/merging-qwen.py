@@ -20,6 +20,7 @@ from hcsmoe.merging.grouping_qwen import (
     merge_by_groups_with_usage_weighted,
     merge_by_groups_within_and_across_models,
 )
+from hcsmoe.merging.pairwise_scores import save_pairwise_scores
 
 logger = logging.getLogger(__name__)
 
@@ -164,6 +165,9 @@ def run_hcsmoe(
         dynamic_group: Optional[bool] = False,
         gpu_memory: Optional[str] = "18GiB",
         cpu_memory: Optional[str] = "900GiB",
+        score_only: bool = False,
+        score_output_path: Optional[str] = None,
+        score_chunk_size: int = 256,
 ):
     print(f"Merge model {model_name} with {num_average_groups} group, {dominant} dominant + {similarity_base} grouping + {merge} merge - {mode}, ingredient: {ingredient}, evaluate on {task}")
     print(f"Cluster: {cluster}, linkage: {linkage}, hierarchical_stopping_metric: {hierarchical_stopping_metric}, overlap_metric: {overlap_metric}, dynamic_group: {dynamic_group}")
@@ -212,6 +216,27 @@ def run_hcsmoe(
     model.eval()
     dataloader_for_merging = get_dataloader(args, tokenizer)
     grouper = get_grouper(args, model.config)
+
+    if score_only:
+        score_path = score_output_path or (os.path.join(output_path, "pairwise_scores.pt") if output_path else None)
+        if not score_path:
+            raise ValueError("--score_only=True requires --score_output_path or --output_path.")
+        layers = grouper.compute_pairwise_score_matrices(model, dataloader_for_merging, chunk_size=score_chunk_size)
+        save_pairwise_scores(score_path, {
+            "model_name": model_name,
+            "dataset": "c4",
+            "num_blocks": n_sentences,
+            "block_size": 2048,
+            "num_calibration_tokens": n_sentences * 2048,
+            "num_experts": grouper.num_experts,
+            "top_k": grouper.top_k,
+            "chunk_size": score_chunk_size,
+            "seed": 0,
+            "output_definition": "mean expert output over common MoE inputs",
+            "routing_definition": "token-level top-k co-activation count",
+        }, layers)
+        print(f"[HC-SMoE] Saved pairwise scores: {score_path}")
+        return
 
     # HC-SMoE!
     print("[HC-SMoE] Number of parameters before merging:", model.num_parameters())
