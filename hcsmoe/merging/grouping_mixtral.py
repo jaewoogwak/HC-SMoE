@@ -22,12 +22,17 @@ from transformers.models.mixtral.modeling_mixtral import MixtralSparseMoeBlock, 
 from .utils import generate_random_group_labels
 from hcsmoe.utils.constants import FP32_EPS
 from hcsmoe.models.mixtral.utils import merged_moe_forward, MoEWrapper
-from hcsmoe.merging.clustering import compute_silhouette_score, group_experts_by_clustering
+from hcsmoe.merging.clustering import (
+    compute_silhouette_score,
+    group_experts_by_clustering,
+    hierarchical_clustering_from_pairwise_distance,
+)
 from hcsmoe.merging.overlap import compute_kl_divergence, get_prob_distributions, compute_wasserstein_distance
 from hcsmoe.merging.pairwise_scores import (
     accumulate_corouting,
     build_output_score_matrices,
     compute_output_fingerprint,
+    build_hybrid_score_matrices,
     module_execution_device,
     validate_pairwise_scores,
 )
@@ -325,6 +330,57 @@ class ExpertsGrouperForMixtral(object):
             raise ValueError(
                 f"Accepted similarity bases are `weight`, `expert-output`, `weight+expert-output`, `router-logits`, `router-logits+weight`, `router-logits+expert-output`, `router-logits+weight+expert-output`, but the input is `{self.similarity_base}`")
         return dom_experts
+
+    def hybrid_grouping_results(
+            self,
+            score_payload: Dict[str, object],
+            num_groups: int,
+            alpha: float,
+    ) -> Tuple[Dict[str, torch.Tensor], Dict[str, List[int]], Dict[str, Dict[str, object]]]:
+        """Return hybrid labels without changing the current grouping state."""
+        if self.cluster != "hierarchical" or self.linkage != "average":
+            raise ValueError("Hybrid grouping supports only cluster='hierarchical' and linkage='average'.")
+        if not 0.0 <= alpha <= 1.0:
+            raise ValueError(f"hybrid_alpha must be in [0, 1], got {alpha}")
+        layers = score_payload.get("layers") if isinstance(score_payload, dict) else None
+        if not isinstance(layers, dict):
+            raise ValueError("Pairwise score payload must contain a layers mapping.")
+        expected_names = [f"model.layers.{idx}.block_sparse_moe" for idx in self.sparse_layer_indices]
+        missing = [name for name in expected_names if name not in layers]
+        if missing:
+            raise ValueError(f"Pairwise score payload is missing Mixtral layers: {missing}")
+        validate_pairwise_scores({name: layers[name] for name in expected_names})
+
+        labels_by_layer = {}
+        dominant_by_layer = {}
+        details_by_layer = {}
+        for ffn_name in expected_names:
+            scores = layers[ffn_name]
+            hybrid = build_hybrid_score_matrices(
+                scores["output_distance"], scores["routing_rate"], alpha
+            )
+            labels, dominant_experts = hierarchical_clustering_from_pairwise_distance(
+                hybrid["hybrid_distance"], num_groups, method="average",
+                features_for_centers=scores["output_fingerprint"],
+            )
+            labels_by_layer[ffn_name] = labels.cpu()
+            dominant_by_layer[ffn_name] = dominant_experts
+            details_by_layer[ffn_name] = hybrid
+        return labels_by_layer, dominant_by_layer, details_by_layer
+
+    def group_experts_by_hybrid_scores(
+            self,
+            score_payload: Dict[str, object],
+            num_groups: int,
+            alpha: float,
+    ) -> Dict[str, List[int]]:
+        """Apply precomputed output+routing hybrid grouping to this grouper."""
+        labels_by_layer, dominant_by_layer, _ = self.hybrid_grouping_results(
+            score_payload, num_groups, alpha
+        )
+        for ffn_name, labels in labels_by_layer.items():
+            self._group_state_dict[ffn_name] = labels
+        return dominant_by_layer
     
 
     def group_experts_by_clustering_weight_layerwise(

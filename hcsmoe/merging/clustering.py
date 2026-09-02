@@ -362,6 +362,64 @@ def hierarchical_clustering(X, n_clusters, method='single'):
     return clusters, center_indices
 
 
+@torch.no_grad()
+def hierarchical_clustering_from_pairwise_distance(
+    pair_distances,
+    n_clusters,
+    method="average",
+    features_for_centers=None,
+):
+    """Average-linkage clustering from an already-computed expert distance matrix.
+
+    This is intentionally separate from ``hierarchical_clustering`` so the
+    legacy feature-based HC-SMoE path remains unchanged.
+    """
+    if method != "average":
+        raise ValueError("Precomputed pairwise clustering currently supports linkage='average' only")
+    if pair_distances.ndim != 2 or pair_distances.shape[0] != pair_distances.shape[1]:
+        raise ValueError("pair_distances must be a square matrix")
+    if not 1 <= n_clusters <= pair_distances.shape[0]:
+        raise ValueError("n_clusters must be between 1 and the number of experts")
+    pair_distances = pair_distances.detach().to(device="cpu", dtype=torch.float32)
+    if not torch.isfinite(pair_distances).all() or not torch.allclose(pair_distances, pair_distances.T):
+        raise ValueError("pair_distances must be finite and symmetric")
+    if not torch.allclose(pair_distances.diag(), torch.zeros(pair_distances.shape[0])):
+        raise ValueError("pair_distances must have a zero diagonal")
+    if features_for_centers is None:
+        raise ValueError("features_for_centers is required to preserve HC-SMoE dominant-expert selection")
+    features_for_centers = features_for_centers.detach().to(device="cpu", dtype=torch.float32)
+    if features_for_centers.shape[0] != pair_distances.shape[0]:
+        raise ValueError("features_for_centers must have one row per expert")
+
+    distances = pair_distances.clone()
+    distances.fill_diagonal_(float("inf"))
+    linkage_distances = distances.clone()
+    clusters = torch.arange(pair_distances.shape[0], dtype=torch.long)
+    while len(torch.unique(clusters)) > n_clusters:
+        i, j = compute_distance(linkage_distances, clusters, method="average")
+        if i > j:
+            i, j = j, i
+        cluster_j = clusters[j]
+        clusters[clusters == cluster_j] = clusters[i]
+
+    remapped = torch.empty_like(clusters)
+    labels = {}
+    next_label = 0
+    for expert, cluster in enumerate(clusters.tolist()):
+        if cluster not in labels:
+            labels[cluster] = next_label
+            next_label += 1
+        remapped[expert] = labels[cluster]
+
+    center_indices = []
+    for cluster in range(n_clusters):
+        members = features_for_centers[remapped == cluster]
+        centroid = members.mean(dim=0)
+        local_index = torch.argmin(torch.cdist(members, centroid.unsqueeze(0), p=2), dim=0).item()
+        center_indices.append(torch.where(remapped == cluster)[0][local_index].item())
+    return remapped, center_indices
+
+
 def hierarchical_clustering_dynamic(X, linkage='single', stopping_metric='silhouette', max_clusters=8, min_clusters=2):
     """
     Perform hierarchical clustering using PyTorch on GPU with dynamic stopping criterion.

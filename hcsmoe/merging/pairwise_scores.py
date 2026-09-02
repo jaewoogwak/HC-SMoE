@@ -5,7 +5,8 @@ they collect calibration statistics only and never alter expert assignments.
 """
 
 import os
-from typing import Dict, Mapping, Tuple
+import tempfile
+from typing import Dict, Iterable, Mapping, Optional, Sequence, Tuple
 
 import torch
 import torch.nn as nn
@@ -104,6 +105,230 @@ def build_output_score_matrices(output_fingerprint: torch.Tensor) -> Dict[str, t
         "output_distance": output_distance,
         "output_cosine": output_cosine,
     }
+
+
+def minmax_offdiagonal_score(
+    matrix: torch.Tensor,
+    smaller_is_better: bool,
+) -> Tuple[torch.Tensor, Dict[str, float]]:
+    """Min-max normalize an expert matrix without using its diagonal.
+
+    A constant off-diagonal matrix is intentionally neutral: every distinct
+    pair receives 0.5 rather than producing a NaN or an arbitrary preference.
+    """
+    if matrix.ndim != 2 or matrix.shape[0] != matrix.shape[1]:
+        raise ValueError("matrix must be square")
+    values = matrix.detach().to(device="cpu", dtype=torch.float32)
+    if not torch.allclose(values, values.T):
+        raise ValueError("matrix must be symmetric")
+    num_experts = values.shape[0]
+    mask = ~torch.eye(num_experts, dtype=torch.bool)
+    off_diagonal = values[mask]
+    if off_diagonal.numel() == 0 or not torch.isfinite(off_diagonal).all():
+        raise ValueError("matrix must contain finite off-diagonal values")
+    minimum = off_diagonal.min()
+    maximum = off_diagonal.max()
+    score = torch.zeros_like(values, dtype=torch.float32)
+    if torch.isclose(maximum, minimum):
+        score[mask] = 0.5
+    elif smaller_is_better:
+        score = (maximum - values) / (maximum - minimum)
+    else:
+        score = (values - minimum) / (maximum - minimum)
+    score = (score + score.T) / 2
+    score.fill_diagonal_(0)
+    return score, {"min": float(minimum), "max": float(maximum)}
+
+
+def build_hybrid_score_matrices(
+    output_distance: torch.Tensor,
+    routing_rate: torch.Tensor,
+    alpha: float,
+) -> Dict[str, object]:
+    """Build CPU FP32 output/routing similarities and their hybrid distance."""
+    if not 0.0 <= alpha <= 1.0:
+        raise ValueError(f"alpha must be in [0, 1], got {alpha}")
+    output_score, output_range = minmax_offdiagonal_score(output_distance, smaller_is_better=True)
+    routing_score, routing_range = minmax_offdiagonal_score(routing_rate, smaller_is_better=False)
+    if output_score.shape != routing_score.shape:
+        raise ValueError("output_distance and routing_rate must have the same shape")
+    hybrid_score = alpha * output_score + (1.0 - alpha) * routing_score
+    hybrid_score = (hybrid_score + hybrid_score.T) / 2
+    hybrid_score.fill_diagonal_(1)
+    hybrid_distance = (1.0 - hybrid_score).to(dtype=torch.float32, device="cpu")
+    hybrid_distance = (hybrid_distance + hybrid_distance.T) / 2
+    hybrid_distance.fill_diagonal_(0)
+    if not torch.isfinite(hybrid_distance).all():
+        raise ValueError("hybrid score computation produced NaN or Inf")
+    return {
+        "output_score": output_score,
+        "routing_score": routing_score,
+        "hybrid_score": hybrid_score,
+        "hybrid_distance": hybrid_distance,
+        "normalization": {
+            "output_min": output_range["min"],
+            "output_max": output_range["max"],
+            "routing_min": routing_range["min"],
+            "routing_max": routing_range["max"],
+        },
+    }
+
+
+def canonical_groups(labels: Sequence[int] | torch.Tensor) -> list[list[int]]:
+    """Return a label-ID-invariant, deterministic group representation."""
+    labels = [int(label) for label in labels]
+    groups: Dict[int, list[int]] = {}
+    for expert, label in enumerate(labels):
+        groups.setdefault(label, []).append(expert)
+    return sorted((sorted(members) for members in groups.values()), key=lambda members: members[0])
+
+
+def partitions_equal(left: Sequence[int] | torch.Tensor, right: Sequence[int] | torch.Tensor) -> bool:
+    return canonical_groups(left) == canonical_groups(right)
+
+
+def changed_expert_count(reference: Sequence[int] | torch.Tensor, candidate: Sequence[int] | torch.Tensor) -> int:
+    """Count experts whose group member set differs, ignoring label IDs."""
+    if len(reference) != len(candidate):
+        raise ValueError("partitions must have the same number of experts")
+    def memberships(labels):
+        groups = canonical_groups(labels)
+        result = {}
+        for group in groups:
+            members = tuple(group)
+            for expert in group:
+                result[expert] = members
+        return result
+    left, right = memberships(reference), memberships(candidate)
+    return sum(left[expert] != right[expert] for expert in left)
+
+
+def grouping_metrics(
+    labels: Sequence[int] | torch.Tensor,
+    output_distance: torch.Tensor,
+    routing_rate: torch.Tensor,
+) -> Dict[str, Optional[float]]:
+    """Calculate Mixtral top-2 locality and raw output-distance proxies."""
+    groups = canonical_groups(labels)
+    routing_rate = routing_rate.detach().to(device="cpu", dtype=torch.float32)
+    output_distance = output_distance.detach().to(device="cpu", dtype=torch.float32)
+    same_group_routing_rate = 0.0
+    distances = []
+    for group in groups:
+        for offset, i in enumerate(group):
+            for j in group[offset + 1:]:
+                same_group_routing_rate += float(routing_rate[i, j])
+                distances.append(float(output_distance[i, j]))
+    return {
+        "same_group_routing_rate": same_group_routing_rate,
+        "expected_unique_groups_per_token": 2.0 - same_group_routing_rate,
+        "mean_intragroup_output_distance": sum(distances) / len(distances) if distances else None,
+    }
+
+
+def validate_pairwise_score_payload(
+    payload: Mapping[str, object],
+    expected_metadata: Mapping[str, object],
+    expected_layer_keys: Iterable[str],
+    num_experts: int,
+    hidden_size: int,
+) -> None:
+    """Validate the cache metadata and the Mixtral pairwise tensor contract."""
+    errors = []
+    if payload.get("version") != 1:
+        errors.append(f"cached version: {payload.get('version')}; requested version: 1")
+    metadata = payload.get("metadata")
+    if not isinstance(metadata, Mapping):
+        errors.append("cache metadata is missing")
+        metadata = {}
+    for key, value in expected_metadata.items():
+        if metadata.get(key) != value:
+            errors.append(f"cached {key}: {metadata.get(key)!r}; requested {key}: {value!r}")
+    layers = payload.get("layers")
+    if not isinstance(layers, Mapping):
+        errors.append("cache layers are missing")
+        layers = {}
+    expected_layer_keys = list(expected_layer_keys)
+    missing_layers = [key for key in expected_layer_keys if key not in layers]
+    if missing_layers:
+        errors.append(f"missing layer keys: {missing_layers}")
+    if not errors:
+        try:
+            validate_pairwise_scores({key: layers[key] for key in expected_layer_keys})
+            for key in expected_layer_keys:
+                scores = layers[key]
+                if scores["output_fingerprint"].shape != (num_experts, hidden_size):
+                    raise ValueError(
+                        f"{key} output_fingerprint shape {tuple(scores['output_fingerprint'].shape)} "
+                        f"does not match {(num_experts, hidden_size)}"
+                    )
+                if scores["output_distance"].shape != (num_experts, num_experts):
+                    raise ValueError(f"{key} output_distance has the wrong shape")
+                if scores["routing_rate"].shape != (num_experts, num_experts):
+                    raise ValueError(f"{key} routing_rate has the wrong shape")
+        except (KeyError, TypeError, ValueError) as error:
+            errors.append(str(error))
+    if errors:
+        raise ValueError(
+            "Pairwise score cache is incompatible with the current run:\n- "
+            + "\n- ".join(errors)
+            + "\nUse --recompute_pairwise_scores=True to regenerate it."
+        )
+
+
+def load_or_compute_pairwise_scores(
+    path: str,
+    model,
+    grouper,
+    dataloader,
+    metadata: Mapping[str, object],
+    chunk_size: int,
+    recompute: bool = False,
+) -> Dict[str, object]:
+    """Load a valid cache or atomically replace it with freshly computed scores."""
+    expected_layers = [f"model.layers.{idx}.block_sparse_moe" for idx in grouper.sparse_layer_indices]
+    expected_metadata = {
+        key: metadata[key] for key in (
+            "model_name", "dataset", "num_blocks", "block_size",
+            "num_calibration_tokens", "num_experts", "top_k", "seed",
+        )
+    }
+    if os.path.exists(path) and not recompute:
+        print(f"[Hybrid] Loading pairwise score cache: {path}")
+        payload = torch.load(path, map_location="cpu")
+        validate_pairwise_score_payload(
+            payload, expected_metadata, expected_layers, grouper.num_experts, grouper.d_model
+        )
+        cached_chunk_size = payload["metadata"].get("chunk_size")
+        if cached_chunk_size != chunk_size:
+            print(f"[Hybrid] Cache chunk_size={cached_chunk_size}; requested chunk_size={chunk_size}; reusing cache")
+        print("[Hybrid] Pairwise score cache validation passed")
+        return payload
+
+    if os.path.exists(path):
+        print(f"[Hybrid] Recomputing pairwise score cache: {path}")
+    else:
+        print(f"[Hybrid] Pairwise score cache not found: {path}")
+    print("[Hybrid] Computing Mixtral C4 pairwise scores")
+    layers = grouper.compute_pairwise_score_matrices(model, dataloader, chunk_size=chunk_size)
+    payload = {"version": 1, "metadata": dict(metadata), "layers": layers}
+    validate_pairwise_score_payload(
+        payload, expected_metadata, expected_layers, grouper.num_experts, grouper.d_model
+    )
+    directory = os.path.dirname(path) or "."
+    os.makedirs(directory, exist_ok=True)
+    temporary_path = None
+    try:
+        with tempfile.NamedTemporaryFile(prefix=".pairwise_scores_", suffix=".pt", dir=directory, delete=False) as handle:
+            temporary_path = handle.name
+        save_pairwise_scores(temporary_path, metadata, layers)
+        os.replace(temporary_path, path)
+    except Exception:
+        if temporary_path and os.path.exists(temporary_path):
+            os.unlink(temporary_path)
+        raise
+    print(f"[Hybrid] Saved pairwise score cache: {path}")
+    return payload
 
 
 def validate_pairwise_scores(layers: Mapping[str, Mapping[str, object]]) -> None:

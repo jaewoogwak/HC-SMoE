@@ -29,7 +29,12 @@ from hcsmoe.evaluation import (
 )
 from hcsmoe.merging.grouping_mixtral import ExpertsGrouperForMixtral
 from hcsmoe.merging.grouping_mixtral import merge_by_groups_with_usage_weighted, merge_by_groups_within_and_across_models
-from hcsmoe.merging.pairwise_scores import save_pairwise_scores
+from hcsmoe.merging.pairwise_scores import (
+    canonical_groups,
+    load_or_compute_pairwise_scores,
+    partitions_equal,
+    save_pairwise_scores,
+)
 from hcsmoe.merging.residual_mixtral import (
     collect_residual_calibration,
     save_residual_loss_curves,
@@ -246,9 +251,23 @@ def run_hcsmoe(
         score_only: bool = False,
         score_output_path: Optional[str] = None,
         score_chunk_size: int = 256,
+        hybrid_grouping: bool = False,
+        hybrid_alpha: float = 1.0,
+        pairwise_score_path: Optional[str] = None,
+        recompute_pairwise_scores: bool = False,
+        verify_alpha_one: bool = True,
 ):
     print(f"Merge model {model_name} with {num_average_groups} group, {dominant} dominant + {similarity_base} grouping + {merge} {mode} merge with ingredient {ingredient}, evaluate on {task}")
     print(f"Cluster: {cluster}, linkage: {linkage}, hierarchical_stopping_metric: {hierarchical_stopping_metric}, overlap_metric: {overlap_metric}, dynamic_group: {dynamic_group}")
+
+    if score_only and hybrid_grouping:
+        raise ValueError("--score_only=True and --hybrid_grouping=True cannot be used together.")
+    if hybrid_grouping and not pairwise_score_path:
+        raise ValueError("--hybrid_grouping=True requires --pairwise_score_path.")
+    if hybrid_grouping and not 0.0 <= hybrid_alpha <= 1.0:
+        raise ValueError("--hybrid_alpha must be in [0, 1].")
+    if hybrid_grouping and (cluster != "hierarchical" or linkage != "average"):
+        raise ValueError("Hybrid grouping supports only --cluster=hierarchical and --linkage=average.")
 
 
     ### 1. Initialization
@@ -367,6 +386,26 @@ def run_hcsmoe(
         print(f"[HC-SMoE] Saved pairwise scores: {score_path}")
         return
 
+    pairwise_scores = None
+    if hybrid_grouping:
+        cache_metadata = {
+            "model_name": model_name,
+            "dataset": "c4",
+            "num_blocks": n_sentences,
+            "block_size": 2048,
+            "num_calibration_tokens": n_sentences * 2048,
+            "num_experts": grouper.num_experts,
+            "top_k": grouper.topk,
+            "chunk_size": score_chunk_size,
+            "seed": seed,
+            "output_definition": "mean expert output over common MoE inputs",
+            "routing_definition": "token-level top-k co-activation count",
+        }
+        pairwise_scores = load_or_compute_pairwise_scores(
+            pairwise_score_path, model, grouper, dataloader_for_merging,
+            cache_metadata, score_chunk_size, recompute=recompute_pairwise_scores,
+        )
+
     
     print("[HC-SMoE] Number of parameters before merging:", model.num_parameters())
     print(f"[HC-SMoE] Merging into average {num_average_groups} groups...")
@@ -381,7 +420,45 @@ def run_hcsmoe(
 
     ### 2. Get dominant experts
     dom_experts = None
-    if merge == "fsm" or merge == "no":
+    if hybrid_grouping:
+        if dominant != "no" or similarity_base != "expert-output":
+            raise ValueError(
+                "Hybrid grouping requires --dominant=no and --similarity_base=expert-output "
+                "to preserve the Mixtral output-grouping baseline."
+            )
+        if hybrid_alpha == 1.0:
+            # The actual alpha=1 grouping must stay on the original HC-SMoE
+            # path.  The precomputed result is verification only.
+            dom_experts = grouper.cluster_experts(
+                model=model, dataloader=dataloader_for_merging, num_groups=num_average_groups
+            )
+            baseline_labels = grouper.group_state_dict()
+            precomputed_labels, _, precomputed_details = grouper.hybrid_grouping_results(
+                pairwise_scores, num_average_groups, hybrid_alpha
+            )
+            mismatches = []
+            for layer_name, baseline in baseline_labels.items():
+                if not partitions_equal(baseline, precomputed_labels[layer_name]):
+                    details = precomputed_details[layer_name]
+                    mismatches.append(
+                        f"{layer_name}\n"
+                        f"baseline labels/groups: {baseline.tolist()} / {canonical_groups(baseline)}\n"
+                        f"precomputed alpha=1 labels/groups: {precomputed_labels[layer_name].tolist()} / {canonical_groups(precomputed_labels[layer_name])}\n"
+                        f"raw output min/max: {details['normalization']['output_min']} / {details['normalization']['output_max']}\n"
+                        f"normalized output distance: {(1.0 - details['output_score']).tolist()}"
+                    )
+            if mismatches:
+                message = "[Hybrid] alpha=1 partition verification failed:\n" + "\n".join(mismatches)
+                print(message)
+                if verify_alpha_one:
+                    raise RuntimeError(message)
+            else:
+                print("[Hybrid] alpha=1 partition verification passed for all layers")
+        else:
+            dom_experts = grouper.group_experts_by_hybrid_scores(
+                pairwise_scores, num_average_groups, hybrid_alpha
+            )
+    elif merge == "fsm" or merge == "no":
         pass
     elif dominant == "random":
         grouper.group_experts_randomly(num_groups=args.num_average_groups)
