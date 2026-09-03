@@ -1,0 +1,2031 @@
+{
+  "metadata": {
+    "dataset_role": "test",
+    "used_for_grouping": false,
+    "used_for_selection": false
+  },
+  "methods": {
+    "hc_legacy": {
+      "by_phase_layer": {
+        "prefill/layer_0": {
+          "num_tokens": 32768,
+          "unique_group_count": {
+            "1": 12561,
+            "2": 20207
+          },
+          "unique_group_rate": {
+            "1": 0.383331298828125,
+            "2": 0.616668701171875
+          },
+          "rate_1": 0.383331298828125,
+          "rate_2": 0.616668701171875,
+          "mean_unique_groups": 1.616668701171875,
+          "same_group_routing_rate": 0.383331298828125
+        },
+        "prefill/layer_1": {
+          "num_tokens": 32768,
+          "unique_group_count": {
+            "1": 9160,
+            "2": 23608
+          },
+          "unique_group_rate": {
+            "1": 0.279541015625,
+            "2": 0.720458984375
+          },
+          "rate_1": 0.279541015625,
+          "rate_2": 0.720458984375,
+          "mean_unique_groups": 1.720458984375,
+          "same_group_routing_rate": 0.279541015625
+        },
+        "prefill/layer_2": {
+          "num_tokens": 32768,
+          "unique_group_count": {
+            "1": 12813,
+            "2": 19955
+          },
+          "unique_group_rate": {
+            "1": 0.391021728515625,
+            "2": 0.608978271484375
+          },
+          "rate_1": 0.391021728515625,
+          "rate_2": 0.608978271484375,
+          "mean_unique_groups": 1.608978271484375,
+          "same_group_routing_rate": 0.391021728515625
+        },
+        "prefill/layer_3": {
+          "num_tokens": 32768,
+          "unique_group_count": {
+            "1": 8793,
+            "2": 23975
+          },
+          "unique_group_rate": {
+            "1": 0.268341064453125,
+            "2": 0.731658935546875
+          },
+          "rate_1": 0.268341064453125,
+          "rate_2": 0.731658935546875,
+          "mean_unique_groups": 1.731658935546875,
+          "same_group_routing_rate": 0.268341064453125
+        },
+        "prefill/layer_4": {
+          "num_tokens": 32768,
+          "unique_group_count": {
+            "1": 7928,
+            "2": 24840
+          },
+          "unique_group_rate": {
+            "1": 0.241943359375,
+            "2": 0.758056640625
+          },
+          "rate_1": 0.241943359375,
+          "rate_2": 0.758056640625,
+          "mean_unique_groups": 1.758056640625,
+          "same_group_routing_rate": 0.241943359375
+        },
+        "prefill/layer_5": {
+          "num_tokens": 32768,
+          "unique_group_count": {
+            "1": 7055,
+            "2": 25713
+          },
+          "unique_group_rate": {
+            "1": 0.215301513671875,
+            "2": 0.784698486328125
+          },
+          "rate_1": 0.215301513671875,
+          "rate_2": 0.784698486328125,
+          "mean_unique_groups": 1.784698486328125,
+          "same_group_routing_rate": 0.215301513671875
+        },
+        "prefill/layer_6": {
+          "num_tokens": 32768,
+          "unique_group_count": {
+            "1": 9232,
+            "2": 23536
+          },
+          "unique_group_rate": {
+            "1": 0.28173828125,
+            "2": 0.71826171875
+          },
+          "rate_1": 0.28173828125,
+          "rate_2": 0.71826171875,
+          "mean_unique_groups": 1.71826171875,
+          "same_group_routing_rate": 0.28173828125
+        },
+        "prefill/layer_7": {
+          "num_tokens": 32768,
+          "unique_group_count": {
+            "1": 6191,
+            "2": 26577
+          },
+          "unique_group_rate": {
+            "1": 0.188934326171875,
+            "2": 0.811065673828125
+          },
+          "rate_1": 0.188934326171875,
+          "rate_2": 0.811065673828125,
+          "mean_unique_groups": 1.811065673828125,
+          "same_group_routing_rate": 0.188934326171875
+        },
+        "prefill/layer_8": {
+          "num_tokens": 32768,
+          "unique_group_count": {
+            "1": 10570,
+            "2": 22198
+          },
+          "unique_group_rate": {
+            "1": 0.32257080078125,
+            "2": 0.67742919921875
+          },
+          "rate_1": 0.32257080078125,
+          "rate_2": 0.67742919921875,
+          "mean_unique_groups": 1.67742919921875,
+          "same_group_routing_rate": 0.32257080078125
+        },
+        "prefill/layer_9": {
+          "num_tokens": 32768,
+          "unique_group_count": {
+            "1": 7945,
+            "2": 24823
+          },
+          "unique_group_rate": {
+            "1": 0.242462158203125,
+            "2": 0.757537841796875
+          },
+          "rate_1": 0.242462158203125,
+          "rate_2": 0.757537841796875,
+          "mean_unique_groups": 1.757537841796875,
+          "same_group_routing_rate": 0.242462158203125
+        },
+        "prefill/layer_10": {
+          "num_tokens": 32768,
+          "unique_group_count": {
+            "1": 11871,
+            "2": 20897
+          },
+          "unique_group_rate": {
+            "1": 0.362274169921875,
+            "2": 0.637725830078125
+          },
+          "rate_1": 0.362274169921875,
+          "rate_2": 0.637725830078125,
+          "mean_unique_groups": 1.637725830078125,
+          "same_group_routing_rate": 0.362274169921875
+        },
+        "prefill/layer_11": {
+          "num_tokens": 32768,
+          "unique_group_count": {
+            "1": 15635,
+            "2": 17133
+          },
+          "unique_group_rate": {
+            "1": 0.477142333984375,
+            "2": 0.522857666015625
+          },
+          "rate_1": 0.477142333984375,
+          "rate_2": 0.522857666015625,
+          "mean_unique_groups": 1.522857666015625,
+          "same_group_routing_rate": 0.477142333984375
+        },
+        "prefill/layer_12": {
+          "num_tokens": 32768,
+          "unique_group_count": {
+            "1": 15112,
+            "2": 17656
+          },
+          "unique_group_rate": {
+            "1": 0.461181640625,
+            "2": 0.538818359375
+          },
+          "rate_1": 0.461181640625,
+          "rate_2": 0.538818359375,
+          "mean_unique_groups": 1.538818359375,
+          "same_group_routing_rate": 0.461181640625
+        },
+        "prefill/layer_13": {
+          "num_tokens": 32768,
+          "unique_group_count": {
+            "1": 11928,
+            "2": 20840
+          },
+          "unique_group_rate": {
+            "1": 0.364013671875,
+            "2": 0.635986328125
+          },
+          "rate_1": 0.364013671875,
+          "rate_2": 0.635986328125,
+          "mean_unique_groups": 1.635986328125,
+          "same_group_routing_rate": 0.364013671875
+        },
+        "prefill/layer_14": {
+          "num_tokens": 32768,
+          "unique_group_count": {
+            "1": 11973,
+            "2": 20795
+          },
+          "unique_group_rate": {
+            "1": 0.365386962890625,
+            "2": 0.634613037109375
+          },
+          "rate_1": 0.365386962890625,
+          "rate_2": 0.634613037109375,
+          "mean_unique_groups": 1.634613037109375,
+          "same_group_routing_rate": 0.365386962890625
+        },
+        "prefill/layer_15": {
+          "num_tokens": 32768,
+          "unique_group_count": {
+            "1": 8444,
+            "2": 24324
+          },
+          "unique_group_rate": {
+            "1": 0.2576904296875,
+            "2": 0.7423095703125
+          },
+          "rate_1": 0.2576904296875,
+          "rate_2": 0.7423095703125,
+          "mean_unique_groups": 1.7423095703125,
+          "same_group_routing_rate": 0.2576904296875
+        },
+        "prefill/layer_16": {
+          "num_tokens": 32768,
+          "unique_group_count": {
+            "1": 13429,
+            "2": 19339
+          },
+          "unique_group_rate": {
+            "1": 0.409820556640625,
+            "2": 0.590179443359375
+          },
+          "rate_1": 0.409820556640625,
+          "rate_2": 0.590179443359375,
+          "mean_unique_groups": 1.590179443359375,
+          "same_group_routing_rate": 0.409820556640625
+        },
+        "prefill/layer_17": {
+          "num_tokens": 32768,
+          "unique_group_count": {
+            "1": 11288,
+            "2": 21480
+          },
+          "unique_group_rate": {
+            "1": 0.344482421875,
+            "2": 0.655517578125
+          },
+          "rate_1": 0.344482421875,
+          "rate_2": 0.655517578125,
+          "mean_unique_groups": 1.655517578125,
+          "same_group_routing_rate": 0.344482421875
+        },
+        "prefill/layer_18": {
+          "num_tokens": 32768,
+          "unique_group_count": {
+            "1": 9506,
+            "2": 23262
+          },
+          "unique_group_rate": {
+            "1": 0.29010009765625,
+            "2": 0.70989990234375
+          },
+          "rate_1": 0.29010009765625,
+          "rate_2": 0.70989990234375,
+          "mean_unique_groups": 1.70989990234375,
+          "same_group_routing_rate": 0.29010009765625
+        },
+        "prefill/layer_19": {
+          "num_tokens": 32768,
+          "unique_group_count": {
+            "1": 12387,
+            "2": 20381
+          },
+          "unique_group_rate": {
+            "1": 0.378021240234375,
+            "2": 0.621978759765625
+          },
+          "rate_1": 0.378021240234375,
+          "rate_2": 0.621978759765625,
+          "mean_unique_groups": 1.621978759765625,
+          "same_group_routing_rate": 0.378021240234375
+        },
+        "prefill/layer_20": {
+          "num_tokens": 32768,
+          "unique_group_count": {
+            "1": 8824,
+            "2": 23944
+          },
+          "unique_group_rate": {
+            "1": 0.269287109375,
+            "2": 0.730712890625
+          },
+          "rate_1": 0.269287109375,
+          "rate_2": 0.730712890625,
+          "mean_unique_groups": 1.730712890625,
+          "same_group_routing_rate": 0.269287109375
+        },
+        "prefill/layer_21": {
+          "num_tokens": 32768,
+          "unique_group_count": {
+            "1": 6428,
+            "2": 26340
+          },
+          "unique_group_rate": {
+            "1": 0.1961669921875,
+            "2": 0.8038330078125
+          },
+          "rate_1": 0.1961669921875,
+          "rate_2": 0.8038330078125,
+          "mean_unique_groups": 1.8038330078125,
+          "same_group_routing_rate": 0.1961669921875
+        },
+        "prefill/layer_22": {
+          "num_tokens": 32768,
+          "unique_group_count": {
+            "1": 10509,
+            "2": 22259
+          },
+          "unique_group_rate": {
+            "1": 0.320709228515625,
+            "2": 0.679290771484375
+          },
+          "rate_1": 0.320709228515625,
+          "rate_2": 0.679290771484375,
+          "mean_unique_groups": 1.679290771484375,
+          "same_group_routing_rate": 0.320709228515625
+        },
+        "prefill/layer_23": {
+          "num_tokens": 32768,
+          "unique_group_count": {
+            "1": 11229,
+            "2": 21539
+          },
+          "unique_group_rate": {
+            "1": 0.342681884765625,
+            "2": 0.657318115234375
+          },
+          "rate_1": 0.342681884765625,
+          "rate_2": 0.657318115234375,
+          "mean_unique_groups": 1.657318115234375,
+          "same_group_routing_rate": 0.342681884765625
+        },
+        "prefill/layer_24": {
+          "num_tokens": 32768,
+          "unique_group_count": {
+            "1": 9256,
+            "2": 23512
+          },
+          "unique_group_rate": {
+            "1": 0.282470703125,
+            "2": 0.717529296875
+          },
+          "rate_1": 0.282470703125,
+          "rate_2": 0.717529296875,
+          "mean_unique_groups": 1.717529296875,
+          "same_group_routing_rate": 0.282470703125
+        },
+        "prefill/layer_25": {
+          "num_tokens": 32768,
+          "unique_group_count": {
+            "1": 9797,
+            "2": 22971
+          },
+          "unique_group_rate": {
+            "1": 0.298980712890625,
+            "2": 0.701019287109375
+          },
+          "rate_1": 0.298980712890625,
+          "rate_2": 0.701019287109375,
+          "mean_unique_groups": 1.701019287109375,
+          "same_group_routing_rate": 0.298980712890625
+        },
+        "prefill/layer_26": {
+          "num_tokens": 32768,
+          "unique_group_count": {
+            "1": 16573,
+            "2": 16195
+          },
+          "unique_group_rate": {
+            "1": 0.505767822265625,
+            "2": 0.494232177734375
+          },
+          "rate_1": 0.505767822265625,
+          "rate_2": 0.494232177734375,
+          "mean_unique_groups": 1.494232177734375,
+          "same_group_routing_rate": 0.505767822265625
+        },
+        "prefill/layer_27": {
+          "num_tokens": 32768,
+          "unique_group_count": {
+            "1": 11873,
+            "2": 20895
+          },
+          "unique_group_rate": {
+            "1": 0.362335205078125,
+            "2": 0.637664794921875
+          },
+          "rate_1": 0.362335205078125,
+          "rate_2": 0.637664794921875,
+          "mean_unique_groups": 1.637664794921875,
+          "same_group_routing_rate": 0.362335205078125
+        },
+        "prefill/layer_28": {
+          "num_tokens": 32768,
+          "unique_group_count": {
+            "1": 6694,
+            "2": 26074
+          },
+          "unique_group_rate": {
+            "1": 0.20428466796875,
+            "2": 0.79571533203125
+          },
+          "rate_1": 0.20428466796875,
+          "rate_2": 0.79571533203125,
+          "mean_unique_groups": 1.79571533203125,
+          "same_group_routing_rate": 0.20428466796875
+        },
+        "prefill/layer_29": {
+          "num_tokens": 32768,
+          "unique_group_count": {
+            "1": 13351,
+            "2": 19417
+          },
+          "unique_group_rate": {
+            "1": 0.407440185546875,
+            "2": 0.592559814453125
+          },
+          "rate_1": 0.407440185546875,
+          "rate_2": 0.592559814453125,
+          "mean_unique_groups": 1.592559814453125,
+          "same_group_routing_rate": 0.407440185546875
+        },
+        "prefill/layer_30": {
+          "num_tokens": 32768,
+          "unique_group_count": {
+            "1": 11857,
+            "2": 20911
+          },
+          "unique_group_rate": {
+            "1": 0.361846923828125,
+            "2": 0.638153076171875
+          },
+          "rate_1": 0.361846923828125,
+          "rate_2": 0.638153076171875,
+          "mean_unique_groups": 1.638153076171875,
+          "same_group_routing_rate": 0.361846923828125
+        },
+        "prefill/layer_31": {
+          "num_tokens": 32768,
+          "unique_group_count": {
+            "1": 11674,
+            "2": 21094
+          },
+          "unique_group_rate": {
+            "1": 0.35626220703125,
+            "2": 0.64373779296875
+          },
+          "rate_1": 0.35626220703125,
+          "rate_2": 0.64373779296875,
+          "mean_unique_groups": 1.64373779296875,
+          "same_group_routing_rate": 0.35626220703125
+        },
+        "decode/layer_0": {
+          "num_tokens": 2048,
+          "unique_group_count": {
+            "1": 786,
+            "2": 1262
+          },
+          "unique_group_rate": {
+            "1": 0.3837890625,
+            "2": 0.6162109375
+          },
+          "rate_1": 0.3837890625,
+          "rate_2": 0.6162109375,
+          "mean_unique_groups": 1.6162109375,
+          "same_group_routing_rate": 0.3837890625
+        },
+        "decode/layer_1": {
+          "num_tokens": 2048,
+          "unique_group_count": {
+            "1": 515,
+            "2": 1533
+          },
+          "unique_group_rate": {
+            "1": 0.25146484375,
+            "2": 0.74853515625
+          },
+          "rate_1": 0.25146484375,
+          "rate_2": 0.74853515625,
+          "mean_unique_groups": 1.74853515625,
+          "same_group_routing_rate": 0.25146484375
+        },
+        "decode/layer_2": {
+          "num_tokens": 2048,
+          "unique_group_count": {
+            "1": 801,
+            "2": 1247
+          },
+          "unique_group_rate": {
+            "1": 0.39111328125,
+            "2": 0.60888671875
+          },
+          "rate_1": 0.39111328125,
+          "rate_2": 0.60888671875,
+          "mean_unique_groups": 1.60888671875,
+          "same_group_routing_rate": 0.39111328125
+        },
+        "decode/layer_3": {
+          "num_tokens": 2048,
+          "unique_group_count": {
+            "1": 572,
+            "2": 1476
+          },
+          "unique_group_rate": {
+            "1": 0.279296875,
+            "2": 0.720703125
+          },
+          "rate_1": 0.279296875,
+          "rate_2": 0.720703125,
+          "mean_unique_groups": 1.720703125,
+          "same_group_routing_rate": 0.279296875
+        },
+        "decode/layer_4": {
+          "num_tokens": 2048,
+          "unique_group_count": {
+            "1": 491,
+            "2": 1557
+          },
+          "unique_group_rate": {
+            "1": 0.23974609375,
+            "2": 0.76025390625
+          },
+          "rate_1": 0.23974609375,
+          "rate_2": 0.76025390625,
+          "mean_unique_groups": 1.76025390625,
+          "same_group_routing_rate": 0.23974609375
+        },
+        "decode/layer_5": {
+          "num_tokens": 2048,
+          "unique_group_count": {
+            "1": 462,
+            "2": 1586
+          },
+          "unique_group_rate": {
+            "1": 0.2255859375,
+            "2": 0.7744140625
+          },
+          "rate_1": 0.2255859375,
+          "rate_2": 0.7744140625,
+          "mean_unique_groups": 1.7744140625,
+          "same_group_routing_rate": 0.2255859375
+        },
+        "decode/layer_6": {
+          "num_tokens": 2048,
+          "unique_group_count": {
+            "1": 552,
+            "2": 1496
+          },
+          "unique_group_rate": {
+            "1": 0.26953125,
+            "2": 0.73046875
+          },
+          "rate_1": 0.26953125,
+          "rate_2": 0.73046875,
+          "mean_unique_groups": 1.73046875,
+          "same_group_routing_rate": 0.26953125
+        },
+        "decode/layer_7": {
+          "num_tokens": 2048,
+          "unique_group_count": {
+            "1": 363,
+            "2": 1685
+          },
+          "unique_group_rate": {
+            "1": 0.17724609375,
+            "2": 0.82275390625
+          },
+          "rate_1": 0.17724609375,
+          "rate_2": 0.82275390625,
+          "mean_unique_groups": 1.82275390625,
+          "same_group_routing_rate": 0.17724609375
+        },
+        "decode/layer_8": {
+          "num_tokens": 2048,
+          "unique_group_count": {
+            "1": 619,
+            "2": 1429
+          },
+          "unique_group_rate": {
+            "1": 0.30224609375,
+            "2": 0.69775390625
+          },
+          "rate_1": 0.30224609375,
+          "rate_2": 0.69775390625,
+          "mean_unique_groups": 1.69775390625,
+          "same_group_routing_rate": 0.30224609375
+        },
+        "decode/layer_9": {
+          "num_tokens": 2048,
+          "unique_group_count": {
+            "1": 478,
+            "2": 1570
+          },
+          "unique_group_rate": {
+            "1": 0.2333984375,
+            "2": 0.7666015625
+          },
+          "rate_1": 0.2333984375,
+          "rate_2": 0.7666015625,
+          "mean_unique_groups": 1.7666015625,
+          "same_group_routing_rate": 0.2333984375
+        },
+        "decode/layer_10": {
+          "num_tokens": 2048,
+          "unique_group_count": {
+            "1": 749,
+            "2": 1299
+          },
+          "unique_group_rate": {
+            "1": 0.36572265625,
+            "2": 0.63427734375
+          },
+          "rate_1": 0.36572265625,
+          "rate_2": 0.63427734375,
+          "mean_unique_groups": 1.63427734375,
+          "same_group_routing_rate": 0.36572265625
+        },
+        "decode/layer_11": {
+          "num_tokens": 2048,
+          "unique_group_count": {
+            "1": 1008,
+            "2": 1040
+          },
+          "unique_group_rate": {
+            "1": 0.4921875,
+            "2": 0.5078125
+          },
+          "rate_1": 0.4921875,
+          "rate_2": 0.5078125,
+          "mean_unique_groups": 1.5078125,
+          "same_group_routing_rate": 0.4921875
+        },
+        "decode/layer_12": {
+          "num_tokens": 2048,
+          "unique_group_count": {
+            "1": 992,
+            "2": 1056
+          },
+          "unique_group_rate": {
+            "1": 0.484375,
+            "2": 0.515625
+          },
+          "rate_1": 0.484375,
+          "rate_2": 0.515625,
+          "mean_unique_groups": 1.515625,
+          "same_group_routing_rate": 0.484375
+        },
+        "decode/layer_13": {
+          "num_tokens": 2048,
+          "unique_group_count": {
+            "1": 718,
+            "2": 1330
+          },
+          "unique_group_rate": {
+            "1": 0.3505859375,
+            "2": 0.6494140625
+          },
+          "rate_1": 0.3505859375,
+          "rate_2": 0.6494140625,
+          "mean_unique_groups": 1.6494140625,
+          "same_group_routing_rate": 0.3505859375
+        },
+        "decode/layer_14": {
+          "num_tokens": 2048,
+          "unique_group_count": {
+            "1": 703,
+            "2": 1345
+          },
+          "unique_group_rate": {
+            "1": 0.34326171875,
+            "2": 0.65673828125
+          },
+          "rate_1": 0.34326171875,
+          "rate_2": 0.65673828125,
+          "mean_unique_groups": 1.65673828125,
+          "same_group_routing_rate": 0.34326171875
+        },
+        "decode/layer_15": {
+          "num_tokens": 2048,
+          "unique_group_count": {
+            "1": 514,
+            "2": 1534
+          },
+          "unique_group_rate": {
+            "1": 0.2509765625,
+            "2": 0.7490234375
+          },
+          "rate_1": 0.2509765625,
+          "rate_2": 0.7490234375,
+          "mean_unique_groups": 1.7490234375,
+          "same_group_routing_rate": 0.2509765625
+        },
+        "decode/layer_16": {
+          "num_tokens": 2048,
+          "unique_group_count": {
+            "1": 866,
+            "2": 1182
+          },
+          "unique_group_rate": {
+            "1": 0.4228515625,
+            "2": 0.5771484375
+          },
+          "rate_1": 0.4228515625,
+          "rate_2": 0.5771484375,
+          "mean_unique_groups": 1.5771484375,
+          "same_group_routing_rate": 0.4228515625
+        },
+        "decode/layer_17": {
+          "num_tokens": 2048,
+          "unique_group_count": {
+            "1": 726,
+            "2": 1322
+          },
+          "unique_group_rate": {
+            "1": 0.3544921875,
+            "2": 0.6455078125
+          },
+          "rate_1": 0.3544921875,
+          "rate_2": 0.6455078125,
+          "mean_unique_groups": 1.6455078125,
+          "same_group_routing_rate": 0.3544921875
+        },
+        "decode/layer_18": {
+          "num_tokens": 2048,
+          "unique_group_count": {
+            "1": 575,
+            "2": 1473
+          },
+          "unique_group_rate": {
+            "1": 0.28076171875,
+            "2": 0.71923828125
+          },
+          "rate_1": 0.28076171875,
+          "rate_2": 0.71923828125,
+          "mean_unique_groups": 1.71923828125,
+          "same_group_routing_rate": 0.28076171875
+        },
+        "decode/layer_19": {
+          "num_tokens": 2048,
+          "unique_group_count": {
+            "1": 767,
+            "2": 1281
+          },
+          "unique_group_rate": {
+            "1": 0.37451171875,
+            "2": 0.62548828125
+          },
+          "rate_1": 0.37451171875,
+          "rate_2": 0.62548828125,
+          "mean_unique_groups": 1.62548828125,
+          "same_group_routing_rate": 0.37451171875
+        },
+        "decode/layer_20": {
+          "num_tokens": 2048,
+          "unique_group_count": {
+            "1": 591,
+            "2": 1457
+          },
+          "unique_group_rate": {
+            "1": 0.28857421875,
+            "2": 0.71142578125
+          },
+          "rate_1": 0.28857421875,
+          "rate_2": 0.71142578125,
+          "mean_unique_groups": 1.71142578125,
+          "same_group_routing_rate": 0.28857421875
+        },
+        "decode/layer_21": {
+          "num_tokens": 2048,
+          "unique_group_count": {
+            "1": 415,
+            "2": 1633
+          },
+          "unique_group_rate": {
+            "1": 0.20263671875,
+            "2": 0.79736328125
+          },
+          "rate_1": 0.20263671875,
+          "rate_2": 0.79736328125,
+          "mean_unique_groups": 1.79736328125,
+          "same_group_routing_rate": 0.20263671875
+        },
+        "decode/layer_22": {
+          "num_tokens": 2048,
+          "unique_group_count": {
+            "1": 661,
+            "2": 1387
+          },
+          "unique_group_rate": {
+            "1": 0.32275390625,
+            "2": 0.67724609375
+          },
+          "rate_1": 0.32275390625,
+          "rate_2": 0.67724609375,
+          "mean_unique_groups": 1.67724609375,
+          "same_group_routing_rate": 0.32275390625
+        },
+        "decode/layer_23": {
+          "num_tokens": 2048,
+          "unique_group_count": {
+            "1": 705,
+            "2": 1343
+          },
+          "unique_group_rate": {
+            "1": 0.34423828125,
+            "2": 0.65576171875
+          },
+          "rate_1": 0.34423828125,
+          "rate_2": 0.65576171875,
+          "mean_unique_groups": 1.65576171875,
+          "same_group_routing_rate": 0.34423828125
+        },
+        "decode/layer_24": {
+          "num_tokens": 2048,
+          "unique_group_count": {
+            "1": 594,
+            "2": 1454
+          },
+          "unique_group_rate": {
+            "1": 0.2900390625,
+            "2": 0.7099609375
+          },
+          "rate_1": 0.2900390625,
+          "rate_2": 0.7099609375,
+          "mean_unique_groups": 1.7099609375,
+          "same_group_routing_rate": 0.2900390625
+        },
+        "decode/layer_25": {
+          "num_tokens": 2048,
+          "unique_group_count": {
+            "1": 567,
+            "2": 1481
+          },
+          "unique_group_rate": {
+            "1": 0.27685546875,
+            "2": 0.72314453125
+          },
+          "rate_1": 0.27685546875,
+          "rate_2": 0.72314453125,
+          "mean_unique_groups": 1.72314453125,
+          "same_group_routing_rate": 0.27685546875
+        },
+        "decode/layer_26": {
+          "num_tokens": 2048,
+          "unique_group_count": {
+            "1": 1077,
+            "2": 971
+          },
+          "unique_group_rate": {
+            "1": 0.52587890625,
+            "2": 0.47412109375
+          },
+          "rate_1": 0.52587890625,
+          "rate_2": 0.47412109375,
+          "mean_unique_groups": 1.47412109375,
+          "same_group_routing_rate": 0.52587890625
+        },
+        "decode/layer_27": {
+          "num_tokens": 2048,
+          "unique_group_count": {
+            "1": 719,
+            "2": 1329
+          },
+          "unique_group_rate": {
+            "1": 0.35107421875,
+            "2": 0.64892578125
+          },
+          "rate_1": 0.35107421875,
+          "rate_2": 0.64892578125,
+          "mean_unique_groups": 1.64892578125,
+          "same_group_routing_rate": 0.35107421875
+        },
+        "decode/layer_28": {
+          "num_tokens": 2048,
+          "unique_group_count": {
+            "1": 432,
+            "2": 1616
+          },
+          "unique_group_rate": {
+            "1": 0.2109375,
+            "2": 0.7890625
+          },
+          "rate_1": 0.2109375,
+          "rate_2": 0.7890625,
+          "mean_unique_groups": 1.7890625,
+          "same_group_routing_rate": 0.2109375
+        },
+        "decode/layer_29": {
+          "num_tokens": 2048,
+          "unique_group_count": {
+            "1": 877,
+            "2": 1171
+          },
+          "unique_group_rate": {
+            "1": 0.42822265625,
+            "2": 0.57177734375
+          },
+          "rate_1": 0.42822265625,
+          "rate_2": 0.57177734375,
+          "mean_unique_groups": 1.57177734375,
+          "same_group_routing_rate": 0.42822265625
+        },
+        "decode/layer_30": {
+          "num_tokens": 2048,
+          "unique_group_count": {
+            "1": 720,
+            "2": 1328
+          },
+          "unique_group_rate": {
+            "1": 0.3515625,
+            "2": 0.6484375
+          },
+          "rate_1": 0.3515625,
+          "rate_2": 0.6484375,
+          "mean_unique_groups": 1.6484375,
+          "same_group_routing_rate": 0.3515625
+        },
+        "decode/layer_31": {
+          "num_tokens": 2048,
+          "unique_group_count": {
+            "1": 718,
+            "2": 1330
+          },
+          "unique_group_rate": {
+            "1": 0.3505859375,
+            "2": 0.6494140625
+          },
+          "rate_1": 0.3505859375,
+          "rate_2": 0.6494140625,
+          "mean_unique_groups": 1.6494140625,
+          "same_group_routing_rate": 0.3505859375
+        }
+      },
+      "by_phase": {
+        "prefill": {
+          "num_tokens": 1048576,
+          "unique_group_count": {
+            "1": 341886,
+            "2": 706690
+          },
+          "unique_group_rate": {
+            "1": 0.3260478973388672,
+            "2": 0.6739521026611328
+          },
+          "rate_1": 0.3260478973388672,
+          "rate_2": 0.6739521026611328,
+          "mean_unique_groups": 1.6739521026611328,
+          "same_group_routing_rate": 0.3260478973388672
+        },
+        "decode": {
+          "num_tokens": 65536,
+          "unique_group_count": {
+            "1": 21333,
+            "2": 44203
+          },
+          "unique_group_rate": {
+            "1": 0.3255157470703125,
+            "2": 0.6744842529296875
+          },
+          "rate_1": 0.3255157470703125,
+          "rate_2": 0.6744842529296875,
+          "mean_unique_groups": 1.6744842529296875,
+          "same_group_routing_rate": 0.3255157470703125
+        }
+      },
+      "all": {
+        "num_tokens": 1114112,
+        "unique_group_count": {
+          "1": 363219,
+          "2": 750893
+        },
+        "unique_group_rate": {
+          "1": 0.3260165943818934,
+          "2": 0.6739834056181067
+        },
+        "rate_1": 0.3260165943818934,
+        "rate_2": 0.6739834056181067,
+        "mean_unique_groups": 1.6739834056181067,
+        "same_group_routing_rate": 0.3260165943818934
+      }
+    },
+    "hybrid_a050": {
+      "by_phase_layer": {
+        "prefill/layer_0": {
+          "num_tokens": 32768,
+          "unique_group_count": {
+            "1": 12073,
+            "2": 20695
+          },
+          "unique_group_rate": {
+            "1": 0.368438720703125,
+            "2": 0.631561279296875
+          },
+          "rate_1": 0.368438720703125,
+          "rate_2": 0.631561279296875,
+          "mean_unique_groups": 1.631561279296875,
+          "same_group_routing_rate": 0.368438720703125
+        },
+        "prefill/layer_1": {
+          "num_tokens": 32768,
+          "unique_group_count": {
+            "1": 8333,
+            "2": 24435
+          },
+          "unique_group_rate": {
+            "1": 0.254302978515625,
+            "2": 0.745697021484375
+          },
+          "rate_1": 0.254302978515625,
+          "rate_2": 0.745697021484375,
+          "mean_unique_groups": 1.745697021484375,
+          "same_group_routing_rate": 0.254302978515625
+        },
+        "prefill/layer_2": {
+          "num_tokens": 32768,
+          "unique_group_count": {
+            "1": 10203,
+            "2": 22565
+          },
+          "unique_group_rate": {
+            "1": 0.311370849609375,
+            "2": 0.688629150390625
+          },
+          "rate_1": 0.311370849609375,
+          "rate_2": 0.688629150390625,
+          "mean_unique_groups": 1.688629150390625,
+          "same_group_routing_rate": 0.311370849609375
+        },
+        "prefill/layer_3": {
+          "num_tokens": 32768,
+          "unique_group_count": {
+            "1": 7803,
+            "2": 24965
+          },
+          "unique_group_rate": {
+            "1": 0.238128662109375,
+            "2": 0.761871337890625
+          },
+          "rate_1": 0.238128662109375,
+          "rate_2": 0.761871337890625,
+          "mean_unique_groups": 1.761871337890625,
+          "same_group_routing_rate": 0.238128662109375
+        },
+        "prefill/layer_4": {
+          "num_tokens": 32768,
+          "unique_group_count": {
+            "1": 7833,
+            "2": 24935
+          },
+          "unique_group_rate": {
+            "1": 0.239044189453125,
+            "2": 0.760955810546875
+          },
+          "rate_1": 0.239044189453125,
+          "rate_2": 0.760955810546875,
+          "mean_unique_groups": 1.760955810546875,
+          "same_group_routing_rate": 0.239044189453125
+        },
+        "prefill/layer_5": {
+          "num_tokens": 32768,
+          "unique_group_count": {
+            "1": 7579,
+            "2": 25189
+          },
+          "unique_group_rate": {
+            "1": 0.231292724609375,
+            "2": 0.768707275390625
+          },
+          "rate_1": 0.231292724609375,
+          "rate_2": 0.768707275390625,
+          "mean_unique_groups": 1.768707275390625,
+          "same_group_routing_rate": 0.231292724609375
+        },
+        "prefill/layer_6": {
+          "num_tokens": 32768,
+          "unique_group_count": {
+            "1": 9270,
+            "2": 23498
+          },
+          "unique_group_rate": {
+            "1": 0.28289794921875,
+            "2": 0.71710205078125
+          },
+          "rate_1": 0.28289794921875,
+          "rate_2": 0.71710205078125,
+          "mean_unique_groups": 1.71710205078125,
+          "same_group_routing_rate": 0.28289794921875
+        },
+        "prefill/layer_7": {
+          "num_tokens": 32768,
+          "unique_group_count": {
+            "1": 6119,
+            "2": 26649
+          },
+          "unique_group_rate": {
+            "1": 0.186737060546875,
+            "2": 0.813262939453125
+          },
+          "rate_1": 0.186737060546875,
+          "rate_2": 0.813262939453125,
+          "mean_unique_groups": 1.813262939453125,
+          "same_group_routing_rate": 0.186737060546875
+        },
+        "prefill/layer_8": {
+          "num_tokens": 32768,
+          "unique_group_count": {
+            "1": 8561,
+            "2": 24207
+          },
+          "unique_group_rate": {
+            "1": 0.261260986328125,
+            "2": 0.738739013671875
+          },
+          "rate_1": 0.261260986328125,
+          "rate_2": 0.738739013671875,
+          "mean_unique_groups": 1.738739013671875,
+          "same_group_routing_rate": 0.261260986328125
+        },
+        "prefill/layer_9": {
+          "num_tokens": 32768,
+          "unique_group_count": {
+            "1": 10843,
+            "2": 21925
+          },
+          "unique_group_rate": {
+            "1": 0.330902099609375,
+            "2": 0.669097900390625
+          },
+          "rate_1": 0.330902099609375,
+          "rate_2": 0.669097900390625,
+          "mean_unique_groups": 1.669097900390625,
+          "same_group_routing_rate": 0.330902099609375
+        },
+        "prefill/layer_10": {
+          "num_tokens": 32768,
+          "unique_group_count": {
+            "1": 12626,
+            "2": 20142
+          },
+          "unique_group_rate": {
+            "1": 0.38531494140625,
+            "2": 0.61468505859375
+          },
+          "rate_1": 0.38531494140625,
+          "rate_2": 0.61468505859375,
+          "mean_unique_groups": 1.61468505859375,
+          "same_group_routing_rate": 0.38531494140625
+        },
+        "prefill/layer_11": {
+          "num_tokens": 32768,
+          "unique_group_count": {
+            "1": 15635,
+            "2": 17133
+          },
+          "unique_group_rate": {
+            "1": 0.477142333984375,
+            "2": 0.522857666015625
+          },
+          "rate_1": 0.477142333984375,
+          "rate_2": 0.522857666015625,
+          "mean_unique_groups": 1.522857666015625,
+          "same_group_routing_rate": 0.477142333984375
+        },
+        "prefill/layer_12": {
+          "num_tokens": 32768,
+          "unique_group_count": {
+            "1": 11215,
+            "2": 21553
+          },
+          "unique_group_rate": {
+            "1": 0.342254638671875,
+            "2": 0.657745361328125
+          },
+          "rate_1": 0.342254638671875,
+          "rate_2": 0.657745361328125,
+          "mean_unique_groups": 1.657745361328125,
+          "same_group_routing_rate": 0.342254638671875
+        },
+        "prefill/layer_13": {
+          "num_tokens": 32768,
+          "unique_group_count": {
+            "1": 11225,
+            "2": 21543
+          },
+          "unique_group_rate": {
+            "1": 0.342559814453125,
+            "2": 0.657440185546875
+          },
+          "rate_1": 0.342559814453125,
+          "rate_2": 0.657440185546875,
+          "mean_unique_groups": 1.657440185546875,
+          "same_group_routing_rate": 0.342559814453125
+        },
+        "prefill/layer_14": {
+          "num_tokens": 32768,
+          "unique_group_count": {
+            "1": 15072,
+            "2": 17696
+          },
+          "unique_group_rate": {
+            "1": 0.4599609375,
+            "2": 0.5400390625
+          },
+          "rate_1": 0.4599609375,
+          "rate_2": 0.5400390625,
+          "mean_unique_groups": 1.5400390625,
+          "same_group_routing_rate": 0.4599609375
+        },
+        "prefill/layer_15": {
+          "num_tokens": 32768,
+          "unique_group_count": {
+            "1": 13659,
+            "2": 19109
+          },
+          "unique_group_rate": {
+            "1": 0.416839599609375,
+            "2": 0.583160400390625
+          },
+          "rate_1": 0.416839599609375,
+          "rate_2": 0.583160400390625,
+          "mean_unique_groups": 1.583160400390625,
+          "same_group_routing_rate": 0.416839599609375
+        },
+        "prefill/layer_16": {
+          "num_tokens": 32768,
+          "unique_group_count": {
+            "1": 11625,
+            "2": 21143
+          },
+          "unique_group_rate": {
+            "1": 0.354766845703125,
+            "2": 0.645233154296875
+          },
+          "rate_1": 0.354766845703125,
+          "rate_2": 0.645233154296875,
+          "mean_unique_groups": 1.645233154296875,
+          "same_group_routing_rate": 0.354766845703125
+        },
+        "prefill/layer_17": {
+          "num_tokens": 32768,
+          "unique_group_count": {
+            "1": 9665,
+            "2": 23103
+          },
+          "unique_group_rate": {
+            "1": 0.294952392578125,
+            "2": 0.705047607421875
+          },
+          "rate_1": 0.294952392578125,
+          "rate_2": 0.705047607421875,
+          "mean_unique_groups": 1.705047607421875,
+          "same_group_routing_rate": 0.294952392578125
+        },
+        "prefill/layer_18": {
+          "num_tokens": 32768,
+          "unique_group_count": {
+            "1": 9506,
+            "2": 23262
+          },
+          "unique_group_rate": {
+            "1": 0.29010009765625,
+            "2": 0.70989990234375
+          },
+          "rate_1": 0.29010009765625,
+          "rate_2": 0.70989990234375,
+          "mean_unique_groups": 1.70989990234375,
+          "same_group_routing_rate": 0.29010009765625
+        },
+        "prefill/layer_19": {
+          "num_tokens": 32768,
+          "unique_group_count": {
+            "1": 13063,
+            "2": 19705
+          },
+          "unique_group_rate": {
+            "1": 0.398651123046875,
+            "2": 0.601348876953125
+          },
+          "rate_1": 0.398651123046875,
+          "rate_2": 0.601348876953125,
+          "mean_unique_groups": 1.601348876953125,
+          "same_group_routing_rate": 0.398651123046875
+        },
+        "prefill/layer_20": {
+          "num_tokens": 32768,
+          "unique_group_count": {
+            "1": 7311,
+            "2": 25457
+          },
+          "unique_group_rate": {
+            "1": 0.223114013671875,
+            "2": 0.776885986328125
+          },
+          "rate_1": 0.223114013671875,
+          "rate_2": 0.776885986328125,
+          "mean_unique_groups": 1.776885986328125,
+          "same_group_routing_rate": 0.223114013671875
+        },
+        "prefill/layer_21": {
+          "num_tokens": 32768,
+          "unique_group_count": {
+            "1": 9458,
+            "2": 23310
+          },
+          "unique_group_rate": {
+            "1": 0.28863525390625,
+            "2": 0.71136474609375
+          },
+          "rate_1": 0.28863525390625,
+          "rate_2": 0.71136474609375,
+          "mean_unique_groups": 1.71136474609375,
+          "same_group_routing_rate": 0.28863525390625
+        },
+        "prefill/layer_22": {
+          "num_tokens": 32768,
+          "unique_group_count": {
+            "1": 8851,
+            "2": 23917
+          },
+          "unique_group_rate": {
+            "1": 0.270111083984375,
+            "2": 0.729888916015625
+          },
+          "rate_1": 0.270111083984375,
+          "rate_2": 0.729888916015625,
+          "mean_unique_groups": 1.729888916015625,
+          "same_group_routing_rate": 0.270111083984375
+        },
+        "prefill/layer_23": {
+          "num_tokens": 32768,
+          "unique_group_count": {
+            "1": 10614,
+            "2": 22154
+          },
+          "unique_group_rate": {
+            "1": 0.32391357421875,
+            "2": 0.67608642578125
+          },
+          "rate_1": 0.32391357421875,
+          "rate_2": 0.67608642578125,
+          "mean_unique_groups": 1.67608642578125,
+          "same_group_routing_rate": 0.32391357421875
+        },
+        "prefill/layer_24": {
+          "num_tokens": 32768,
+          "unique_group_count": {
+            "1": 7376,
+            "2": 25392
+          },
+          "unique_group_rate": {
+            "1": 0.22509765625,
+            "2": 0.77490234375
+          },
+          "rate_1": 0.22509765625,
+          "rate_2": 0.77490234375,
+          "mean_unique_groups": 1.77490234375,
+          "same_group_routing_rate": 0.22509765625
+        },
+        "prefill/layer_25": {
+          "num_tokens": 32768,
+          "unique_group_count": {
+            "1": 10007,
+            "2": 22761
+          },
+          "unique_group_rate": {
+            "1": 0.305389404296875,
+            "2": 0.694610595703125
+          },
+          "rate_1": 0.305389404296875,
+          "rate_2": 0.694610595703125,
+          "mean_unique_groups": 1.694610595703125,
+          "same_group_routing_rate": 0.305389404296875
+        },
+        "prefill/layer_26": {
+          "num_tokens": 32768,
+          "unique_group_count": {
+            "1": 11961,
+            "2": 20807
+          },
+          "unique_group_rate": {
+            "1": 0.365020751953125,
+            "2": 0.634979248046875
+          },
+          "rate_1": 0.365020751953125,
+          "rate_2": 0.634979248046875,
+          "mean_unique_groups": 1.634979248046875,
+          "same_group_routing_rate": 0.365020751953125
+        },
+        "prefill/layer_27": {
+          "num_tokens": 32768,
+          "unique_group_count": {
+            "1": 10604,
+            "2": 22164
+          },
+          "unique_group_rate": {
+            "1": 0.3236083984375,
+            "2": 0.6763916015625
+          },
+          "rate_1": 0.3236083984375,
+          "rate_2": 0.6763916015625,
+          "mean_unique_groups": 1.6763916015625,
+          "same_group_routing_rate": 0.3236083984375
+        },
+        "prefill/layer_28": {
+          "num_tokens": 32768,
+          "unique_group_count": {
+            "1": 9982,
+            "2": 22786
+          },
+          "unique_group_rate": {
+            "1": 0.30462646484375,
+            "2": 0.69537353515625
+          },
+          "rate_1": 0.30462646484375,
+          "rate_2": 0.69537353515625,
+          "mean_unique_groups": 1.69537353515625,
+          "same_group_routing_rate": 0.30462646484375
+        },
+        "prefill/layer_29": {
+          "num_tokens": 32768,
+          "unique_group_count": {
+            "1": 14161,
+            "2": 18607
+          },
+          "unique_group_rate": {
+            "1": 0.432159423828125,
+            "2": 0.567840576171875
+          },
+          "rate_1": 0.432159423828125,
+          "rate_2": 0.567840576171875,
+          "mean_unique_groups": 1.567840576171875,
+          "same_group_routing_rate": 0.432159423828125
+        },
+        "prefill/layer_30": {
+          "num_tokens": 32768,
+          "unique_group_count": {
+            "1": 14700,
+            "2": 18068
+          },
+          "unique_group_rate": {
+            "1": 0.4486083984375,
+            "2": 0.5513916015625
+          },
+          "rate_1": 0.4486083984375,
+          "rate_2": 0.5513916015625,
+          "mean_unique_groups": 1.5513916015625,
+          "same_group_routing_rate": 0.4486083984375
+        },
+        "prefill/layer_31": {
+          "num_tokens": 32768,
+          "unique_group_count": {
+            "1": 19424,
+            "2": 13344
+          },
+          "unique_group_rate": {
+            "1": 0.5927734375,
+            "2": 0.4072265625
+          },
+          "rate_1": 0.5927734375,
+          "rate_2": 0.4072265625,
+          "mean_unique_groups": 1.4072265625,
+          "same_group_routing_rate": 0.5927734375
+        },
+        "decode/layer_0": {
+          "num_tokens": 2048,
+          "unique_group_count": {
+            "1": 725,
+            "2": 1323
+          },
+          "unique_group_rate": {
+            "1": 0.35400390625,
+            "2": 0.64599609375
+          },
+          "rate_1": 0.35400390625,
+          "rate_2": 0.64599609375,
+          "mean_unique_groups": 1.64599609375,
+          "same_group_routing_rate": 0.35400390625
+        },
+        "decode/layer_1": {
+          "num_tokens": 2048,
+          "unique_group_count": {
+            "1": 515,
+            "2": 1533
+          },
+          "unique_group_rate": {
+            "1": 0.25146484375,
+            "2": 0.74853515625
+          },
+          "rate_1": 0.25146484375,
+          "rate_2": 0.74853515625,
+          "mean_unique_groups": 1.74853515625,
+          "same_group_routing_rate": 0.25146484375
+        },
+        "decode/layer_2": {
+          "num_tokens": 2048,
+          "unique_group_count": {
+            "1": 672,
+            "2": 1376
+          },
+          "unique_group_rate": {
+            "1": 0.328125,
+            "2": 0.671875
+          },
+          "rate_1": 0.328125,
+          "rate_2": 0.671875,
+          "mean_unique_groups": 1.671875,
+          "same_group_routing_rate": 0.328125
+        },
+        "decode/layer_3": {
+          "num_tokens": 2048,
+          "unique_group_count": {
+            "1": 539,
+            "2": 1509
+          },
+          "unique_group_rate": {
+            "1": 0.26318359375,
+            "2": 0.73681640625
+          },
+          "rate_1": 0.26318359375,
+          "rate_2": 0.73681640625,
+          "mean_unique_groups": 1.73681640625,
+          "same_group_routing_rate": 0.26318359375
+        },
+        "decode/layer_4": {
+          "num_tokens": 2048,
+          "unique_group_count": {
+            "1": 519,
+            "2": 1529
+          },
+          "unique_group_rate": {
+            "1": 0.25341796875,
+            "2": 0.74658203125
+          },
+          "rate_1": 0.25341796875,
+          "rate_2": 0.74658203125,
+          "mean_unique_groups": 1.74658203125,
+          "same_group_routing_rate": 0.25341796875
+        },
+        "decode/layer_5": {
+          "num_tokens": 2048,
+          "unique_group_count": {
+            "1": 499,
+            "2": 1549
+          },
+          "unique_group_rate": {
+            "1": 0.24365234375,
+            "2": 0.75634765625
+          },
+          "rate_1": 0.24365234375,
+          "rate_2": 0.75634765625,
+          "mean_unique_groups": 1.75634765625,
+          "same_group_routing_rate": 0.24365234375
+        },
+        "decode/layer_6": {
+          "num_tokens": 2048,
+          "unique_group_count": {
+            "1": 558,
+            "2": 1490
+          },
+          "unique_group_rate": {
+            "1": 0.2724609375,
+            "2": 0.7275390625
+          },
+          "rate_1": 0.2724609375,
+          "rate_2": 0.7275390625,
+          "mean_unique_groups": 1.7275390625,
+          "same_group_routing_rate": 0.2724609375
+        },
+        "decode/layer_7": {
+          "num_tokens": 2048,
+          "unique_group_count": {
+            "1": 347,
+            "2": 1701
+          },
+          "unique_group_rate": {
+            "1": 0.16943359375,
+            "2": 0.83056640625
+          },
+          "rate_1": 0.16943359375,
+          "rate_2": 0.83056640625,
+          "mean_unique_groups": 1.83056640625,
+          "same_group_routing_rate": 0.16943359375
+        },
+        "decode/layer_8": {
+          "num_tokens": 2048,
+          "unique_group_count": {
+            "1": 529,
+            "2": 1519
+          },
+          "unique_group_rate": {
+            "1": 0.25830078125,
+            "2": 0.74169921875
+          },
+          "rate_1": 0.25830078125,
+          "rate_2": 0.74169921875,
+          "mean_unique_groups": 1.74169921875,
+          "same_group_routing_rate": 0.25830078125
+        },
+        "decode/layer_9": {
+          "num_tokens": 2048,
+          "unique_group_count": {
+            "1": 723,
+            "2": 1325
+          },
+          "unique_group_rate": {
+            "1": 0.35302734375,
+            "2": 0.64697265625
+          },
+          "rate_1": 0.35302734375,
+          "rate_2": 0.64697265625,
+          "mean_unique_groups": 1.64697265625,
+          "same_group_routing_rate": 0.35302734375
+        },
+        "decode/layer_10": {
+          "num_tokens": 2048,
+          "unique_group_count": {
+            "1": 748,
+            "2": 1300
+          },
+          "unique_group_rate": {
+            "1": 0.365234375,
+            "2": 0.634765625
+          },
+          "rate_1": 0.365234375,
+          "rate_2": 0.634765625,
+          "mean_unique_groups": 1.634765625,
+          "same_group_routing_rate": 0.365234375
+        },
+        "decode/layer_11": {
+          "num_tokens": 2048,
+          "unique_group_count": {
+            "1": 1008,
+            "2": 1040
+          },
+          "unique_group_rate": {
+            "1": 0.4921875,
+            "2": 0.5078125
+          },
+          "rate_1": 0.4921875,
+          "rate_2": 0.5078125,
+          "mean_unique_groups": 1.5078125,
+          "same_group_routing_rate": 0.4921875
+        },
+        "decode/layer_12": {
+          "num_tokens": 2048,
+          "unique_group_count": {
+            "1": 686,
+            "2": 1362
+          },
+          "unique_group_rate": {
+            "1": 0.3349609375,
+            "2": 0.6650390625
+          },
+          "rate_1": 0.3349609375,
+          "rate_2": 0.6650390625,
+          "mean_unique_groups": 1.6650390625,
+          "same_group_routing_rate": 0.3349609375
+        },
+        "decode/layer_13": {
+          "num_tokens": 2048,
+          "unique_group_count": {
+            "1": 706,
+            "2": 1342
+          },
+          "unique_group_rate": {
+            "1": 0.3447265625,
+            "2": 0.6552734375
+          },
+          "rate_1": 0.3447265625,
+          "rate_2": 0.6552734375,
+          "mean_unique_groups": 1.6552734375,
+          "same_group_routing_rate": 0.3447265625
+        },
+        "decode/layer_14": {
+          "num_tokens": 2048,
+          "unique_group_count": {
+            "1": 840,
+            "2": 1208
+          },
+          "unique_group_rate": {
+            "1": 0.41015625,
+            "2": 0.58984375
+          },
+          "rate_1": 0.41015625,
+          "rate_2": 0.58984375,
+          "mean_unique_groups": 1.58984375,
+          "same_group_routing_rate": 0.41015625
+        },
+        "decode/layer_15": {
+          "num_tokens": 2048,
+          "unique_group_count": {
+            "1": 839,
+            "2": 1209
+          },
+          "unique_group_rate": {
+            "1": 0.40966796875,
+            "2": 0.59033203125
+          },
+          "rate_1": 0.40966796875,
+          "rate_2": 0.59033203125,
+          "mean_unique_groups": 1.59033203125,
+          "same_group_routing_rate": 0.40966796875
+        },
+        "decode/layer_16": {
+          "num_tokens": 2048,
+          "unique_group_count": {
+            "1": 774,
+            "2": 1274
+          },
+          "unique_group_rate": {
+            "1": 0.3779296875,
+            "2": 0.6220703125
+          },
+          "rate_1": 0.3779296875,
+          "rate_2": 0.6220703125,
+          "mean_unique_groups": 1.6220703125,
+          "same_group_routing_rate": 0.3779296875
+        },
+        "decode/layer_17": {
+          "num_tokens": 2048,
+          "unique_group_count": {
+            "1": 628,
+            "2": 1420
+          },
+          "unique_group_rate": {
+            "1": 0.306640625,
+            "2": 0.693359375
+          },
+          "rate_1": 0.306640625,
+          "rate_2": 0.693359375,
+          "mean_unique_groups": 1.693359375,
+          "same_group_routing_rate": 0.306640625
+        },
+        "decode/layer_18": {
+          "num_tokens": 2048,
+          "unique_group_count": {
+            "1": 575,
+            "2": 1473
+          },
+          "unique_group_rate": {
+            "1": 0.28076171875,
+            "2": 0.71923828125
+          },
+          "rate_1": 0.28076171875,
+          "rate_2": 0.71923828125,
+          "mean_unique_groups": 1.71923828125,
+          "same_group_routing_rate": 0.28076171875
+        },
+        "decode/layer_19": {
+          "num_tokens": 2048,
+          "unique_group_count": {
+            "1": 786,
+            "2": 1262
+          },
+          "unique_group_rate": {
+            "1": 0.3837890625,
+            "2": 0.6162109375
+          },
+          "rate_1": 0.3837890625,
+          "rate_2": 0.6162109375,
+          "mean_unique_groups": 1.6162109375,
+          "same_group_routing_rate": 0.3837890625
+        },
+        "decode/layer_20": {
+          "num_tokens": 2048,
+          "unique_group_count": {
+            "1": 469,
+            "2": 1579
+          },
+          "unique_group_rate": {
+            "1": 0.22900390625,
+            "2": 0.77099609375
+          },
+          "rate_1": 0.22900390625,
+          "rate_2": 0.77099609375,
+          "mean_unique_groups": 1.77099609375,
+          "same_group_routing_rate": 0.22900390625
+        },
+        "decode/layer_21": {
+          "num_tokens": 2048,
+          "unique_group_count": {
+            "1": 576,
+            "2": 1472
+          },
+          "unique_group_rate": {
+            "1": 0.28125,
+            "2": 0.71875
+          },
+          "rate_1": 0.28125,
+          "rate_2": 0.71875,
+          "mean_unique_groups": 1.71875,
+          "same_group_routing_rate": 0.28125
+        },
+        "decode/layer_22": {
+          "num_tokens": 2048,
+          "unique_group_count": {
+            "1": 481,
+            "2": 1567
+          },
+          "unique_group_rate": {
+            "1": 0.23486328125,
+            "2": 0.76513671875
+          },
+          "rate_1": 0.23486328125,
+          "rate_2": 0.76513671875,
+          "mean_unique_groups": 1.76513671875,
+          "same_group_routing_rate": 0.23486328125
+        },
+        "decode/layer_23": {
+          "num_tokens": 2048,
+          "unique_group_count": {
+            "1": 625,
+            "2": 1423
+          },
+          "unique_group_rate": {
+            "1": 0.30517578125,
+            "2": 0.69482421875
+          },
+          "rate_1": 0.30517578125,
+          "rate_2": 0.69482421875,
+          "mean_unique_groups": 1.69482421875,
+          "same_group_routing_rate": 0.30517578125
+        },
+        "decode/layer_24": {
+          "num_tokens": 2048,
+          "unique_group_count": {
+            "1": 433,
+            "2": 1615
+          },
+          "unique_group_rate": {
+            "1": 0.21142578125,
+            "2": 0.78857421875
+          },
+          "rate_1": 0.21142578125,
+          "rate_2": 0.78857421875,
+          "mean_unique_groups": 1.78857421875,
+          "same_group_routing_rate": 0.21142578125
+        },
+        "decode/layer_25": {
+          "num_tokens": 2048,
+          "unique_group_count": {
+            "1": 602,
+            "2": 1446
+          },
+          "unique_group_rate": {
+            "1": 0.2939453125,
+            "2": 0.7060546875
+          },
+          "rate_1": 0.2939453125,
+          "rate_2": 0.7060546875,
+          "mean_unique_groups": 1.7060546875,
+          "same_group_routing_rate": 0.2939453125
+        },
+        "decode/layer_26": {
+          "num_tokens": 2048,
+          "unique_group_count": {
+            "1": 753,
+            "2": 1295
+          },
+          "unique_group_rate": {
+            "1": 0.36767578125,
+            "2": 0.63232421875
+          },
+          "rate_1": 0.36767578125,
+          "rate_2": 0.63232421875,
+          "mean_unique_groups": 1.63232421875,
+          "same_group_routing_rate": 0.36767578125
+        },
+        "decode/layer_27": {
+          "num_tokens": 2048,
+          "unique_group_count": {
+            "1": 658,
+            "2": 1390
+          },
+          "unique_group_rate": {
+            "1": 0.3212890625,
+            "2": 0.6787109375
+          },
+          "rate_1": 0.3212890625,
+          "rate_2": 0.6787109375,
+          "mean_unique_groups": 1.6787109375,
+          "same_group_routing_rate": 0.3212890625
+        },
+        "decode/layer_28": {
+          "num_tokens": 2048,
+          "unique_group_count": {
+            "1": 635,
+            "2": 1413
+          },
+          "unique_group_rate": {
+            "1": 0.31005859375,
+            "2": 0.68994140625
+          },
+          "rate_1": 0.31005859375,
+          "rate_2": 0.68994140625,
+          "mean_unique_groups": 1.68994140625,
+          "same_group_routing_rate": 0.31005859375
+        },
+        "decode/layer_29": {
+          "num_tokens": 2048,
+          "unique_group_count": {
+            "1": 872,
+            "2": 1176
+          },
+          "unique_group_rate": {
+            "1": 0.42578125,
+            "2": 0.57421875
+          },
+          "rate_1": 0.42578125,
+          "rate_2": 0.57421875,
+          "mean_unique_groups": 1.57421875,
+          "same_group_routing_rate": 0.42578125
+        },
+        "decode/layer_30": {
+          "num_tokens": 2048,
+          "unique_group_count": {
+            "1": 973,
+            "2": 1075
+          },
+          "unique_group_rate": {
+            "1": 0.47509765625,
+            "2": 0.52490234375
+          },
+          "rate_1": 0.47509765625,
+          "rate_2": 0.52490234375,
+          "mean_unique_groups": 1.52490234375,
+          "same_group_routing_rate": 0.47509765625
+        },
+        "decode/layer_31": {
+          "num_tokens": 2048,
+          "unique_group_count": {
+            "1": 1237,
+            "2": 811
+          },
+          "unique_group_rate": {
+            "1": 0.60400390625,
+            "2": 0.39599609375
+          },
+          "rate_1": 0.60400390625,
+          "rate_2": 0.39599609375,
+          "mean_unique_groups": 1.39599609375,
+          "same_group_routing_rate": 0.60400390625
+        }
+      },
+      "by_phase": {
+        "prefill": {
+          "num_tokens": 1048576,
+          "unique_group_count": {
+            "1": 346357,
+            "2": 702219
+          },
+          "unique_group_rate": {
+            "1": 0.33031177520751953,
+            "2": 0.6696882247924805
+          },
+          "rate_1": 0.33031177520751953,
+          "rate_2": 0.6696882247924805,
+          "mean_unique_groups": 1.6696882247924805,
+          "same_group_routing_rate": 0.33031177520751953
+        },
+        "decode": {
+          "num_tokens": 65536,
+          "unique_group_count": {
+            "1": 21530,
+            "2": 44006
+          },
+          "unique_group_rate": {
+            "1": 0.328521728515625,
+            "2": 0.671478271484375
+          },
+          "rate_1": 0.328521728515625,
+          "rate_2": 0.671478271484375,
+          "mean_unique_groups": 1.671478271484375,
+          "same_group_routing_rate": 0.328521728515625
+        }
+      },
+      "all": {
+        "num_tokens": 1114112,
+        "unique_group_count": {
+          "1": 367887,
+          "2": 746225
+        },
+        "unique_group_rate": {
+          "1": 0.3302064783432904,
+          "2": 0.6697935216567096
+        },
+        "rate_1": 0.3302064783432904,
+        "rate_2": 0.6697935216567096,
+        "mean_unique_groups": 1.6697935216567097,
+        "same_group_routing_rate": 0.3302064783432904
+      }
+    }
+  }
+}
