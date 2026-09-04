@@ -183,6 +183,101 @@ def canonical_groups(labels: Sequence[int] | torch.Tensor) -> list[list[int]]:
     return sorted((sorted(members) for members in groups.values()), key=lambda members: members[0])
 
 
+def enumerate_canonical_partitions(num_experts: int, num_groups: int) -> list[tuple[int, ...]]:
+    """Enumerate unlabeled non-empty expert partitions in canonical order.
+
+    Labels are restricted-growth strings: expert zero is always in group zero
+    and a later expert may join an existing group or introduce only the next
+    label. This represents each set partition exactly once and makes the
+    returned order suitable for deterministic tie breaking.
+    """
+    if num_experts <= 0:
+        raise ValueError("num_experts must be positive")
+    if not 1 <= num_groups <= num_experts:
+        raise ValueError("num_groups must be in [1, num_experts]")
+
+    partitions: list[tuple[int, ...]] = []
+    labels = [0]
+
+    def visit(expert: int, next_group: int) -> None:
+        if expert == num_experts:
+            if next_group == num_groups:
+                partitions.append(tuple(labels))
+            return
+        if next_group + (num_experts - expert) < num_groups:
+            return
+        for group in range(min(next_group, num_groups - 1) + 1):
+            labels.append(group)
+            visit(expert + 1, max(next_group, group + 1))
+            labels.pop()
+
+    visit(expert=1, next_group=1)
+    return partitions
+
+
+def same_group_routing_count(
+    labels: Sequence[int] | torch.Tensor,
+    routing_count: torch.Tensor,
+) -> int:
+    """Return integer top-2 routing mass whose two experts share a group."""
+    labels = [int(label) for label in labels]
+    if routing_count.ndim != 2 or routing_count.shape[0] != routing_count.shape[1]:
+        raise ValueError("routing_count must be square")
+    if routing_count.shape[0] != len(labels):
+        raise ValueError("routing_count and labels must have the same number of experts")
+
+    count = routing_count.detach().to(device="cpu")
+    total = 0
+    for i, left_group in enumerate(labels):
+        for j in range(i + 1, len(labels)):
+            if left_group == labels[j]:
+                total += int(count[i, j])
+    return total
+
+
+def exact_routing_partition(
+    routing_count: torch.Tensor,
+    num_groups: int,
+    partitions: Optional[Sequence[Sequence[int]]] = None,
+) -> Dict[str, object]:
+    """Find the exact max-locality partition using integer routing counts.
+
+    When several partitions have equal routing mass, the first canonical
+    partition is retained as the deterministic representative.
+    """
+    num_experts = routing_count.shape[0] if routing_count.ndim == 2 else 0
+    candidates = (
+        [tuple(int(label) for label in partition) for partition in partitions]
+        if partitions is not None
+        else enumerate_canonical_partitions(num_experts, num_groups)
+    )
+    if not candidates:
+        raise ValueError("at least one candidate partition is required")
+
+    best_labels: Optional[tuple[int, ...]] = None
+    best_count = -1
+    num_ties = 0
+    for labels in candidates:
+        if len(labels) != num_experts:
+            raise ValueError("candidate partition has the wrong number of experts")
+        if len(set(labels)) != num_groups:
+            raise ValueError("candidate partition does not have num_groups non-empty groups")
+        count = same_group_routing_count(labels, routing_count)
+        if count > best_count:
+            best_labels = labels
+            best_count = count
+            num_ties = 1
+        elif count == best_count:
+            num_ties += 1
+
+    assert best_labels is not None
+    return {
+        "labels": torch.tensor(best_labels, dtype=torch.long, device="cpu"),
+        "same_group_count": best_count,
+        "num_ties": num_ties,
+    }
+
+
 def partitions_equal(left: Sequence[int] | torch.Tensor, right: Sequence[int] | torch.Tensor) -> bool:
     return canonical_groups(left) == canonical_groups(right)
 
