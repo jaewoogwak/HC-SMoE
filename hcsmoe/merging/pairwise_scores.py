@@ -29,11 +29,22 @@ def module_execution_device(module: nn.Module) -> torch.device:
     raise RuntimeError("Cannot infer an execution device for an all-meta module without an Accelerate hook.")
 
 
+def select_topk_experts(router_logits: torch.Tensor, top_k: int) -> torch.Tensor:
+    """Select distinct routed expert IDs once, preserving token order on CPU."""
+    if router_logits.ndim != 2:
+        raise ValueError("router_logits must have shape [num_tokens, num_experts]")
+    num_experts = router_logits.shape[-1]
+    if not 1 <= top_k <= num_experts:
+        raise ValueError(f"top_k must be in [1, {num_experts}], got {top_k}")
+    return torch.topk(router_logits, k=top_k, dim=-1).indices.to(device="cpu", dtype=torch.long)
+
+
 def accumulate_corouting(
     routing_count: torch.Tensor,
     usage_count: torch.Tensor,
     router_logits: torch.Tensor,
     top_k: int,
+    selected_experts: Optional[torch.Tensor] = None,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
     """Accumulate token-level top-k expert co-activation counts in-place.
 
@@ -50,7 +61,16 @@ def accumulate_corouting(
     if not 1 <= top_k <= num_experts:
         raise ValueError(f"top_k must be in [1, {num_experts}], got {top_k}")
 
-    selected = torch.topk(router_logits, k=top_k, dim=-1).indices.to("cpu")
+    if selected_experts is None:
+        selected = select_topk_experts(router_logits, top_k)
+    else:
+        selected = selected_experts.detach().to(device="cpu", dtype=torch.long)
+        if selected.shape != (router_logits.shape[0], top_k):
+            raise ValueError("selected_experts shape does not match router_logits and top_k")
+        if torch.any(selected < 0) or torch.any(selected >= num_experts):
+            raise ValueError("selected_experts contains an out-of-range expert ID")
+        if torch.any(torch.sort(selected, dim=-1).values[:, 1:] == torch.sort(selected, dim=-1).values[:, :-1]):
+            raise ValueError("selected_experts must be distinct within each token")
     usage_count += torch.bincount(selected.reshape(-1), minlength=num_experts).to(torch.int64)
     for left in range(top_k):
         for right in range(left + 1, top_k):
@@ -321,6 +341,57 @@ def grouping_metrics(
     }
 
 
+def compute_topk_grouping_metrics(
+    labels: Sequence[int] | torch.Tensor,
+    topk_experts: torch.Tensor,
+    output_distance: Optional[torch.Tensor] = None,
+) -> Dict[str, object]:
+    """Compute exact token-level unique-group metrics for arbitrary top-k routing."""
+    labels = torch.as_tensor(labels, dtype=torch.long, device="cpu").flatten()
+    topk_experts = topk_experts.detach().to(device="cpu", dtype=torch.long)
+    if labels.numel() == 0:
+        raise ValueError("labels must not be empty")
+    if topk_experts.ndim != 2 or topk_experts.shape[0] == 0 or topk_experts.shape[1] == 0:
+        raise ValueError("topk_experts must be a non-empty [num_tokens, top_k] tensor")
+    if torch.any(topk_experts < 0) or torch.any(topk_experts >= labels.numel()):
+        raise ValueError("topk_experts contains an out-of-range expert ID")
+    if torch.any(torch.sort(topk_experts, dim=-1).values[:, 1:] == torch.sort(topk_experts, dim=-1).values[:, :-1]):
+        raise ValueError("topk_experts must contain distinct experts per token")
+
+    mapped = labels[topk_experts]
+    sorted_groups = torch.sort(mapped, dim=-1).values
+    unique_count = 1 + (sorted_groups[:, 1:] != sorted_groups[:, :-1]).sum(dim=-1)
+    top_k = topk_experts.shape[1]
+    histogram = torch.bincount(unique_count, minlength=top_k + 1)
+    num_tokens = int(topk_experts.shape[0])
+    counts = {str(groups): int(histogram[groups]) for groups in range(1, top_k + 1)}
+    rates = {str(groups): counts[str(groups)] / num_tokens for groups in range(1, top_k + 1)}
+    mean_unique_groups = float(unique_count.float().mean())
+    histogram_mean = sum(groups * rates[str(groups)] for groups in range(1, top_k + 1))
+    if abs(mean_unique_groups - histogram_mean) > 1e-6:
+        raise AssertionError("unique-group histogram does not match its token-level mean")
+
+    mean_intragroup_output_distance = None
+    if output_distance is not None:
+        output_distance = output_distance.detach().to(device="cpu", dtype=torch.float32)
+        if output_distance.shape != (labels.numel(), labels.numel()):
+            raise ValueError("output_distance shape does not match labels")
+        distances = [
+            float(output_distance[i, j])
+            for group in canonical_groups(labels)
+            for offset, i in enumerate(group)
+            for j in group[offset + 1:]
+        ]
+        mean_intragroup_output_distance = sum(distances) / len(distances) if distances else None
+    return {
+        "num_tokens": num_tokens,
+        "unique_group_count": counts,
+        "unique_group_rate": rates,
+        "mean_unique_groups": mean_unique_groups,
+        "mean_intragroup_output_distance": mean_intragroup_output_distance,
+    }
+
+
 def validate_pairwise_score_payload(
     payload: Mapping[str, object],
     expected_metadata: Mapping[str, object],
@@ -467,6 +538,25 @@ def validate_pairwise_scores(layers: Mapping[str, Mapping[str, object]]) -> None
             raise ValueError(f"{layer_name} output_cosine diagonal must be one")
         if torch.any(routing_count > torch.minimum(usage_count[:, None], usage_count[None, :])):
             raise ValueError(f"{layer_name} co-routing count exceeds usage count")
+        topk_experts = scores.get("topk_experts")
+        if topk_experts is not None:
+            if not isinstance(topk_experts, torch.Tensor):
+                raise ValueError(f"{layer_name} topk_experts must be a tensor")
+            topk_experts = topk_experts.detach().to(device="cpu", dtype=torch.long)
+            if topk_experts.ndim != 2 or topk_experts.shape[0] != num_tokens or topk_experts.shape[1] < 1:
+                raise ValueError(f"{layer_name} topk_experts has an invalid shape")
+            top_k = topk_experts.shape[1]
+            if torch.any(topk_experts < 0) or torch.any(topk_experts >= num_experts):
+                raise ValueError(f"{layer_name} topk_experts contains an out-of-range expert ID")
+            sorted_experts = torch.sort(topk_experts, dim=-1).values
+            if torch.any(sorted_experts[:, 1:] == sorted_experts[:, :-1]):
+                raise ValueError(f"{layer_name} topk_experts must be distinct within each token")
+            if int(torch.triu(routing_count, diagonal=1).sum()) != num_tokens * (top_k * (top_k - 1) // 2):
+                raise ValueError(f"{layer_name} routing_count violates the top-k co-routing contract")
+            if int(usage_count.sum()) != num_tokens * top_k:
+                raise ValueError(f"{layer_name} usage_count violates the top-k routing contract")
+            if not torch.allclose(routing_rate, routing_count.float() / num_tokens, atol=1e-6, rtol=1e-6):
+                raise ValueError(f"{layer_name} routing_rate does not match routing_count / num_tokens")
 
 
 def save_pairwise_scores(

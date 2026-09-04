@@ -80,6 +80,16 @@ def atomic_json(path: Path, value: Any) -> None:
     os.replace(temporary, path)
 
 
+def unique_group_summary(counts: dict[str, int], rows: int) -> dict[str, Any]:
+    histogram = {str(groups): int(counts.get(str(groups), 0)) for groups in range(1, QWEN_TOP_K + 1)}
+    rates = {str(groups): histogram[str(groups)] / rows if rows else 0.0 for groups in range(1, QWEN_TOP_K + 1)}
+    return {
+        "unique_group_count": histogram,
+        "unique_group_rate": rates,
+        "mean_unique_groups": sum(groups * rates[str(groups)] for groups in range(1, QWEN_TOP_K + 1)),
+    }
+
+
 def main() -> None:
     args = parse_args()
     trace_path = args.trace.expanduser().resolve()
@@ -105,7 +115,14 @@ def main() -> None:
     temporary_path = output_path.with_suffix(output_path.suffix + ".tmp")
     total_rows = 0
     group_local_rows = 0
-    per_layer: dict[int, dict[str, int]] = defaultdict(lambda: {"rows": 0, "group_local_rows": 0})
+    per_layer: dict[int, dict[str, Any]] = defaultdict(
+        lambda: {
+            "rows": 0,
+            "group_local_rows": 0,
+            "unique_group_count": {str(groups): 0 for groups in range(1, QWEN_TOP_K + 1)},
+        }
+    )
+    global_unique_group_count = {str(groups): 0 for groups in range(1, QWEN_TOP_K + 1)}
 
     with trace_path.open(newline="", encoding="utf-8") as source, temporary_path.open(
         "w", newline="", encoding="utf-8"
@@ -148,6 +165,9 @@ def main() -> None:
             writer.writerow(row)
             total_rows += 1
             per_layer[layer]["rows"] += 1
+            unique_count = len(unique_groups)
+            per_layer[layer]["unique_group_count"][str(unique_count)] += 1
+            global_unique_group_count[str(unique_count)] += 1
             if is_group_local:
                 group_local_rows += 1
                 per_layer[layer]["group_local_rows"] += 1
@@ -160,6 +180,7 @@ def main() -> None:
         str(layer): {
             **counts,
             "group_local_routing_rate": counts["group_local_rows"] / counts["rows"],
+            **unique_group_summary(counts["unique_group_count"], counts["rows"]),
         }
         for layer, counts in sorted(per_layer.items())
     }
@@ -173,6 +194,7 @@ def main() -> None:
         "rows": total_rows,
         "group_local_routing_rows": group_local_rows,
         "group_local_routing_rate": group_local_rows / total_rows if total_rows else 0.0,
+        **unique_group_summary(global_unique_group_count, total_rows),
         "per_layer": per_layer_summary,
     }
     summary_path = output_path.with_suffix(output_path.suffix + ".summary.json")

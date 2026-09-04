@@ -23,6 +23,7 @@ from hcsmoe.merging.pairwise_scores import (
     accumulate_corouting,
     build_output_score_matrices,
     compute_output_fingerprint,
+    select_topk_experts,
     validate_pairwise_scores,
 )
 
@@ -982,6 +983,7 @@ class ExpertsGrouperForQwen2MoE(object):
         layer_inputs = {}
         routing_counts = {}
         usage_counts = {}
+        topk_expert_chunks = {}
         handles = []
 
         def _activation_hook(name):
@@ -997,6 +999,7 @@ class ExpertsGrouperForQwen2MoE(object):
                 (self.num_experts, self.num_experts), dtype=torch.int64, device="cpu"
             )
             usage_counts[ffn_name] = torch.zeros(self.num_experts, dtype=torch.int64, device="cpu")
+            topk_expert_chunks[ffn_name] = []
             moe = model.model.layers[layer_idx].mlp
             handles.append(moe.register_forward_hook(_activation_hook(ffn_name)))
 
@@ -1011,9 +1014,14 @@ class ExpertsGrouperForQwen2MoE(object):
                     outputs = model.model(**batch, output_router_logits=True, use_cache=False)
                 for layer_idx in self.sparse_layer_indices:
                     ffn_name = f"model.layers.{layer_idx}.mlp"
+                    selected_experts = select_topk_experts(
+                        outputs.router_logits[layer_idx].detach(), self.top_k,
+                    )
+                    topk_expert_chunks[ffn_name].append(selected_experts.to(dtype=torch.uint8))
                     accumulate_corouting(
                         routing_counts[ffn_name], usage_counts[ffn_name],
                         outputs.router_logits[layer_idx].detach(), self.top_k,
+                        selected_experts=selected_experts,
                     )
                 del outputs
         finally:
@@ -1036,6 +1044,7 @@ class ExpertsGrouperForQwen2MoE(object):
                 "routing_rate": routing_counts[ffn_name].float() / num_tokens,
                 "usage_count": usage_counts[ffn_name],
                 "num_tokens": int(num_tokens),
+                "topk_experts": torch.cat(topk_expert_chunks.pop(ffn_name), dim=0),
             })
             layers[ffn_name] = scores
             del layer_input, fingerprints
