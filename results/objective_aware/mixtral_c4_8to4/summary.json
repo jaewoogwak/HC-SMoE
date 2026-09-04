@@ -1,0 +1,994 @@
+{
+  "metadata": {
+    "model_name": "mistralai/Mixtral-8x7B-v0.1",
+    "dataset": "c4",
+    "num_blocks": 32,
+    "block_size": 2048,
+    "num_calibration_tokens": 65536,
+    "num_experts": 8,
+    "top_k": 2,
+    "chunk_size": 256,
+    "seed": 0,
+    "output_definition": "mean expert output over common MoE inputs",
+    "routing_definition": "token-level top-k co-activation count"
+  },
+  "score_path": "/home/jaewoo/HC-SMoE/results/pairwise/mixtral_c4.pt",
+  "num_groups": 4,
+  "num_partitions": 1701,
+  "methods": [
+    "objective_aware",
+    "legacy_pairwise_hc"
+  ],
+  "per_alpha_summary": [
+    {
+      "mean_P_U1": 0.32674074172973633,
+      "mean_P_U2": 0.6732592582702637,
+      "mean_E_U": 1.6732592582702637,
+      "mean_intragroup_output_distance": 5.301764922729871,
+      "method": "objective_aware",
+      "alpha": 1.0
+    },
+    {
+      "mean_P_U1": 0.32674074172973633,
+      "mean_P_U2": 0.6732592582702637,
+      "mean_E_U": 1.6732592582702637,
+      "mean_intragroup_output_distance": 5.301764922729871,
+      "method": "legacy_pairwise_hc",
+      "alpha": 1.0
+    },
+    {
+      "mean_P_U1": 0.3587050437927246,
+      "mean_P_U2": 0.6412949562072754,
+      "mean_E_U": 1.6412949562072754,
+      "mean_intragroup_output_distance": 5.45467507523551,
+      "method": "objective_aware",
+      "alpha": 0.9
+    },
+    {
+      "mean_P_U1": 0.3157939910888672,
+      "mean_P_U2": 0.6842060089111328,
+      "mean_E_U": 1.6842060089111328,
+      "mean_intragroup_output_distance": 5.300464728047761,
+      "method": "legacy_pairwise_hc",
+      "alpha": 0.9
+    },
+    {
+      "mean_P_U1": 0.39124059677124023,
+      "mean_P_U2": 0.6087594032287598,
+      "mean_E_U": 1.6087594032287598,
+      "mean_intragroup_output_distance": 5.616809318464116,
+      "method": "objective_aware",
+      "alpha": 0.75
+    },
+    {
+      "mean_P_U1": 0.32823801040649414,
+      "mean_P_U2": 0.6717619895935059,
+      "mean_E_U": 1.6717619895935059,
+      "mean_intragroup_output_distance": 5.515100240728463,
+      "method": "legacy_pairwise_hc",
+      "alpha": 0.75
+    },
+    {
+      "mean_P_U1": 0.4189920425415039,
+      "mean_P_U2": 0.5810079574584961,
+      "mean_E_U": 1.581007957458496,
+      "mean_intragroup_output_distance": 5.712342780667711,
+      "method": "objective_aware",
+      "alpha": 0.5
+    },
+    {
+      "mean_P_U1": 0.32645130157470703,
+      "mean_P_U2": 0.673548698425293,
+      "mean_E_U": 1.673548698425293,
+      "mean_intragroup_output_distance": 5.832062884803773,
+      "method": "legacy_pairwise_hc",
+      "alpha": 0.5
+    },
+    {
+      "mean_P_U1": 0.429293155670166,
+      "mean_P_U2": 0.570706844329834,
+      "mean_E_U": 1.570706844329834,
+      "mean_intragroup_output_distance": 6.271468466995949,
+      "method": "objective_aware",
+      "alpha": 0.25
+    },
+    {
+      "mean_P_U1": 0.3250861167907715,
+      "mean_P_U2": 0.6749138832092285,
+      "mean_E_U": 1.6749138832092285,
+      "mean_intragroup_output_distance": 6.224450262294461,
+      "method": "legacy_pairwise_hc",
+      "alpha": 0.25
+    },
+    {
+      "mean_P_U1": 0.4309821128845215,
+      "mean_P_U2": 0.5690178871154785,
+      "mean_E_U": 1.5690178871154785,
+      "mean_intragroup_output_distance": 7.360358873648303,
+      "method": "objective_aware",
+      "alpha": 0.0
+    },
+    {
+      "mean_P_U1": 0.32559871673583984,
+      "mean_P_U2": 0.6744012832641602,
+      "mean_E_U": 1.6744012832641602,
+      "mean_intragroup_output_distance": 6.374721583149706,
+      "method": "legacy_pairwise_hc",
+      "alpha": 0.0
+    }
+  ],
+  "oracle_by_layer": {
+    "model.layers.0.block_sparse_moe": {
+      "layer": 0,
+      "groups": [
+        [
+          0
+        ],
+        [
+          1
+        ],
+        [
+          2,
+          3,
+          5,
+          6,
+          7
+        ],
+        [
+          4
+        ]
+      ],
+      "same_group_count": 28749,
+      "num_ties": 1,
+      "P_U1": 0.4386749267578125,
+      "P_U2": 0.5613250732421875,
+      "E_U": 1.5613250732421875,
+      "mean_intragroup_output_distance": 0.1355750985443592
+    },
+    "model.layers.1.block_sparse_moe": {
+      "layer": 1,
+      "groups": [
+        [
+          0,
+          1,
+          2,
+          4,
+          5
+        ],
+        [
+          3
+        ],
+        [
+          6
+        ],
+        [
+          7
+        ]
+      ],
+      "same_group_count": 26431,
+      "num_ties": 1,
+      "P_U1": 0.4033050537109375,
+      "P_U2": 0.5966949462890625,
+      "E_U": 1.5966949462890625,
+      "mean_intragroup_output_distance": 0.4531985655426979
+    },
+    "model.layers.2.block_sparse_moe": {
+      "layer": 2,
+      "groups": [
+        [
+          0
+        ],
+        [
+          1,
+          2,
+          3,
+          5,
+          6
+        ],
+        [
+          4
+        ],
+        [
+          7
+        ]
+      ],
+      "same_group_count": 27169,
+      "num_ties": 1,
+      "P_U1": 0.4145660400390625,
+      "P_U2": 0.5854339599609375,
+      "E_U": 1.5854339599609375,
+      "mean_intragroup_output_distance": 0.2675840616226196
+    },
+    "model.layers.3.block_sparse_moe": {
+      "layer": 3,
+      "groups": [
+        [
+          0,
+          2,
+          3,
+          4,
+          5
+        ],
+        [
+          1
+        ],
+        [
+          6
+        ],
+        [
+          7
+        ]
+      ],
+      "same_group_count": 26366,
+      "num_ties": 1,
+      "P_U1": 0.402313232421875,
+      "P_U2": 0.597686767578125,
+      "E_U": 1.597686767578125,
+      "mean_intragroup_output_distance": 0.3171242028474808
+    },
+    "model.layers.4.block_sparse_moe": {
+      "layer": 4,
+      "groups": [
+        [
+          0,
+          2,
+          3,
+          4,
+          7
+        ],
+        [
+          1
+        ],
+        [
+          5
+        ],
+        [
+          6
+        ]
+      ],
+      "same_group_count": 25868,
+      "num_ties": 1,
+      "P_U1": 0.39471435546875,
+      "P_U2": 0.60528564453125,
+      "E_U": 1.60528564453125,
+      "mean_intragroup_output_distance": 0.43909434974193573
+    },
+    "model.layers.5.block_sparse_moe": {
+      "layer": 5,
+      "groups": [
+        [
+          0,
+          1,
+          4,
+          6,
+          7
+        ],
+        [
+          2
+        ],
+        [
+          3
+        ],
+        [
+          5
+        ]
+      ],
+      "same_group_count": 26525,
+      "num_ties": 1,
+      "P_U1": 0.4047393798828125,
+      "P_U2": 0.5952606201171875,
+      "E_U": 1.5952606201171875,
+      "mean_intragroup_output_distance": 0.5259082287549972
+    },
+    "model.layers.6.block_sparse_moe": {
+      "layer": 6,
+      "groups": [
+        [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        [
+          5
+        ],
+        [
+          6
+        ],
+        [
+          7
+        ]
+      ],
+      "same_group_count": 27857,
+      "num_ties": 1,
+      "P_U1": 0.4250640869140625,
+      "P_U2": 0.5749359130859375,
+      "E_U": 1.5749359130859375,
+      "mean_intragroup_output_distance": 0.7086998403072358
+    },
+    "model.layers.7.block_sparse_moe": {
+      "layer": 7,
+      "groups": [
+        [
+          0
+        ],
+        [
+          1,
+          4,
+          5,
+          6,
+          7
+        ],
+        [
+          2
+        ],
+        [
+          3
+        ]
+      ],
+      "same_group_count": 27906,
+      "num_ties": 1,
+      "P_U1": 0.425811767578125,
+      "P_U2": 0.574188232421875,
+      "E_U": 1.574188232421875,
+      "mean_intragroup_output_distance": 0.8846524357795715
+    },
+    "model.layers.8.block_sparse_moe": {
+      "layer": 8,
+      "groups": [
+        [
+          0
+        ],
+        [
+          1,
+          3,
+          4,
+          6,
+          7
+        ],
+        [
+          2
+        ],
+        [
+          5
+        ]
+      ],
+      "same_group_count": 25665,
+      "num_ties": 1,
+      "P_U1": 0.3916168212890625,
+      "P_U2": 0.6083831787109375,
+      "E_U": 1.6083831787109375,
+      "mean_intragroup_output_distance": 0.9372064590454101
+    },
+    "model.layers.9.block_sparse_moe": {
+      "layer": 9,
+      "groups": [
+        [
+          0,
+          2,
+          3,
+          5,
+          6
+        ],
+        [
+          1
+        ],
+        [
+          4
+        ],
+        [
+          7
+        ]
+      ],
+      "same_group_count": 29200,
+      "num_ties": 1,
+      "P_U1": 0.445556640625,
+      "P_U2": 0.554443359375,
+      "E_U": 1.554443359375,
+      "mean_intragroup_output_distance": 1.115380311012268
+    },
+    "model.layers.10.block_sparse_moe": {
+      "layer": 10,
+      "groups": [
+        [
+          0
+        ],
+        [
+          1,
+          3,
+          4,
+          5,
+          7
+        ],
+        [
+          2
+        ],
+        [
+          6
+        ]
+      ],
+      "same_group_count": 30273,
+      "num_ties": 1,
+      "P_U1": 0.4619293212890625,
+      "P_U2": 0.5380706787109375,
+      "E_U": 1.5380706787109375,
+      "mean_intragroup_output_distance": 1.443949007987976
+    },
+    "model.layers.11.block_sparse_moe": {
+      "layer": 11,
+      "groups": [
+        [
+          0
+        ],
+        [
+          1
+        ],
+        [
+          2,
+          4,
+          5,
+          6,
+          7
+        ],
+        [
+          3
+        ]
+      ],
+      "same_group_count": 33213,
+      "num_ties": 1,
+      "P_U1": 0.5067901611328125,
+      "P_U2": 0.4932098388671875,
+      "E_U": 1.4932098388671875,
+      "mean_intragroup_output_distance": 2.029581129550934
+    },
+    "model.layers.12.block_sparse_moe": {
+      "layer": 12,
+      "groups": [
+        [
+          0
+        ],
+        [
+          1,
+          2,
+          3,
+          5,
+          6
+        ],
+        [
+          4
+        ],
+        [
+          7
+        ]
+      ],
+      "same_group_count": 32811,
+      "num_ties": 1,
+      "P_U1": 0.5006561279296875,
+      "P_U2": 0.4993438720703125,
+      "E_U": 1.4993438720703125,
+      "mean_intragroup_output_distance": 1.7295993447303772
+    },
+    "model.layers.13.block_sparse_moe": {
+      "layer": 13,
+      "groups": [
+        [
+          0,
+          1,
+          3,
+          5,
+          6
+        ],
+        [
+          2
+        ],
+        [
+          4
+        ],
+        [
+          7
+        ]
+      ],
+      "same_group_count": 29804,
+      "num_ties": 1,
+      "P_U1": 0.45477294921875,
+      "P_U2": 0.54522705078125,
+      "E_U": 1.54522705078125,
+      "mean_intragroup_output_distance": 1.7279566645622253
+    },
+    "model.layers.14.block_sparse_moe": {
+      "layer": 14,
+      "groups": [
+        [
+          0
+        ],
+        [
+          1,
+          4,
+          5,
+          6,
+          7
+        ],
+        [
+          2
+        ],
+        [
+          3
+        ]
+      ],
+      "same_group_count": 32276,
+      "num_ties": 1,
+      "P_U1": 0.49249267578125,
+      "P_U2": 0.50750732421875,
+      "E_U": 1.50750732421875,
+      "mean_intragroup_output_distance": 2.2715713024139403
+    },
+    "model.layers.15.block_sparse_moe": {
+      "layer": 15,
+      "groups": [
+        [
+          0,
+          1,
+          2,
+          5,
+          6
+        ],
+        [
+          3
+        ],
+        [
+          4
+        ],
+        [
+          7
+        ]
+      ],
+      "same_group_count": 30895,
+      "num_ties": 1,
+      "P_U1": 0.4714202880859375,
+      "P_U2": 0.5285797119140625,
+      "E_U": 1.5285797119140625,
+      "mean_intragroup_output_distance": 2.443004322052002
+    },
+    "model.layers.16.block_sparse_moe": {
+      "layer": 16,
+      "groups": [
+        [
+          0
+        ],
+        [
+          1
+        ],
+        [
+          2,
+          4,
+          5,
+          6,
+          7
+        ],
+        [
+          3
+        ]
+      ],
+      "same_group_count": 29786,
+      "num_ties": 1,
+      "P_U1": 0.454498291015625,
+      "P_U2": 0.545501708984375,
+      "E_U": 1.545501708984375,
+      "mean_intragroup_output_distance": 2.7391475677490233
+    },
+    "model.layers.17.block_sparse_moe": {
+      "layer": 17,
+      "groups": [
+        [
+          0,
+          1,
+          2,
+          4,
+          5
+        ],
+        [
+          3
+        ],
+        [
+          6
+        ],
+        [
+          7
+        ]
+      ],
+      "same_group_count": 30232,
+      "num_ties": 1,
+      "P_U1": 0.4613037109375,
+      "P_U2": 0.5386962890625,
+      "E_U": 1.5386962890625,
+      "mean_intragroup_output_distance": 3.896775317192078
+    },
+    "model.layers.18.block_sparse_moe": {
+      "layer": 18,
+      "groups": [
+        [
+          0,
+          2,
+          4,
+          5,
+          7
+        ],
+        [
+          1
+        ],
+        [
+          3
+        ],
+        [
+          6
+        ]
+      ],
+      "same_group_count": 27835,
+      "num_ties": 1,
+      "P_U1": 0.4247283935546875,
+      "P_U2": 0.5752716064453125,
+      "E_U": 1.5752716064453125,
+      "mean_intragroup_output_distance": 4.471731019020081
+    },
+    "model.layers.19.block_sparse_moe": {
+      "layer": 19,
+      "groups": [
+        [
+          0
+        ],
+        [
+          1
+        ],
+        [
+          2,
+          4,
+          5,
+          6,
+          7
+        ],
+        [
+          3
+        ]
+      ],
+      "same_group_count": 29668,
+      "num_ties": 1,
+      "P_U1": 0.45269775390625,
+      "P_U2": 0.54730224609375,
+      "E_U": 1.54730224609375,
+      "mean_intragroup_output_distance": 4.786185026168823
+    },
+    "model.layers.20.block_sparse_moe": {
+      "layer": 20,
+      "groups": [
+        [
+          0,
+          1,
+          4,
+          5,
+          6
+        ],
+        [
+          2
+        ],
+        [
+          3
+        ],
+        [
+          7
+        ]
+      ],
+      "same_group_count": 26549,
+      "num_ties": 1,
+      "P_U1": 0.4051055908203125,
+      "P_U2": 0.5948944091796875,
+      "E_U": 1.5948944091796875,
+      "mean_intragroup_output_distance": 3.9451783895492554
+    },
+    "model.layers.21.block_sparse_moe": {
+      "layer": 21,
+      "groups": [
+        [
+          0,
+          1,
+          3,
+          4,
+          7
+        ],
+        [
+          2
+        ],
+        [
+          5
+        ],
+        [
+          6
+        ]
+      ],
+      "same_group_count": 26165,
+      "num_ties": 1,
+      "P_U1": 0.3992462158203125,
+      "P_U2": 0.6007537841796875,
+      "E_U": 1.6007537841796875,
+      "mean_intragroup_output_distance": 3.6141162157058715
+    },
+    "model.layers.22.block_sparse_moe": {
+      "layer": 22,
+      "groups": [
+        [
+          0,
+          1,
+          2,
+          5,
+          7
+        ],
+        [
+          3
+        ],
+        [
+          4
+        ],
+        [
+          6
+        ]
+      ],
+      "same_group_count": 27844,
+      "num_ties": 1,
+      "P_U1": 0.42486572265625,
+      "P_U2": 0.57513427734375,
+      "E_U": 1.57513427734375,
+      "mean_intragroup_output_distance": 3.639899230003357
+    },
+    "model.layers.23.block_sparse_moe": {
+      "layer": 23,
+      "groups": [
+        [
+          0,
+          2,
+          4,
+          5,
+          7
+        ],
+        [
+          1
+        ],
+        [
+          3
+        ],
+        [
+          6
+        ]
+      ],
+      "same_group_count": 28950,
+      "num_ties": 1,
+      "P_U1": 0.441741943359375,
+      "P_U2": 0.558258056640625,
+      "E_U": 1.558258056640625,
+      "mean_intragroup_output_distance": 3.645433712005615
+    },
+    "model.layers.24.block_sparse_moe": {
+      "layer": 24,
+      "groups": [
+        [
+          0,
+          2,
+          3,
+          4,
+          7
+        ],
+        [
+          1
+        ],
+        [
+          5
+        ],
+        [
+          6
+        ]
+      ],
+      "same_group_count": 27205,
+      "num_ties": 1,
+      "P_U1": 0.4151153564453125,
+      "P_U2": 0.5848846435546875,
+      "E_U": 1.5848846435546875,
+      "mean_intragroup_output_distance": 3.576426863670349
+    },
+    "model.layers.25.block_sparse_moe": {
+      "layer": 25,
+      "groups": [
+        [
+          0,
+          1,
+          2,
+          5,
+          6
+        ],
+        [
+          3
+        ],
+        [
+          4
+        ],
+        [
+          7
+        ]
+      ],
+      "same_group_count": 27225,
+      "num_ties": 1,
+      "P_U1": 0.4154205322265625,
+      "P_U2": 0.5845794677734375,
+      "E_U": 1.5845794677734375,
+      "mean_intragroup_output_distance": 4.068607473373413
+    },
+    "model.layers.26.block_sparse_moe": {
+      "layer": 26,
+      "groups": [
+        [
+          0,
+          2,
+          3,
+          5,
+          7
+        ],
+        [
+          1
+        ],
+        [
+          4
+        ],
+        [
+          6
+        ]
+      ],
+      "same_group_count": 31801,
+      "num_ties": 1,
+      "P_U1": 0.4852447509765625,
+      "P_U2": 0.5147552490234375,
+      "E_U": 1.5147552490234375,
+      "mean_intragroup_output_distance": 4.250477814674378
+    },
+    "model.layers.27.block_sparse_moe": {
+      "layer": 27,
+      "groups": [
+        [
+          0
+        ],
+        [
+          1,
+          2,
+          5,
+          6,
+          7
+        ],
+        [
+          3
+        ],
+        [
+          4
+        ]
+      ],
+      "same_group_count": 28403,
+      "num_ties": 1,
+      "P_U1": 0.4333953857421875,
+      "P_U2": 0.5666046142578125,
+      "E_U": 1.5666046142578125,
+      "mean_intragroup_output_distance": 6.307678651809693
+    },
+    "model.layers.28.block_sparse_moe": {
+      "layer": 28,
+      "groups": [
+        [
+          0
+        ],
+        [
+          1,
+          2,
+          3,
+          6,
+          7
+        ],
+        [
+          4
+        ],
+        [
+          5
+        ]
+      ],
+      "same_group_count": 31975,
+      "num_ties": 1,
+      "P_U1": 0.4878997802734375,
+      "P_U2": 0.5121002197265625,
+      "E_U": 1.5121002197265625,
+      "mean_intragroup_output_distance": 9.362681341171264
+    },
+    "model.layers.29.block_sparse_moe": {
+      "layer": 29,
+      "groups": [
+        [
+          0,
+          2
+        ],
+        [
+          1
+        ],
+        [
+          3,
+          4,
+          5,
+          6
+        ],
+        [
+          7
+        ]
+      ],
+      "same_group_count": 30665,
+      "num_ties": 1,
+      "P_U1": 0.4679107666015625,
+      "P_U2": 0.5320892333984375,
+      "E_U": 1.5320892333984375,
+      "mean_intragroup_output_distance": 14.581612586975098
+    },
+    "model.layers.30.block_sparse_moe": {
+      "layer": 30,
+      "groups": [
+        [
+          0,
+          1,
+          2,
+          4,
+          6
+        ],
+        [
+          3
+        ],
+        [
+          5
+        ],
+        [
+          7
+        ]
+      ],
+      "same_group_count": 32790,
+      "num_ties": 1,
+      "P_U1": 0.500335693359375,
+      "P_U2": 0.499664306640625,
+      "E_U": 1.499664306640625,
+      "mean_intragroup_output_distance": 39.07254962921142
+    },
+    "model.layers.31.block_sparse_moe": {
+      "layer": 31,
+      "groups": [
+        [
+          0,
+          4
+        ],
+        [
+          1,
+          3,
+          5
+        ],
+        [
+          2,
+          7
+        ],
+        [
+          6
+        ]
+      ],
+      "same_group_count": 40254,
+      "num_ties": 1,
+      "P_U1": 0.614227294921875,
+      "P_U2": 0.385772705078125,
+      "E_U": 1.385772705078125,
+      "mean_intragroup_output_distance": 90.11394729614258
+    }
+  },
+  "alpha_0_locality_gap_decomposition": {
+    "mean_legacy_pairwise_hc_P_U1": 0.32559871673583984,
+    "mean_objective_aware_delta_greedy_P_U1": 0.4309821128845215,
+    "mean_exact_routing_oracle_P_U1": 0.44744253158569336,
+    "mean_objective_linkage_mismatch_P_U1": 0.10538339614868164,
+    "mean_remaining_greedy_search_gap_P_U1": 0.016460418701171875,
+    "mean_total_legacy_to_oracle_gap_P_U1": 0.12184381484985352
+  }
+}

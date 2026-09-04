@@ -1,0 +1,1292 @@
+{
+  "layers": [
+    {
+      "layer": 0,
+      "legacy_pairwise_hc": {
+        "P_U1": 0.376678466796875,
+        "P_U2": 0.623321533203125,
+        "E_U": 1.623321533203125
+      },
+      "objective_aware_delta_greedy": {
+        "P_U1": 0.432708740234375,
+        "P_U2": 0.567291259765625,
+        "E_U": 1.567291259765625
+      },
+      "exact_routing_oracle": {
+        "P_U1": 0.4386749267578125,
+        "P_U2": 0.5613250732421875,
+        "E_U": 1.5613250732421875,
+        "groups": [
+          [
+            0
+          ],
+          [
+            1
+          ],
+          [
+            2,
+            3,
+            5,
+            6,
+            7
+          ],
+          [
+            4
+          ]
+        ],
+        "num_ties": 1
+      },
+      "objective_linkage_mismatch_P_U1": 0.0560302734375,
+      "remaining_greedy_search_gap_P_U1": 0.0059661865234375,
+      "total_legacy_to_oracle_gap_P_U1": 0.0619964599609375
+    },
+    {
+      "layer": 1,
+      "legacy_pairwise_hc": {
+        "P_U1": 0.2485198974609375,
+        "P_U2": 0.7514801025390625,
+        "E_U": 1.7514801025390625
+      },
+      "objective_aware_delta_greedy": {
+        "P_U1": 0.4033050537109375,
+        "P_U2": 0.5966949462890625,
+        "E_U": 1.5966949462890625
+      },
+      "exact_routing_oracle": {
+        "P_U1": 0.4033050537109375,
+        "P_U2": 0.5966949462890625,
+        "E_U": 1.5966949462890625,
+        "groups": [
+          [
+            0,
+            1,
+            2,
+            4,
+            5
+          ],
+          [
+            3
+          ],
+          [
+            6
+          ],
+          [
+            7
+          ]
+        ],
+        "num_ties": 1
+      },
+      "objective_linkage_mismatch_P_U1": 0.15478515625,
+      "remaining_greedy_search_gap_P_U1": 0.0,
+      "total_legacy_to_oracle_gap_P_U1": 0.15478515625
+    },
+    {
+      "layer": 2,
+      "legacy_pairwise_hc": {
+        "P_U1": 0.275909423828125,
+        "P_U2": 0.724090576171875,
+        "E_U": 1.724090576171875
+      },
+      "objective_aware_delta_greedy": {
+        "P_U1": 0.4145660400390625,
+        "P_U2": 0.5854339599609375,
+        "E_U": 1.5854339599609375
+      },
+      "exact_routing_oracle": {
+        "P_U1": 0.4145660400390625,
+        "P_U2": 0.5854339599609375,
+        "E_U": 1.5854339599609375,
+        "groups": [
+          [
+            0
+          ],
+          [
+            1,
+            2,
+            3,
+            5,
+            6
+          ],
+          [
+            4
+          ],
+          [
+            7
+          ]
+        ],
+        "num_ties": 1
+      },
+      "objective_linkage_mismatch_P_U1": 0.1386566162109375,
+      "remaining_greedy_search_gap_P_U1": 0.0,
+      "total_legacy_to_oracle_gap_P_U1": 0.1386566162109375
+    },
+    {
+      "layer": 3,
+      "legacy_pairwise_hc": {
+        "P_U1": 0.302398681640625,
+        "P_U2": 0.697601318359375,
+        "E_U": 1.697601318359375
+      },
+      "objective_aware_delta_greedy": {
+        "P_U1": 0.401031494140625,
+        "P_U2": 0.598968505859375,
+        "E_U": 1.598968505859375
+      },
+      "exact_routing_oracle": {
+        "P_U1": 0.402313232421875,
+        "P_U2": 0.597686767578125,
+        "E_U": 1.597686767578125,
+        "groups": [
+          [
+            0,
+            2,
+            3,
+            4,
+            5
+          ],
+          [
+            1
+          ],
+          [
+            6
+          ],
+          [
+            7
+          ]
+        ],
+        "num_ties": 1
+      },
+      "objective_linkage_mismatch_P_U1": 0.0986328125,
+      "remaining_greedy_search_gap_P_U1": 0.00128173828125,
+      "total_legacy_to_oracle_gap_P_U1": 0.09991455078125
+    },
+    {
+      "layer": 4,
+      "legacy_pairwise_hc": {
+        "P_U1": 0.2186737060546875,
+        "P_U2": 0.7813262939453125,
+        "E_U": 1.7813262939453125
+      },
+      "objective_aware_delta_greedy": {
+        "P_U1": 0.3805694580078125,
+        "P_U2": 0.6194305419921875,
+        "E_U": 1.6194305419921875
+      },
+      "exact_routing_oracle": {
+        "P_U1": 0.39471435546875,
+        "P_U2": 0.60528564453125,
+        "E_U": 1.60528564453125,
+        "groups": [
+          [
+            0,
+            2,
+            3,
+            4,
+            7
+          ],
+          [
+            1
+          ],
+          [
+            5
+          ],
+          [
+            6
+          ]
+        ],
+        "num_ties": 1
+      },
+      "objective_linkage_mismatch_P_U1": 0.161895751953125,
+      "remaining_greedy_search_gap_P_U1": 0.0141448974609375,
+      "total_legacy_to_oracle_gap_P_U1": 0.1760406494140625
+    },
+    {
+      "layer": 5,
+      "legacy_pairwise_hc": {
+        "P_U1": 0.2276611328125,
+        "P_U2": 0.7723388671875,
+        "E_U": 1.7723388671875
+      },
+      "objective_aware_delta_greedy": {
+        "P_U1": 0.4047393798828125,
+        "P_U2": 0.5952606201171875,
+        "E_U": 1.5952606201171875
+      },
+      "exact_routing_oracle": {
+        "P_U1": 0.4047393798828125,
+        "P_U2": 0.5952606201171875,
+        "E_U": 1.5952606201171875,
+        "groups": [
+          [
+            0,
+            1,
+            4,
+            6,
+            7
+          ],
+          [
+            2
+          ],
+          [
+            3
+          ],
+          [
+            5
+          ]
+        ],
+        "num_ties": 1
+      },
+      "objective_linkage_mismatch_P_U1": 0.1770782470703125,
+      "remaining_greedy_search_gap_P_U1": 0.0,
+      "total_legacy_to_oracle_gap_P_U1": 0.1770782470703125
+    },
+    {
+      "layer": 6,
+      "legacy_pairwise_hc": {
+        "P_U1": 0.25970458984375,
+        "P_U2": 0.74029541015625,
+        "E_U": 1.74029541015625
+      },
+      "objective_aware_delta_greedy": {
+        "P_U1": 0.41351318359375,
+        "P_U2": 0.58648681640625,
+        "E_U": 1.58648681640625
+      },
+      "exact_routing_oracle": {
+        "P_U1": 0.4250640869140625,
+        "P_U2": 0.5749359130859375,
+        "E_U": 1.5749359130859375,
+        "groups": [
+          [
+            0,
+            1,
+            2,
+            3,
+            4
+          ],
+          [
+            5
+          ],
+          [
+            6
+          ],
+          [
+            7
+          ]
+        ],
+        "num_ties": 1
+      },
+      "objective_linkage_mismatch_P_U1": 0.15380859375,
+      "remaining_greedy_search_gap_P_U1": 0.0115509033203125,
+      "total_legacy_to_oracle_gap_P_U1": 0.1653594970703125
+    },
+    {
+      "layer": 7,
+      "legacy_pairwise_hc": {
+        "P_U1": 0.2439727783203125,
+        "P_U2": 0.7560272216796875,
+        "E_U": 1.7560272216796875
+      },
+      "objective_aware_delta_greedy": {
+        "P_U1": 0.425811767578125,
+        "P_U2": 0.574188232421875,
+        "E_U": 1.574188232421875
+      },
+      "exact_routing_oracle": {
+        "P_U1": 0.425811767578125,
+        "P_U2": 0.574188232421875,
+        "E_U": 1.574188232421875,
+        "groups": [
+          [
+            0
+          ],
+          [
+            1,
+            4,
+            5,
+            6,
+            7
+          ],
+          [
+            2
+          ],
+          [
+            3
+          ]
+        ],
+        "num_ties": 1
+      },
+      "objective_linkage_mismatch_P_U1": 0.1818389892578125,
+      "remaining_greedy_search_gap_P_U1": 0.0,
+      "total_legacy_to_oracle_gap_P_U1": 0.1818389892578125
+    },
+    {
+      "layer": 8,
+      "legacy_pairwise_hc": {
+        "P_U1": 0.245330810546875,
+        "P_U2": 0.754669189453125,
+        "E_U": 1.754669189453125
+      },
+      "objective_aware_delta_greedy": {
+        "P_U1": 0.3907470703125,
+        "P_U2": 0.6092529296875,
+        "E_U": 1.6092529296875
+      },
+      "exact_routing_oracle": {
+        "P_U1": 0.3916168212890625,
+        "P_U2": 0.6083831787109375,
+        "E_U": 1.6083831787109375,
+        "groups": [
+          [
+            0
+          ],
+          [
+            1,
+            3,
+            4,
+            6,
+            7
+          ],
+          [
+            2
+          ],
+          [
+            5
+          ]
+        ],
+        "num_ties": 1
+      },
+      "objective_linkage_mismatch_P_U1": 0.145416259765625,
+      "remaining_greedy_search_gap_P_U1": 0.0008697509765625,
+      "total_legacy_to_oracle_gap_P_U1": 0.1462860107421875
+    },
+    {
+      "layer": 9,
+      "legacy_pairwise_hc": {
+        "P_U1": 0.314453125,
+        "P_U2": 0.685546875,
+        "E_U": 1.685546875
+      },
+      "objective_aware_delta_greedy": {
+        "P_U1": 0.445556640625,
+        "P_U2": 0.554443359375,
+        "E_U": 1.554443359375
+      },
+      "exact_routing_oracle": {
+        "P_U1": 0.445556640625,
+        "P_U2": 0.554443359375,
+        "E_U": 1.554443359375,
+        "groups": [
+          [
+            0,
+            2,
+            3,
+            5,
+            6
+          ],
+          [
+            1
+          ],
+          [
+            4
+          ],
+          [
+            7
+          ]
+        ],
+        "num_ties": 1
+      },
+      "objective_linkage_mismatch_P_U1": 0.131103515625,
+      "remaining_greedy_search_gap_P_U1": 0.0,
+      "total_legacy_to_oracle_gap_P_U1": 0.131103515625
+    },
+    {
+      "layer": 10,
+      "legacy_pairwise_hc": {
+        "P_U1": 0.351959228515625,
+        "P_U2": 0.648040771484375,
+        "E_U": 1.648040771484375
+      },
+      "objective_aware_delta_greedy": {
+        "P_U1": 0.4619293212890625,
+        "P_U2": 0.5380706787109375,
+        "E_U": 1.5380706787109375
+      },
+      "exact_routing_oracle": {
+        "P_U1": 0.4619293212890625,
+        "P_U2": 0.5380706787109375,
+        "E_U": 1.5380706787109375,
+        "groups": [
+          [
+            0
+          ],
+          [
+            1,
+            3,
+            4,
+            5,
+            7
+          ],
+          [
+            2
+          ],
+          [
+            6
+          ]
+        ],
+        "num_ties": 1
+      },
+      "objective_linkage_mismatch_P_U1": 0.1099700927734375,
+      "remaining_greedy_search_gap_P_U1": 0.0,
+      "total_legacy_to_oracle_gap_P_U1": 0.1099700927734375
+    },
+    {
+      "layer": 11,
+      "legacy_pairwise_hc": {
+        "P_U1": 0.3649444580078125,
+        "P_U2": 0.6350555419921875,
+        "E_U": 1.6350555419921875
+      },
+      "objective_aware_delta_greedy": {
+        "P_U1": 0.5067901611328125,
+        "P_U2": 0.4932098388671875,
+        "E_U": 1.4932098388671875
+      },
+      "exact_routing_oracle": {
+        "P_U1": 0.5067901611328125,
+        "P_U2": 0.4932098388671875,
+        "E_U": 1.4932098388671875,
+        "groups": [
+          [
+            0
+          ],
+          [
+            1
+          ],
+          [
+            2,
+            4,
+            5,
+            6,
+            7
+          ],
+          [
+            3
+          ]
+        ],
+        "num_ties": 1
+      },
+      "objective_linkage_mismatch_P_U1": 0.141845703125,
+      "remaining_greedy_search_gap_P_U1": 0.0,
+      "total_legacy_to_oracle_gap_P_U1": 0.141845703125
+    },
+    {
+      "layer": 12,
+      "legacy_pairwise_hc": {
+        "P_U1": 0.332611083984375,
+        "P_U2": 0.667388916015625,
+        "E_U": 1.667388916015625
+      },
+      "objective_aware_delta_greedy": {
+        "P_U1": 0.5006561279296875,
+        "P_U2": 0.4993438720703125,
+        "E_U": 1.4993438720703125
+      },
+      "exact_routing_oracle": {
+        "P_U1": 0.5006561279296875,
+        "P_U2": 0.4993438720703125,
+        "E_U": 1.4993438720703125,
+        "groups": [
+          [
+            0
+          ],
+          [
+            1,
+            2,
+            3,
+            5,
+            6
+          ],
+          [
+            4
+          ],
+          [
+            7
+          ]
+        ],
+        "num_ties": 1
+      },
+      "objective_linkage_mismatch_P_U1": 0.1680450439453125,
+      "remaining_greedy_search_gap_P_U1": 0.0,
+      "total_legacy_to_oracle_gap_P_U1": 0.1680450439453125
+    },
+    {
+      "layer": 13,
+      "legacy_pairwise_hc": {
+        "P_U1": 0.3270263671875,
+        "P_U2": 0.6729736328125,
+        "E_U": 1.6729736328125
+      },
+      "objective_aware_delta_greedy": {
+        "P_U1": 0.45477294921875,
+        "P_U2": 0.54522705078125,
+        "E_U": 1.54522705078125
+      },
+      "exact_routing_oracle": {
+        "P_U1": 0.45477294921875,
+        "P_U2": 0.54522705078125,
+        "E_U": 1.54522705078125,
+        "groups": [
+          [
+            0,
+            1,
+            3,
+            5,
+            6
+          ],
+          [
+            2
+          ],
+          [
+            4
+          ],
+          [
+            7
+          ]
+        ],
+        "num_ties": 1
+      },
+      "objective_linkage_mismatch_P_U1": 0.12774658203125,
+      "remaining_greedy_search_gap_P_U1": 0.0,
+      "total_legacy_to_oracle_gap_P_U1": 0.12774658203125
+    },
+    {
+      "layer": 14,
+      "legacy_pairwise_hc": {
+        "P_U1": 0.3870849609375,
+        "P_U2": 0.6129150390625,
+        "E_U": 1.6129150390625
+      },
+      "objective_aware_delta_greedy": {
+        "P_U1": 0.4664459228515625,
+        "P_U2": 0.5335540771484375,
+        "E_U": 1.5335540771484375
+      },
+      "exact_routing_oracle": {
+        "P_U1": 0.49249267578125,
+        "P_U2": 0.50750732421875,
+        "E_U": 1.50750732421875,
+        "groups": [
+          [
+            0
+          ],
+          [
+            1,
+            4,
+            5,
+            6,
+            7
+          ],
+          [
+            2
+          ],
+          [
+            3
+          ]
+        ],
+        "num_ties": 1
+      },
+      "objective_linkage_mismatch_P_U1": 0.0793609619140625,
+      "remaining_greedy_search_gap_P_U1": 0.0260467529296875,
+      "total_legacy_to_oracle_gap_P_U1": 0.10540771484375
+    },
+    {
+      "layer": 15,
+      "legacy_pairwise_hc": {
+        "P_U1": 0.3611297607421875,
+        "P_U2": 0.6388702392578125,
+        "E_U": 1.6388702392578125
+      },
+      "objective_aware_delta_greedy": {
+        "P_U1": 0.4388427734375,
+        "P_U2": 0.5611572265625,
+        "E_U": 1.5611572265625
+      },
+      "exact_routing_oracle": {
+        "P_U1": 0.4714202880859375,
+        "P_U2": 0.5285797119140625,
+        "E_U": 1.5285797119140625,
+        "groups": [
+          [
+            0,
+            1,
+            2,
+            5,
+            6
+          ],
+          [
+            3
+          ],
+          [
+            4
+          ],
+          [
+            7
+          ]
+        ],
+        "num_ties": 1
+      },
+      "objective_linkage_mismatch_P_U1": 0.0777130126953125,
+      "remaining_greedy_search_gap_P_U1": 0.0325775146484375,
+      "total_legacy_to_oracle_gap_P_U1": 0.11029052734375
+    },
+    {
+      "layer": 16,
+      "legacy_pairwise_hc": {
+        "P_U1": 0.333251953125,
+        "P_U2": 0.666748046875,
+        "E_U": 1.666748046875
+      },
+      "objective_aware_delta_greedy": {
+        "P_U1": 0.426055908203125,
+        "P_U2": 0.573944091796875,
+        "E_U": 1.573944091796875
+      },
+      "exact_routing_oracle": {
+        "P_U1": 0.454498291015625,
+        "P_U2": 0.545501708984375,
+        "E_U": 1.545501708984375,
+        "groups": [
+          [
+            0
+          ],
+          [
+            1
+          ],
+          [
+            2,
+            4,
+            5,
+            6,
+            7
+          ],
+          [
+            3
+          ]
+        ],
+        "num_ties": 1
+      },
+      "objective_linkage_mismatch_P_U1": 0.092803955078125,
+      "remaining_greedy_search_gap_P_U1": 0.0284423828125,
+      "total_legacy_to_oracle_gap_P_U1": 0.121246337890625
+    },
+    {
+      "layer": 17,
+      "legacy_pairwise_hc": {
+        "P_U1": 0.373291015625,
+        "P_U2": 0.626708984375,
+        "E_U": 1.626708984375
+      },
+      "objective_aware_delta_greedy": {
+        "P_U1": 0.4613037109375,
+        "P_U2": 0.5386962890625,
+        "E_U": 1.5386962890625
+      },
+      "exact_routing_oracle": {
+        "P_U1": 0.4613037109375,
+        "P_U2": 0.5386962890625,
+        "E_U": 1.5386962890625,
+        "groups": [
+          [
+            0,
+            1,
+            2,
+            4,
+            5
+          ],
+          [
+            3
+          ],
+          [
+            6
+          ],
+          [
+            7
+          ]
+        ],
+        "num_ties": 1
+      },
+      "objective_linkage_mismatch_P_U1": 0.0880126953125,
+      "remaining_greedy_search_gap_P_U1": 0.0,
+      "total_legacy_to_oracle_gap_P_U1": 0.0880126953125
+    },
+    {
+      "layer": 18,
+      "legacy_pairwise_hc": {
+        "P_U1": 0.321685791015625,
+        "P_U2": 0.678314208984375,
+        "E_U": 1.678314208984375
+      },
+      "objective_aware_delta_greedy": {
+        "P_U1": 0.4247283935546875,
+        "P_U2": 0.5752716064453125,
+        "E_U": 1.5752716064453125
+      },
+      "exact_routing_oracle": {
+        "P_U1": 0.4247283935546875,
+        "P_U2": 0.5752716064453125,
+        "E_U": 1.5752716064453125,
+        "groups": [
+          [
+            0,
+            2,
+            4,
+            5,
+            7
+          ],
+          [
+            1
+          ],
+          [
+            3
+          ],
+          [
+            6
+          ]
+        ],
+        "num_ties": 1
+      },
+      "objective_linkage_mismatch_P_U1": 0.1030426025390625,
+      "remaining_greedy_search_gap_P_U1": 0.0,
+      "total_legacy_to_oracle_gap_P_U1": 0.1030426025390625
+    },
+    {
+      "layer": 19,
+      "legacy_pairwise_hc": {
+        "P_U1": 0.363037109375,
+        "P_U2": 0.636962890625,
+        "E_U": 1.636962890625
+      },
+      "objective_aware_delta_greedy": {
+        "P_U1": 0.4038848876953125,
+        "P_U2": 0.5961151123046875,
+        "E_U": 1.5961151123046875
+      },
+      "exact_routing_oracle": {
+        "P_U1": 0.45269775390625,
+        "P_U2": 0.54730224609375,
+        "E_U": 1.54730224609375,
+        "groups": [
+          [
+            0
+          ],
+          [
+            1
+          ],
+          [
+            2,
+            4,
+            5,
+            6,
+            7
+          ],
+          [
+            3
+          ]
+        ],
+        "num_ties": 1
+      },
+      "objective_linkage_mismatch_P_U1": 0.0408477783203125,
+      "remaining_greedy_search_gap_P_U1": 0.0488128662109375,
+      "total_legacy_to_oracle_gap_P_U1": 0.08966064453125
+    },
+    {
+      "layer": 20,
+      "legacy_pairwise_hc": {
+        "P_U1": 0.2542877197265625,
+        "P_U2": 0.7457122802734375,
+        "E_U": 1.7457122802734375
+      },
+      "objective_aware_delta_greedy": {
+        "P_U1": 0.40142822265625,
+        "P_U2": 0.59857177734375,
+        "E_U": 1.59857177734375
+      },
+      "exact_routing_oracle": {
+        "P_U1": 0.4051055908203125,
+        "P_U2": 0.5948944091796875,
+        "E_U": 1.5948944091796875,
+        "groups": [
+          [
+            0,
+            1,
+            4,
+            5,
+            6
+          ],
+          [
+            2
+          ],
+          [
+            3
+          ],
+          [
+            7
+          ]
+        ],
+        "num_ties": 1
+      },
+      "objective_linkage_mismatch_P_U1": 0.1471405029296875,
+      "remaining_greedy_search_gap_P_U1": 0.0036773681640625,
+      "total_legacy_to_oracle_gap_P_U1": 0.15081787109375
+    },
+    {
+      "layer": 21,
+      "legacy_pairwise_hc": {
+        "P_U1": 0.24603271484375,
+        "P_U2": 0.75396728515625,
+        "E_U": 1.75396728515625
+      },
+      "objective_aware_delta_greedy": {
+        "P_U1": 0.385467529296875,
+        "P_U2": 0.614532470703125,
+        "E_U": 1.614532470703125
+      },
+      "exact_routing_oracle": {
+        "P_U1": 0.3992462158203125,
+        "P_U2": 0.6007537841796875,
+        "E_U": 1.6007537841796875,
+        "groups": [
+          [
+            0,
+            1,
+            3,
+            4,
+            7
+          ],
+          [
+            2
+          ],
+          [
+            5
+          ],
+          [
+            6
+          ]
+        ],
+        "num_ties": 1
+      },
+      "objective_linkage_mismatch_P_U1": 0.139434814453125,
+      "remaining_greedy_search_gap_P_U1": 0.0137786865234375,
+      "total_legacy_to_oracle_gap_P_U1": 0.1532135009765625
+    },
+    {
+      "layer": 22,
+      "legacy_pairwise_hc": {
+        "P_U1": 0.30267333984375,
+        "P_U2": 0.69732666015625,
+        "E_U": 1.69732666015625
+      },
+      "objective_aware_delta_greedy": {
+        "P_U1": 0.3916473388671875,
+        "P_U2": 0.6083526611328125,
+        "E_U": 1.6083526611328125
+      },
+      "exact_routing_oracle": {
+        "P_U1": 0.42486572265625,
+        "P_U2": 0.57513427734375,
+        "E_U": 1.57513427734375,
+        "groups": [
+          [
+            0,
+            1,
+            2,
+            5,
+            7
+          ],
+          [
+            3
+          ],
+          [
+            4
+          ],
+          [
+            6
+          ]
+        ],
+        "num_ties": 1
+      },
+      "objective_linkage_mismatch_P_U1": 0.0889739990234375,
+      "remaining_greedy_search_gap_P_U1": 0.0332183837890625,
+      "total_legacy_to_oracle_gap_P_U1": 0.1221923828125
+    },
+    {
+      "layer": 23,
+      "legacy_pairwise_hc": {
+        "P_U1": 0.315155029296875,
+        "P_U2": 0.684844970703125,
+        "E_U": 1.684844970703125
+      },
+      "objective_aware_delta_greedy": {
+        "P_U1": 0.3968048095703125,
+        "P_U2": 0.6031951904296875,
+        "E_U": 1.6031951904296875
+      },
+      "exact_routing_oracle": {
+        "P_U1": 0.441741943359375,
+        "P_U2": 0.558258056640625,
+        "E_U": 1.558258056640625,
+        "groups": [
+          [
+            0,
+            2,
+            4,
+            5,
+            7
+          ],
+          [
+            1
+          ],
+          [
+            3
+          ],
+          [
+            6
+          ]
+        ],
+        "num_ties": 1
+      },
+      "objective_linkage_mismatch_P_U1": 0.0816497802734375,
+      "remaining_greedy_search_gap_P_U1": 0.0449371337890625,
+      "total_legacy_to_oracle_gap_P_U1": 0.1265869140625
+    },
+    {
+      "layer": 24,
+      "legacy_pairwise_hc": {
+        "P_U1": 0.274810791015625,
+        "P_U2": 0.725189208984375,
+        "E_U": 1.725189208984375
+      },
+      "objective_aware_delta_greedy": {
+        "P_U1": 0.39715576171875,
+        "P_U2": 0.60284423828125,
+        "E_U": 1.60284423828125
+      },
+      "exact_routing_oracle": {
+        "P_U1": 0.4151153564453125,
+        "P_U2": 0.5848846435546875,
+        "E_U": 1.5848846435546875,
+        "groups": [
+          [
+            0,
+            2,
+            3,
+            4,
+            7
+          ],
+          [
+            1
+          ],
+          [
+            5
+          ],
+          [
+            6
+          ]
+        ],
+        "num_ties": 1
+      },
+      "objective_linkage_mismatch_P_U1": 0.122344970703125,
+      "remaining_greedy_search_gap_P_U1": 0.0179595947265625,
+      "total_legacy_to_oracle_gap_P_U1": 0.1403045654296875
+    },
+    {
+      "layer": 25,
+      "legacy_pairwise_hc": {
+        "P_U1": 0.324859619140625,
+        "P_U2": 0.675140380859375,
+        "E_U": 1.675140380859375
+      },
+      "objective_aware_delta_greedy": {
+        "P_U1": 0.3924713134765625,
+        "P_U2": 0.6075286865234375,
+        "E_U": 1.6075286865234375
+      },
+      "exact_routing_oracle": {
+        "P_U1": 0.4154205322265625,
+        "P_U2": 0.5845794677734375,
+        "E_U": 1.5845794677734375,
+        "groups": [
+          [
+            0,
+            1,
+            2,
+            5,
+            6
+          ],
+          [
+            3
+          ],
+          [
+            4
+          ],
+          [
+            7
+          ]
+        ],
+        "num_ties": 1
+      },
+      "objective_linkage_mismatch_P_U1": 0.0676116943359375,
+      "remaining_greedy_search_gap_P_U1": 0.02294921875,
+      "total_legacy_to_oracle_gap_P_U1": 0.0905609130859375
+    },
+    {
+      "layer": 26,
+      "legacy_pairwise_hc": {
+        "P_U1": 0.3411712646484375,
+        "P_U2": 0.6588287353515625,
+        "E_U": 1.6588287353515625
+      },
+      "objective_aware_delta_greedy": {
+        "P_U1": 0.4033050537109375,
+        "P_U2": 0.5966949462890625,
+        "E_U": 1.5966949462890625
+      },
+      "exact_routing_oracle": {
+        "P_U1": 0.4852447509765625,
+        "P_U2": 0.5147552490234375,
+        "E_U": 1.5147552490234375,
+        "groups": [
+          [
+            0,
+            2,
+            3,
+            5,
+            7
+          ],
+          [
+            1
+          ],
+          [
+            4
+          ],
+          [
+            6
+          ]
+        ],
+        "num_ties": 1
+      },
+      "objective_linkage_mismatch_P_U1": 0.0621337890625,
+      "remaining_greedy_search_gap_P_U1": 0.081939697265625,
+      "total_legacy_to_oracle_gap_P_U1": 0.144073486328125
+    },
+    {
+      "layer": 27,
+      "legacy_pairwise_hc": {
+        "P_U1": 0.293670654296875,
+        "P_U2": 0.706329345703125,
+        "E_U": 1.706329345703125
+      },
+      "objective_aware_delta_greedy": {
+        "P_U1": 0.4290618896484375,
+        "P_U2": 0.5709381103515625,
+        "E_U": 1.5709381103515625
+      },
+      "exact_routing_oracle": {
+        "P_U1": 0.4333953857421875,
+        "P_U2": 0.5666046142578125,
+        "E_U": 1.5666046142578125,
+        "groups": [
+          [
+            0
+          ],
+          [
+            1,
+            2,
+            5,
+            6,
+            7
+          ],
+          [
+            3
+          ],
+          [
+            4
+          ]
+        ],
+        "num_ties": 1
+      },
+      "objective_linkage_mismatch_P_U1": 0.1353912353515625,
+      "remaining_greedy_search_gap_P_U1": 0.00433349609375,
+      "total_legacy_to_oracle_gap_P_U1": 0.1397247314453125
+    },
+    {
+      "layer": 28,
+      "legacy_pairwise_hc": {
+        "P_U1": 0.3629150390625,
+        "P_U2": 0.6370849609375,
+        "E_U": 1.6370849609375
+      },
+      "objective_aware_delta_greedy": {
+        "P_U1": 0.4186553955078125,
+        "P_U2": 0.5813446044921875,
+        "E_U": 1.5813446044921875
+      },
+      "exact_routing_oracle": {
+        "P_U1": 0.4878997802734375,
+        "P_U2": 0.5121002197265625,
+        "E_U": 1.5121002197265625,
+        "groups": [
+          [
+            0
+          ],
+          [
+            1,
+            2,
+            3,
+            6,
+            7
+          ],
+          [
+            4
+          ],
+          [
+            5
+          ]
+        ],
+        "num_ties": 1
+      },
+      "objective_linkage_mismatch_P_U1": 0.0557403564453125,
+      "remaining_greedy_search_gap_P_U1": 0.069244384765625,
+      "total_legacy_to_oracle_gap_P_U1": 0.1249847412109375
+    },
+    {
+      "layer": 29,
+      "legacy_pairwise_hc": {
+        "P_U1": 0.433441162109375,
+        "P_U2": 0.566558837890625,
+        "E_U": 1.566558837890625
+      },
+      "objective_aware_delta_greedy": {
+        "P_U1": 0.4679107666015625,
+        "P_U2": 0.5320892333984375,
+        "E_U": 1.5320892333984375
+      },
+      "exact_routing_oracle": {
+        "P_U1": 0.4679107666015625,
+        "P_U2": 0.5320892333984375,
+        "E_U": 1.5320892333984375,
+        "groups": [
+          [
+            0,
+            2
+          ],
+          [
+            1
+          ],
+          [
+            3,
+            4,
+            5,
+            6
+          ],
+          [
+            7
+          ]
+        ],
+        "num_ties": 1
+      },
+      "objective_linkage_mismatch_P_U1": 0.0344696044921875,
+      "remaining_greedy_search_gap_P_U1": 0.0,
+      "total_legacy_to_oracle_gap_P_U1": 0.0344696044921875
+    },
+    {
+      "layer": 30,
+      "legacy_pairwise_hc": {
+        "P_U1": 0.44573974609375,
+        "P_U2": 0.55426025390625,
+        "E_U": 1.55426025390625
+      },
+      "objective_aware_delta_greedy": {
+        "P_U1": 0.435333251953125,
+        "P_U2": 0.564666748046875,
+        "E_U": 1.564666748046875
+      },
+      "exact_routing_oracle": {
+        "P_U1": 0.500335693359375,
+        "P_U2": 0.499664306640625,
+        "E_U": 1.499664306640625,
+        "groups": [
+          [
+            0,
+            1,
+            2,
+            4,
+            6
+          ],
+          [
+            3
+          ],
+          [
+            5
+          ],
+          [
+            7
+          ]
+        ],
+        "num_ties": 1
+      },
+      "objective_linkage_mismatch_P_U1": -0.010406494140625,
+      "remaining_greedy_search_gap_P_U1": 0.06500244140625,
+      "total_legacy_to_oracle_gap_P_U1": 0.054595947265625
+    },
+    {
+      "layer": 31,
+      "legacy_pairwise_hc": {
+        "P_U1": 0.5950775146484375,
+        "P_U2": 0.4049224853515625,
+        "E_U": 1.4049224853515625
+      },
+      "objective_aware_delta_greedy": {
+        "P_U1": 0.614227294921875,
+        "P_U2": 0.385772705078125,
+        "E_U": 1.385772705078125
+      },
+      "exact_routing_oracle": {
+        "P_U1": 0.614227294921875,
+        "P_U2": 0.385772705078125,
+        "E_U": 1.385772705078125,
+        "groups": [
+          [
+            0,
+            4
+          ],
+          [
+            1,
+            3,
+            5
+          ],
+          [
+            2,
+            7
+          ],
+          [
+            6
+          ]
+        ],
+        "num_ties": 1
+      },
+      "objective_linkage_mismatch_P_U1": 0.0191497802734375,
+      "remaining_greedy_search_gap_P_U1": 0.0,
+      "total_legacy_to_oracle_gap_P_U1": 0.0191497802734375
+    }
+  ],
+  "summary": {
+    "mean_legacy_pairwise_hc_P_U1": 0.32559871673583984,
+    "mean_objective_aware_delta_greedy_P_U1": 0.4309821128845215,
+    "mean_exact_routing_oracle_P_U1": 0.44744253158569336,
+    "mean_objective_linkage_mismatch_P_U1": 0.10538339614868164,
+    "mean_remaining_greedy_search_gap_P_U1": 0.016460418701171875,
+    "mean_total_legacy_to_oracle_gap_P_U1": 0.12184381484985352
+  }
+}
