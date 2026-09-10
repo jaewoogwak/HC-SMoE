@@ -1,17 +1,23 @@
 export NCCL_P2P_DISABLE=0
-export CUDA_LAUNCH_BLOCKING=1
-export TORCH_USE_CUDA_DSA=1
 export TOKENIZERS_PARALLELISM="false"
-export HF_HOME="your-huggingface-home-path"
 
-# Eval-only example:
-# bash scripts/mixtral/run.sh --eval_only=True --model_path="results/model.pth"
+# HC-SMoE baseline:
+# bash scripts/mixtral/run.sh --grouping_method=hcsmoe --calib_seed=42 \
+#   --output_path=results/mixtral_8to4/hcsmoe \
+#   --result_path=results/mixtral_8to4/hcsmoe/lm_eval.txt
+#
+# Routing-aware grouping:
+# bash scripts/mixtral/run.sh --grouping_method=routing_aware --alpha=1.0 --calib_seed=42 \
+#   --output_path=results/mixtral_8to4/routing_aware_a100 \
+#   --result_path=results/mixtral_8to4/routing_aware_a100/lm_eval.txt
+#
+# Eval-only:
+# bash scripts/mixtral/run.sh --eval_only=True --model_path=... --group_state_path=...
 
-accelerate launch --config_file static/finetune_config.yaml \
-  --main_process_port 29512 hcsmoe/merging-mixtral.py \
+accelerate launch --config_file static/finetune_config.yaml --main_process_port 29512 \
+  hcsmoe/merging-mixtral.py \
   --task="winogrande,arc_challenge,arc_easy,boolq,hellaswag,mmlu,openbookqa,rte" \
   --model_name="mistralai/Mixtral-8x7B-v0.1" \
-  --dominant="no" \
   --similarity_base="expert-output" \
   --cluster="hierarchical" \
   --linkage="average" \
@@ -20,7 +26,4 @@ accelerate launch --config_file static/finetune_config.yaml \
   --n_sentences=32 \
   --train_batch_size=2 \
   --eval_batch_size=16 \
-  --start_layer=0 \
-  --result_path="results/result_mixtral_test.txt" \
-  --output_path="results/" \
-  "$@" |& tee results/log_mixtral_test
+  "$@"

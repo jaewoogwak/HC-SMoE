@@ -22,20 +22,8 @@ from transformers.models.mixtral.modeling_mixtral import MixtralSparseMoeBlock, 
 from .utils import generate_random_group_labels
 from hcsmoe.utils.constants import FP32_EPS
 from hcsmoe.models.mixtral.utils import merged_moe_forward, MoEWrapper
-from hcsmoe.merging.clustering import (
-    compute_silhouette_score,
-    group_experts_by_clustering,
-    hierarchical_clustering_from_pairwise_distance,
-)
+from hcsmoe.merging.clustering import compute_silhouette_score, group_experts_by_clustering, pairwise_distances
 from hcsmoe.merging.overlap import compute_kl_divergence, get_prob_distributions, compute_wasserstein_distance
-from hcsmoe.merging.pairwise_scores import (
-    accumulate_corouting,
-    build_output_score_matrices,
-    compute_output_fingerprint,
-    build_hybrid_score_matrices,
-    module_execution_device,
-    validate_pairwise_scores,
-)
 
 SIMILARITY_MAPPING_FUNCTION = {
     "cosine": lambda x, y: (F.cosine_similarity(x, y, dim=-1, eps=FP32_EPS) + 1).item() / 2,
@@ -117,6 +105,17 @@ class ExpertsGrouperForMixtral(object):
 
     def group_state_dict(self) -> Dict[str, torch.LongTensor]:
         return deepcopy(self._group_state_dict)
+
+    def set_group_state_dict(self, group_state: Dict[str, torch.Tensor]) -> None:
+        """Install externally computed labels for the standard merge path."""
+        expected = set(self._group_state_dict)
+        if set(group_state) != expected:
+            raise ValueError("routing-aware labels must cover exactly the Mixtral sparse layers")
+        for name, labels in group_state.items():
+            labels = labels.detach().to(device="cpu", dtype=torch.long)
+            if labels.shape != (self.num_experts,) or labels.min() < 0:
+                raise ValueError(f"invalid group labels for {name}")
+            self._group_state_dict[name] = labels
 
     def usage_frequency_state_dict(self) -> Dict[str, torch.Tensor]:
         return deepcopy(self._usage_frequency_state_dict)
@@ -331,58 +330,6 @@ class ExpertsGrouperForMixtral(object):
                 f"Accepted similarity bases are `weight`, `expert-output`, `weight+expert-output`, `router-logits`, `router-logits+weight`, `router-logits+expert-output`, `router-logits+weight+expert-output`, but the input is `{self.similarity_base}`")
         return dom_experts
 
-    def hybrid_grouping_results(
-            self,
-            score_payload: Dict[str, object],
-            num_groups: int,
-            alpha: float,
-    ) -> Tuple[Dict[str, torch.Tensor], Dict[str, List[int]], Dict[str, Dict[str, object]]]:
-        """Return hybrid labels without changing the current grouping state."""
-        if self.cluster != "hierarchical" or self.linkage != "average":
-            raise ValueError("Hybrid grouping supports only cluster='hierarchical' and linkage='average'.")
-        if not 0.0 <= alpha <= 1.0:
-            raise ValueError(f"hybrid_alpha must be in [0, 1], got {alpha}")
-        layers = score_payload.get("layers") if isinstance(score_payload, dict) else None
-        if not isinstance(layers, dict):
-            raise ValueError("Pairwise score payload must contain a layers mapping.")
-        expected_names = [f"model.layers.{idx}.block_sparse_moe" for idx in self.sparse_layer_indices]
-        missing = [name for name in expected_names if name not in layers]
-        if missing:
-            raise ValueError(f"Pairwise score payload is missing Mixtral layers: {missing}")
-        validate_pairwise_scores({name: layers[name] for name in expected_names})
-
-        labels_by_layer = {}
-        dominant_by_layer = {}
-        details_by_layer = {}
-        for ffn_name in expected_names:
-            scores = layers[ffn_name]
-            hybrid = build_hybrid_score_matrices(
-                scores["output_distance"], scores["routing_rate"], alpha
-            )
-            labels, dominant_experts = hierarchical_clustering_from_pairwise_distance(
-                hybrid["hybrid_distance"], num_groups, method="average",
-                features_for_centers=scores["output_fingerprint"],
-            )
-            labels_by_layer[ffn_name] = labels.cpu()
-            dominant_by_layer[ffn_name] = dominant_experts
-            details_by_layer[ffn_name] = hybrid
-        return labels_by_layer, dominant_by_layer, details_by_layer
-
-    def group_experts_by_hybrid_scores(
-            self,
-            score_payload: Dict[str, object],
-            num_groups: int,
-            alpha: float,
-    ) -> Dict[str, List[int]]:
-        """Apply precomputed output+routing hybrid grouping to this grouper."""
-        labels_by_layer, dominant_by_layer, _ = self.hybrid_grouping_results(
-            score_payload, num_groups, alpha
-        )
-        for ffn_name, labels in labels_by_layer.items():
-            self._group_state_dict[ffn_name] = labels
-        return dominant_by_layer
-    
-
     def group_experts_by_clustering_weight_layerwise(
             self,
             moe: MixtralSparseMoeBlock,
@@ -554,6 +501,79 @@ class ExpertsGrouperForMixtral(object):
             del layer_input
         torch.cuda.empty_cache()
         return dom_experts
+
+    def collect_routing_aware_data(
+            self,
+            model: MixtralForCausalLM,
+            dataloader: DataLoader,
+            chunk_size: int = 256,
+    ) -> Dict[str, Dict[str, torch.Tensor]]:
+        """Collect only the C4 data needed by routing-aware grouping.
+
+        Forward hooks retain MoE inputs for the HC output fingerprints while
+        ``output_router_logits`` supplies the selected top-k experts and the
+        exact frequency weights used by the normal ``merge=freq`` path.
+        """
+        if chunk_size <= 0:
+            raise ValueError("chunk_size must be positive")
+        model.eval()
+        layer_inputs = {f"model.layers.{idx}.block_sparse_moe": [] for idx in self.sparse_layer_indices}
+        selected = {name: [] for name in layer_inputs}
+        usage = {name: torch.zeros(self.num_experts, dtype=torch.float32) for name in layer_inputs}
+        handles = []
+
+        def hook(name):
+            def capture(_, inputs, __):
+                layer_inputs[name].append(inputs[0].detach().reshape(-1, inputs[0].shape[-1]).cpu())
+            return capture
+
+        for layer_idx in self.sparse_layer_indices:
+            name = f"model.layers.{layer_idx}.block_sparse_moe"
+            handles.append(model.model.layers[layer_idx].block_sparse_moe.register_forward_hook(hook(name)))
+
+        try:
+            for batch in tqdm(dataloader, desc="[HC-SMoE] Collecting routing-aware C4 calibration"):
+                batch = {key: value.cuda() for key, value in batch.items() if key != "labels"}
+                with torch.no_grad():
+                    outputs = model(**batch, output_router_logits=True, use_cache=False)
+                for layer_idx in self.sparse_layer_indices:
+                    name = f"model.layers.{layer_idx}.block_sparse_moe"
+                    topk = torch.topk(outputs.router_logits[layer_idx], self.topk, dim=-1).indices.reshape(-1, self.topk).cpu()
+                    selected[name].append(topk)
+                    usage[name] += torch.bincount(topk.reshape(-1), minlength=self.num_experts).float()
+                del outputs
+        finally:
+            for handle in handles:
+                handle.remove()
+
+        data = {}
+        for layer_idx in tqdm(self.sparse_layer_indices, desc="[HC-SMoE] Computing routing-aware output fingerprints"):
+            name = f"model.layers.{layer_idx}.block_sparse_moe"
+            inputs = torch.cat(layer_inputs[name], dim=0)
+            moe = model.model.layers[layer_idx].block_sparse_moe
+            fingerprints = []
+            with torch.no_grad():
+                for expert in moe.experts:
+                    output_sum = torch.zeros(self.d_model, dtype=torch.float32, device="cuda")
+                    for start in range(0, len(inputs), chunk_size):
+                        output_sum += expert(inputs[start:start + chunk_size].cuda()).float().sum(dim=0)
+                    fingerprints.append((output_sum / len(inputs)).cpu())
+            # Keep the same device/dtype path as group_experts_by_clustering_output:
+            # it stacks CPU means and then runs average linkage on CUDA.
+            fingerprints = torch.stack(fingerprints).cuda()
+            distance = pairwise_distances(fingerprints, method="average")
+            distance.fill_diagonal_(0.0)
+            topk = torch.cat(selected[name], dim=0)
+            self._usage_frequency_state_dict[name] = usage[name] / usage[name].sum()
+            data[name] = {
+                "topk_experts": topk,
+                "output_fingerprint": fingerprints.cpu(),
+                "output_distance": distance.cpu(),
+            }
+            del inputs, fingerprints
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        return data
 
     def group_experts_by_clustering_weight_output(
         self,
@@ -976,81 +996,6 @@ class ExpertsGrouperForMixtral(object):
                 most_similar_group_label = self._group_state_dict[moe_name][most_similar_core]
                 self._group_state_dict[moe_name][i] = most_similar_group_label
         return core_experts
-
-    def compute_pairwise_score_matrices(
-            self,
-            model: MixtralForCausalLM,
-            dataloader: DataLoader,
-            chunk_size: int = 256,
-    ) -> Dict[str, Dict[str, object]]:
-        """Collect C4-only output and routing pairwise scores without grouping."""
-        if chunk_size <= 0:
-            raise ValueError("chunk_size must be positive")
-        model.eval()
-        layer_inputs = {}
-        routing_counts = {}
-        usage_counts = {}
-        handles = []
-
-        def _activation_hook(name):
-            def hook(_, inputs, __):
-                hidden = inputs[0].detach().reshape(-1, inputs[0].shape[-1]).cpu()
-                layer_inputs[name].append(hidden)
-            return hook
-
-        for layer_idx in self.sparse_layer_indices:
-            ffn_name = f"model.layers.{layer_idx}.block_sparse_moe"
-            layer_inputs[ffn_name] = []
-            routing_counts[ffn_name] = torch.zeros(
-                (self.num_experts, self.num_experts), dtype=torch.int64, device="cpu"
-            )
-            usage_counts[ffn_name] = torch.zeros(self.num_experts, dtype=torch.int64, device="cpu")
-            moe = model.model.layers[layer_idx].block_sparse_moe
-            handles.append(moe.register_forward_hook(_activation_hook(ffn_name)))
-
-        input_device = module_execution_device(model.model.embed_tokens)
-        try:
-            for batch in tqdm(dataloader, desc="[HC-SMoE] Collecting pairwise C4 scores"):
-                batch = {
-                    key: value.to(input_device) if torch.is_tensor(value) else value
-                    for key, value in batch.items() if key != "labels"
-                }
-                with torch.no_grad():
-                    outputs = model(**batch, output_router_logits=True, use_cache=False)
-                for layer_idx in self.sparse_layer_indices:
-                    ffn_name = f"model.layers.{layer_idx}.block_sparse_moe"
-                    accumulate_corouting(
-                        routing_counts[ffn_name], usage_counts[ffn_name],
-                        outputs.router_logits[layer_idx].detach(), self.topk,
-                    )
-                del outputs
-        finally:
-            for handle in handles:
-                handle.remove()
-
-        layers = {}
-        for layer_idx in tqdm(self.sparse_layer_indices, desc="[HC-SMoE] Computing expert output fingerprints"):
-            ffn_name = f"model.layers.{layer_idx}.block_sparse_moe"
-            layer_input = torch.cat(layer_inputs.pop(ffn_name), dim=0)
-            moe = model.model.layers[layer_idx].block_sparse_moe
-            fingerprints = torch.stack([
-                compute_output_fingerprint(expert, layer_input, chunk_size)
-                for expert in moe.experts
-            ])
-            scores = build_output_score_matrices(fingerprints)
-            num_tokens = layer_input.shape[0]
-            scores.update({
-                "routing_count": routing_counts[ffn_name],
-                "routing_rate": routing_counts[ffn_name].float() / num_tokens,
-                "usage_count": usage_counts[ffn_name],
-                "num_tokens": int(num_tokens),
-            })
-            layers[ffn_name] = scores
-            del layer_input, fingerprints
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
-        validate_pairwise_scores(layers)
-        return layers
 
     def compute_all_usages(
             self,
