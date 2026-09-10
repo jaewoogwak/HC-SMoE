@@ -17,7 +17,7 @@ from .utils import generate_random_group_labels
 from hcsmoe.utils.constants import FP32_EPS
 from hcsmoe.utils.helper import print_gpu_memory
 from hcsmoe.models.qwen.utils import merged_qwen2moe_forward, Qwen2MoEWrapper, ModifiedQwen2MoeSparseMoeBlock
-from hcsmoe.merging.clustering import group_experts_by_clustering
+from hcsmoe.merging.clustering import group_experts_by_clustering, pairwise_distances
 from hcsmoe.merging.overlap import compute_kl_divergence, get_prob_distributions, compute_wasserstein_distance
 
 SIMILARITY_MAPPING_FUNCTION = {
@@ -117,6 +117,16 @@ class ExpertsGrouperForQwen2MoE(object):
 
     def group_state_dict(self) -> Dict[str, torch.LongTensor]:
         return deepcopy(self._group_state_dict)
+
+    def set_group_state_dict(self, group_state: Dict[str, torch.Tensor]) -> None:
+        """Install labels computed by the shared routing-aware algorithm."""
+        if set(group_state) != set(self._group_state_dict):
+            raise ValueError("routing-aware labels must cover exactly the Qwen sparse layers")
+        for name, labels in group_state.items():
+            labels = labels.detach().to(device="cpu", dtype=torch.long)
+            if labels.shape != (self.num_experts,) or labels.min() < 0:
+                raise ValueError(f"invalid group labels for {name}")
+            self._group_state_dict[name] = labels
 
     def usage_frequency_state_dict(self) -> Dict[str, torch.Tensor]:
         return deepcopy(self._usage_frequency_state_dict)
@@ -551,6 +561,67 @@ class ExpertsGrouperForQwen2MoE(object):
             del layer_input
         torch.cuda.empty_cache()
         return dom_experts
+
+    def collect_routing_aware_data(
+            self,
+            model: Qwen2MoeForCausalLM,
+            dataloader: DataLoader,
+    ) -> Dict[str, Dict[str, torch.Tensor]]:
+        """Collect C4 top-k routing and HC-compatible output distances.
+
+        The selected expert width is read from ``config.num_experts_per_tok``
+        through ``self.top_k``; it is not specific to Qwen's current top-4
+        configuration.  The usage counts use these same assignments, which is
+        exactly what frequency-weighted merging consumes.
+        """
+        model.eval()
+        layer_inputs = {f"model.layers.{idx}.mlp": [] for idx in self.sparse_layer_indices}
+        topk_chunks = {name: [] for name in layer_inputs}
+        usage = {name: torch.zeros(self.num_experts, dtype=torch.float32) for name in layer_inputs}
+        handles = []
+
+        def hook(name):
+            def capture(_, inputs, __):
+                layer_inputs[name].append(inputs[0].detach().reshape(-1, inputs[0].shape[-1]).cpu())
+            return capture
+
+        for layer_idx in self.sparse_layer_indices:
+            name = f"model.layers.{layer_idx}.mlp"
+            handles.append(model.model.layers[layer_idx].mlp.register_forward_hook(hook(name)))
+        try:
+            for batch in tqdm(dataloader, desc="[HC-SMoE] Collecting routing-aware Qwen calibration"):
+                batch = {key: value.cuda() for key, value in batch.items() if key != "labels"}
+                with torch.no_grad():
+                    outputs = model(**batch, output_router_logits=True, use_cache=False)
+                for layer_idx in self.sparse_layer_indices:
+                    name = f"model.layers.{layer_idx}.mlp"
+                    topk = torch.topk(outputs.router_logits[layer_idx], self.top_k, dim=-1).indices.reshape(-1, self.top_k).cpu()
+                    topk_chunks[name].append(topk)
+                    usage[name] += torch.bincount(topk.reshape(-1), minlength=self.num_experts).float()
+                del outputs
+        finally:
+            for handle in handles:
+                handle.remove()
+
+        data = {}
+        for layer_idx in tqdm(self.sparse_layer_indices, desc="[HC-SMoE] Computing Qwen routing-aware output fingerprints"):
+            name = f"model.layers.{layer_idx}.mlp"
+            moe = model.model.layers[layer_idx].mlp
+            layer_input = torch.cat(layer_inputs[name]).to(module_execution_device(moe.experts[0]))
+            with torch.no_grad():
+                fingerprints = torch.stack([expert(layer_input).mean(dim=0) for expert in moe.experts])
+            output_distance = pairwise_distances(fingerprints, method="average")
+            output_distance.fill_diagonal_(0.0)
+            topk = torch.cat(topk_chunks[name], dim=0)
+            self._usage_frequency_state_dict[name] = usage[name] / usage[name].sum()
+            data[name] = {
+                "topk_experts": topk,
+                "output_distance": output_distance.cpu(),
+            }
+            del layer_input, fingerprints, output_distance
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        return data
     
     def group_experts_by_clustering_weight_and_output(
         self,
@@ -976,9 +1047,9 @@ class ExpertsGrouperForQwen2MoE(object):
             all_router_logits = outputs.router_logits
             if mode == "frequency":
                 all_router_logits = torch.stack(all_router_logits)  # of shape (num_hidden_layers, num_tokens, num_experts)
-                selected_experts = torch.topk(all_router_logits, 2, dim=-1)[1].reshape(
+                selected_experts = torch.topk(all_router_logits, self.top_k, dim=-1)[1].reshape(
                     config.num_hidden_layers, -1
-                )  # of shape (num_hidden_layers, num_tokens * 2)
+                )  # of shape (num_hidden_layers, num_tokens * configured_top_k)
                 for layer_idx in self.sparse_layer_indices:
                     ffn_name = f"model.layers.{layer_idx}.mlp"
                     unique, counts = torch.unique(selected_experts[layer_idx], return_counts=True)

@@ -57,7 +57,15 @@ def evaluate(args, model, tokenizer):
     if result_dir:
         os.makedirs(result_dir, exist_ok=True)
     for task in args.task.split(","):
-        evaluate_fewshot(model, tokenizer, task.strip(), args.num_fewshot, args.eval_batch_size, args.result_path, log=True)
+        evaluate_fewshot(
+            model,
+            tokenizer=tokenizer,
+            task=task.strip(),
+            num_fewshot=args.num_fewshot,
+            eval_batch_size=args.eval_batch_size,
+            output_path=args.result_path,
+            log=True,
+        )
 
 
 def _save_routing_diagnostics(output_path, routing_results, alpha: float, calib_seed: int):

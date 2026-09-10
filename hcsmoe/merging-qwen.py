@@ -1,316 +1,159 @@
-# -*- coding: utf-8 -*-
-# @Author: pingzhili
-# @Time: 2024/2/18
+"""Merge Qwen MoE experts with HC-SMoE or shared routing-aware grouping."""
+
+import json
 import os
-import gc
 import sys
 import time
-import pickle
-import json
+from pathlib import Path
 from typing import Optional
 
-import logging
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 import torch
 from fire import Fire
-from transformers import Qwen2MoeForCausalLM, AutoTokenizer
+from transformers import AutoTokenizer, Qwen2MoeForCausalLM
 
-from hcsmoe.evaluation import get_minipile_dataloder, evaluate_minipile_perplexity, evaluate_fewshot, get_calib_dataloder
-from hcsmoe.merging.grouping_qwen import (
-    ExpertsGrouperForQwen2MoE,
-    merge_by_groups_with_usage_weighted,
-    merge_by_groups_within_and_across_models,
-)
+from hcsmoe.evaluation import evaluate_fewshot, get_calib_dataloder
+from hcsmoe.merging.grouping_qwen import ExpertsGrouperForQwen2MoE, merge_by_groups_with_usage_weighted
+from hcsmoe.merging.routing_aware_grouping import routing_aware_grouping
 
-logger = logging.getLogger(__name__)
 
-###############################
-#  Helper class and functions #
-###############################
+DEFAULT_TASKS = "winogrande,arc_challenge,arc_easy,boolq,hellaswag,mmlu,openbookqa,rte"
+
+
 class Args:
-    def __init__(
-        self,
-        task,
-        num_average_groups: int,
-        model_name: Optional[str] = "Qwen/Qwen1.5-MoE-A2.7B-Chat",
-        dominant: Optional[str] = "knowledge",
-        similarity_base: Optional[str] = "router-logits",
-        merge: Optional[str] = "zipit",
-        mode: Optional[str] = "normal",
-        n_sentences: Optional[int] = 32,
-        train_batch_size: Optional[int] = 4,
-        eval_batch_size: Optional[int] = 32,
-        partition: Optional[int] = 1,
-        start_layer: Optional[int] = 0,
-        output_path: Optional[str] = None,
-        result_path: Optional[str] = None,
-        model_path: Optional[str] = None,
-        group_limit: Optional[int] = 4,
-        data_limit: Optional[int] = 50000,
-        num_fewshot: Optional[int] = 0,
-        try_oracle: Optional[bool] = False,
-        random_start_center: Optional[bool] = False,
-        weight: Optional[str] = None,
-        cluster: Optional[str] = "kmeans",
-        linkage: Optional[str] = "ward",
-        hierarchical_stopping_metric: Optional[str] = "silhouette",
-        overlap_metric: Optional[str] = "kl-divergence",
-        dynamic_group: Optional[bool] = False,
-    ):
+    def __init__(self, task, n_sentences, train_batch_size, eval_batch_size, result_path, num_fewshot):
         self.task = task
-        self.num_average_groups = num_average_groups
-        self.model_name = model_name
-        self.dominant = dominant
-        self.similarity_base = similarity_base
-        self.merge = merge
-        self.mode = mode
         self.n_sentences = n_sentences
         self.train_batch_size = train_batch_size
         self.eval_batch_size = eval_batch_size
-        self.partition = partition
-        self.start_layer = start_layer
-        self.output_path = output_path
         self.result_path = result_path
-        self.model_path = model_path
-        self.group_limit = group_limit
-        self.data_limit = data_limit
         self.num_fewshot = num_fewshot
-        self.try_oracle = try_oracle
-        self.random_start_center = random_start_center
-        self.weight = weight
-        self.cluster = cluster
-        self.linkage = linkage
-        self.hierarchical_stopping_metric = hierarchical_stopping_metric
-        self.overlap_metric = overlap_metric
-        self.dynamic_group = dynamic_group
 
-def get_dataloader(args, tokenizer):
+
+def get_dataloader(args, tokenizer, calib_seed: int):
     return get_calib_dataloder(
-        dataset="c4",
-        tokenizer=tokenizer,
-        max_block_size=2048,
-        n_blocks_for_stat=args.n_sentences, # 32, 128
-        batch_size=args.train_batch_size,
-        num_workers=4,
+        dataset="c4", tokenizer=tokenizer, max_block_size=2048,
+        n_blocks_for_stat=args.n_sentences, batch_size=args.train_batch_size,
+        num_workers=4, seed=calib_seed,
     )
 
-def get_grouper(args, config):
-    return ExpertsGrouperForQwen2MoE(
-                config=config,
-                similarity_base=args.similarity_base,
-                start_layer=args.start_layer,
-                group_limit=args.group_limit,
-                data_limit=args.data_limit,
-                random_start_center=args.random_start_center,
-                cluster=args.cluster,
-                linkage=args.linkage,
-                hierarchical_stopping_metric=args.hierarchical_stopping_metric,
-                overlap_metric=args.overlap_metric,
-                dynamic_group=args.dynamic_group,
-            )
 
-def evaluation(args, model, tokenizer):
-    result_dir = args.result_path.split("/")[:-1]
-    result_dir = "/".join(result_dir)
-    if not os.path.exists(result_dir):
-        os.makedirs(result_dir)
-
-    # if eval_ppl:
-    #     evaluate_minipile_perplexity(
-    #         model, tokenizer=tokenizer, batch_size=eval_batch_size, log=True
-    #     )
-
-    if isinstance(args.task, str):
+def evaluate(args, model, tokenizer):
+    if not args.result_path:
+        return
+    result_dir = os.path.dirname(args.result_path)
+    if result_dir:
+        os.makedirs(result_dir, exist_ok=True)
+    for task in args.task.split(","):
         evaluate_fewshot(
-            model, tokenizer=tokenizer, task=args.task, num_fewshot=args.num_fewshot, output_path=args.result_path, log=True
+            model, tokenizer=tokenizer, task=task.strip(),
+            num_fewshot=args.num_fewshot, eval_batch_size=args.eval_batch_size,
+            output_path=args.result_path, log=True,
         )
-    else:
-        for i, t in enumerate(args.tasks):
-            evaluate_fewshot(
-                model, tokenizer=tokenizer, task=t, num_fewshot=args.num_fewshot, eval_batch_size=args.eval_batch_size, output_path=args.result_path, log=True
-            )
 
-def print_usage_frequency(usage_dict):
-    for k in usage_dict:
-        for num in usage_dict[k]:
-            print(round(num.item(), 4), end=',')
-        print()
+
+def _save_routing_diagnostics(output_path, routing_results, alpha: float, calib_seed: int):
+    with open(os.path.join(output_path, "routing_merge_trace.json"), "w") as handle:
+        json.dump({name: result["merge_trace"] for name, result in routing_results.items()}, handle, indent=2)
+    with open(os.path.join(output_path, "routing_locality_metrics.json"), "w") as handle:
+        json.dump({"alpha": alpha, "calib_seed": calib_seed,
+                   "layers": {name: result["metrics"] for name, result in routing_results.items()}}, handle, indent=2)
 
 
 def run_hcsmoe(
-        task: str,
-        num_average_groups: int,
-        model_name: Optional[str] = "Qwen/Qwen1.5-MoE-A2.7B-Chat",
-        dominant: Optional[str] = "knowledge", # random, frequency, knowledge
-        similarity_base: Optional[str] = "router-logits", # router-logits, weight, expert-output
-        merge: Optional[str] = "zipit", # no, freq, zipit, update, fix-dom, unmerge,ix-dom-same
-        mode: Optional[str] = "normal", # normal, activation-with-router-logits, input-weight, all
-        n_sentences: Optional[int] = 32,
-        train_batch_size: Optional[int] = 4,
-        eval_batch_size: Optional[int] = 32,
-        partition: Optional[int] = 1,
-        start_layer: Optional[int] = 0,
+        task: str = DEFAULT_TASKS,
+        num_average_groups: int = 30,
+        model_name: str = "Qwen/Qwen1.5-MoE-A2.7B-Chat",
+        grouping_method: str = "hcsmoe",
+        alpha: float = 1.0,
+        calib_seed: int = 42,
+        n_sentences: int = 32,
+        train_batch_size: int = 2,
+        eval_batch_size: int = 16,
         output_path: Optional[str] = None,
         result_path: Optional[str] = None,
         model_path: Optional[str] = None,
-        group_limit: Optional[int] = 4,
-        data_limit: Optional[int] = 1000000,
-        random_start_center: Optional[bool] = False,
-        num_fewshot: Optional[int] = 0,
-        cluster: Optional[str] = "kmeans",
-        linkage: Optional[str] = "ward",
-        hierarchical_stopping_metric: Optional[str] = "silhouette",
-        ingredient: Optional[str] = "act", # act, weight, act+weight
-        overlap_metric: Optional[str] = "cosine", # kl-divergence, wasserstein, cosine
-        dynamic_group: Optional[bool] = False,
-        gpu_memory: Optional[str] = "18GiB",
-        cpu_memory: Optional[str] = "900GiB",
+        num_fewshot: int = 0,
+        start_layer: int = 0,
+        similarity_base: str = "expert-output",
+        cluster: str = "hierarchical",
+        linkage: str = "average",
+        merge: str = "freq",
+        gpu_memory: str = "14GiB",
+        cpu_memory: str = "900GiB",
 ):
-    print(f"Merge model {model_name} with {num_average_groups} group, {dominant} dominant + {similarity_base} grouping + {merge} merge - {mode}, ingredient: {ingredient}, evaluate on {task}")
-    print(f"Cluster: {cluster}, linkage: {linkage}, hierarchical_stopping_metric: {hierarchical_stopping_metric}, overlap_metric: {overlap_metric}, dynamic_group: {dynamic_group}")
-    print(f"Accelerate device-map memory budget: GPU={gpu_memory}, CPU={cpu_memory}")
-    
-    ### 1. Initialization
-    args = Args(
-        task=task,
-        num_average_groups=num_average_groups,
-        model_name=model_name,
-        dominant=dominant,
-        similarity_base=similarity_base,
-        merge=merge,
-        mode=mode,
-        n_sentences=n_sentences,
-        train_batch_size=train_batch_size,
-        eval_batch_size=eval_batch_size,
-        partition=partition,
-        start_layer=start_layer,
-        output_path=output_path,
-        result_path=result_path,
-        model_path=model_path,
-        group_limit=group_limit,
-        data_limit=data_limit,
-        num_fewshot=num_fewshot,
-        random_start_center=random_start_center,
-        cluster=cluster,
-        linkage=linkage,
-        hierarchical_stopping_metric=hierarchical_stopping_metric,
-        overlap_metric=overlap_metric,
-        dynamic_group=dynamic_group,
-    )
-    torch.manual_seed(0)
-
-    tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen1.5-MoE-A2.7B-Chat")
+    """Run a 60-expert to configurable-group Qwen comparison."""
+    if grouping_method not in {"hcsmoe", "routing_aware"}:
+        raise ValueError("grouping_method must be 'hcsmoe' or 'routing_aware'")
+    if not 0.0 <= alpha <= 1.0:
+        raise ValueError("alpha must be in [0, 1]")
+    if similarity_base != "expert-output" or cluster != "hierarchical" or linkage != "average":
+        raise ValueError("this comparison requires expert-output hierarchical average-linkage grouping")
+    if merge != "freq":
+        raise ValueError("this comparison uses only the original merge=freq implementation")
+    if not output_path:
+        raise ValueError("--output_path is required for a merged model")
+    args = Args(task, n_sentences, train_batch_size, eval_batch_size, result_path, num_fewshot)
+    torch.manual_seed(calib_seed)
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
     tokenizer.pad_token_id = tokenizer.eos_token_id
     model = Qwen2MoeForCausalLM.from_pretrained(
-        "Qwen/Qwen1.5-MoE-A2.7B-Chat",
-        torch_dtype=torch.bfloat16,
-        device_map="auto",
-        max_memory={0: gpu_memory, "cpu": cpu_memory},
-        offload_buffers=True,
-    )
+        model_name, torch_dtype=torch.bfloat16, device_map="auto",
+        max_memory={0: gpu_memory, "cpu": cpu_memory}, offload_buffers=True,
+    ).eval()
     if model_path:
-        model.load_state_dict(torch.load(model_name))
-    model.eval()
-    dataloader_for_merging = get_dataloader(args, tokenizer)
-    grouper = get_grouper(args, model.config)
+        model.load_state_dict(torch.load(model_path, map_location="cpu"))
+    if not 1 <= num_average_groups <= model.config.num_experts:
+        raise ValueError(f"num_average_groups must be in [1, {model.config.num_experts}]")
 
-    # HC-SMoE!
-    print("[HC-SMoE] Number of parameters before merging:", model.num_parameters())
-    print(f"[HC-SMoE] Merging into average {num_average_groups} groups...")
-    group_st = time.time()
-    if merge == "freq" or dominant == "frequency":
-        grouper.compute_all_usages(model, dataloader_for_merging)
-        print_usage_frequency(grouper._usage_frequency_state_dict)
-    if dynamic_group:
-        grouper.compute_all_usages(model, dataloader_for_merging, mode=hierarchical_stopping_metric)
-        print_usage_frequency(grouper._usage_frequency_state_dict)
-    
-
-    ### 2. Get dominant experts
-    dom_experts = None
-    if dominant == "random":
-        grouper.group_experts_randomly(num_groups=num_average_groups)
-        dom_experts = None
-    elif dominant == "frequency":
-        if similarity_base != "no":
-            grouper.compute_all_similarities(model, dataloader_for_merging)
-        dom_experts = grouper.group_experts_globally_from_dominant_experts(
-            num_average_groups=num_average_groups, merging_layers=list(range(start_layer, model.config.num_hidden_layers))
-        )
-    elif dominant == "routing-score":
-        grouper.compute_all_usages(model, dataloader_for_merging, mode="routing-score")
-        print_usage_frequency(grouper._usage_frequency_state_dict)
-        dom_experts = grouper.group_experts_globally_from_dominant_experts(
-            num_average_groups=num_average_groups, merging_layers=list(range(start_layer, model.config.num_hidden_layers))
-        )
-    elif dominant == "no":
-        ### Clustering
-        dom_experts = grouper.cluster_experts(model=model, dataloader=dataloader_for_merging, num_groups=num_average_groups)
+    dataloader = get_dataloader(args, tokenizer, calib_seed)
+    grouper = ExpertsGrouperForQwen2MoE(
+        config=model.config, similarity_base=similarity_base, start_layer=start_layer,
+        cluster=cluster, linkage=linkage,
+    )
+    print(f"[HC-SMoE] grouping_method={grouping_method}, alpha={alpha:g}, calib_seed={calib_seed}")
+    started = time.time()
+    routing_results = None
+    if grouping_method == "hcsmoe":
+        # Original Qwen expert-output HC-SMoE grouping path.
+        grouper.compute_all_usages(model, dataloader)
+        grouper.cluster_experts(model, dataloader, num_average_groups)
     else:
-        raise ValueError(f"Unknown dominant: {dominant}")   
+        collected = grouper.collect_routing_aware_data(model, dataloader)
+        routing_results = {
+            name: routing_aware_grouping(values["output_distance"], values["topk_experts"], num_average_groups, alpha)
+            for name, values in collected.items()
+        }
+        grouper.set_group_state_dict({name: result["labels"] for name, result in routing_results.items()})
+    group_state = grouper.group_state_dict()
+    print(f"[HC-SMoE] Grouping completed in {time.time() - started:.1f}s")
 
-    ### 3. Merging
-    if merge == "freq":
-        model = merge_by_groups_with_usage_weighted(
-            model, grouper=grouper, merging_layers=list(range(start_layer, model.config.num_hidden_layers))
-        )
-    else:
-        model = merge_by_groups_within_and_across_models(
-            qwen_model=model,
-            grouper=grouper,
-            dataloader=dataloader_for_merging,
-            merge=merge,
-            mode=mode,
-            partition=partition,
-            core_experts=dom_experts,
-            dominant_alone=False,
-            usage_weighted=False,
-            ingredient=ingredient,
-        )
-        
-    print(f"[HC-SMoE] Merging time: {time.time() - group_st:.2f} seconds")
-
-    ### 4. Grouping results
-    print(f"[HC-SMoE] ========= Grouping results ========= ")
-    for name, state in grouper.group_state_dict().items():
-        if dom_experts is None:
-            print(f"Group {name}: {state.tolist()}")
-        else:
-            print(f"Group {name}: {state.tolist()} (DOMs are {dom_experts[name]}, {len(dom_experts[name])})")
-
-    # Preserve the layer-local expert -> group mapping used to create this
-    # merged checkpoint.  It lets a base-Qwen routing trace be annotated with
-    # the C4-calibrated HC-SMoE groups without recalibrating.
-    if not output_path:
-        raise ValueError("--output_path is required when saving a merged HC-SMoE model")
+    # Both policies deliberately share the unchanged frequency-weighted merge.
+    model = merge_by_groups_with_usage_weighted(
+        model, grouper=grouper, merging_layers=list(range(start_layer, model.config.num_hidden_layers))
+    )
+    os.makedirs(output_path, exist_ok=True)
     grouper.save_group_state_dict(output_path)
-    group_metadata = {
-        "model_name": model_name,
-        "similarity_base": similarity_base,
-        "cluster": cluster,
-        "linkage": linkage,
-        "hierarchical_stopping_metric": hierarchical_stopping_metric,
-        "num_average_groups": num_average_groups,
-        "start_layer": start_layer,
-        "group_limit": group_limit,
-        "merge": merge,
-        "gpu_memory": gpu_memory,
-        "cpu_memory": cpu_memory,
+    metadata = {
+        "model_name": model_name, "grouping_method": grouping_method,
+        "alpha": alpha if grouping_method == "routing_aware" else None,
+        "calibration_dataset": "c4", "calibration_blocks": n_sentences,
+        "calibration_block_size": 2048, "calib_seed": calib_seed,
+        "similarity_base": similarity_base, "cluster": cluster, "linkage": linkage,
+        "num_average_groups": num_average_groups, "merge": merge,
+        "top_k": model.config.num_experts_per_tok,
         "group_mapping_file": "group_state_dict.pt",
     }
     with open(os.path.join(output_path, "group_mapping_metadata.json"), "w") as handle:
-        json.dump(group_metadata, handle, indent=2)
-    print(f"[HC-SMoE] Saved group mapping: {os.path.join(output_path, 'group_state_dict.pt')}")
-    del grouper
-    
-    ### 5. Save model
-    print("[HC-SMoE] Number of parameters after merging:", model.num_parameters())
-    if not os.path.exists(output_path):
-        os.makedirs(output_path)
-    torch.save(model.state_dict(), output_path+"/model.pth")
-
-
-    ### 6. Evaluation
-    evaluation(args, model, tokenizer)
+        json.dump(metadata, handle, indent=2)
+    if routing_results is not None:
+        _save_routing_diagnostics(output_path, routing_results, alpha, calib_seed)
+    torch.save(model.state_dict(), os.path.join(output_path, "model.pth"))
+    torch.cuda.empty_cache()
+    evaluate(args, model, tokenizer)
 
 
 if __name__ == "__main__":

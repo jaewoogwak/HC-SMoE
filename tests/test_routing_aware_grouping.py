@@ -49,3 +49,28 @@ def test_final_group_count():
     result = routing_aware_grouping(distance, topk, num_groups=4, alpha=1.0)
     assert len(result["groups"]) == 4
     assert all(group for group in result["groups"])
+
+
+def test_qwen_style_top_four_delta_and_routing_only_merges():
+    topk = torch.tensor([
+        [0, 1, 2, 3],
+        [0, 1, 4, 5],
+        [2, 3, 4, 5],
+        [0, 2, 4, 5],
+    ])
+    labels_before = torch.tensor([0, 0, 1, 1, 2, 3])
+    labels_after = torch.tensor([0, 0, 0, 0, 1, 2])
+    expected = routing_metrics(labels_before, topk)["mean_unique_groups"] - routing_metrics(labels_after, topk)["mean_unique_groups"]
+    assert abs(exact_routing_delta(topk, (0, 1), (2, 3)) - expected) < 1e-6
+
+    distance = torch.cdist(torch.arange(6, dtype=torch.float32)[:, None], torch.arange(6, dtype=torch.float32)[:, None])
+    result = routing_aware_grouping(distance, topk, num_groups=3, alpha=1.0)
+    assert all(abs(step["routing_delta"] - step["max_routing_delta"]) < 1e-6 for step in result["merge_trace"])
+    assert result["metrics"]["u4_rate"] >= 0.0
+
+    features = torch.tensor([[0.], [0.1], [3.], [3.2], [7.], [7.3]])
+    output_distance = pairwise_distances(features, method="average")
+    output_distance.fill_diagonal_(0.)
+    actual = routing_aware_grouping(output_distance, topk, num_groups=3, alpha=0.0)["labels"]
+    expected, _ = hierarchical_clustering(features, n_clusters=3, method="average")
+    assert _same_partition(actual, expected)
