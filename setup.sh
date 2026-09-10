@@ -2,13 +2,14 @@
 # Recreate the Mixtral development environment captured by the lock files.
 #
 # These locks were generated from the working `mixtral` environment on
-# Linux x86_64 with CUDA 12.6.  Override MIXTRAL_ENV_NAME to use another name.
+# Linux x86_64 with PyTorch CUDA 12.8 (cu128), suitable for Blackwell GPUs.
+# Override MIXTRAL_ENV_NAME to use another name.
 
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ENV_NAME="${MIXTRAL_ENV_NAME:-mixtral}"
-PYTORCH_INDEX_URL="${PYTORCH_INDEX_URL:-https://download.pytorch.org/whl/cu126}"
+PYTORCH_INDEX_URL="${PYTORCH_INDEX_URL:-https://download.pytorch.org/whl/cu128}"
 
 CONDA_COMMAND="${CONDA_EXE:-$(command -v conda 2>/dev/null || true)}"
 if [[ -z "$CONDA_COMMAND" && -x /opt/miniforge3/bin/conda ]]; then
@@ -41,7 +42,9 @@ python - <<'PY'
 import torch
 import transformers
 
-print(f"Python packages ready: torch={torch.__version__}, transformers={transformers.__version__}")
+if torch.version.cuda != "12.8":
+    raise RuntimeError(f"Expected the cu128 PyTorch build, got torch={torch.__version__}, CUDA={torch.version.cuda}")
+print(f"Python packages ready: torch={torch.__version__}, CUDA={torch.version.cuda}, transformers={transformers.__version__}")
 PY
 
 echo "Mixtral environment '$ENV_NAME' is ready."
