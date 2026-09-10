@@ -609,7 +609,7 @@ class ExpertsGrouperForQwen2MoE(object):
             moe = model.model.layers[layer_idx].mlp
             layer_input = torch.cat(layer_inputs[name]).to(module_execution_device(moe.experts[0]))
             with torch.no_grad():
-                fingerprints = torch.stack([expert(layer_input).mean(dim=0) for expert in moe.experts])
+                fingerprints = torch.stack([expert(layer_input).mean(dim=0) for expert in moe.experts]).float()
             output_distance = pairwise_distances(fingerprints, method="average")
             output_distance.fill_diagonal_(0.0)
             topk = torch.cat(topk_chunks[name], dim=0)

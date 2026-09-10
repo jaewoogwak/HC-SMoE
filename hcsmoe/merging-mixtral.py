@@ -53,10 +53,17 @@ def get_dataloader(args, tokenizer, calib_seed: int):
 def evaluate(args, model, tokenizer):
     if not args.result_path:
         return
+
     result_dir = os.path.dirname(args.result_path)
     if result_dir:
         os.makedirs(result_dir, exist_ok=True)
-    for task in args.task.split(","):
+
+    if isinstance(args.task, str):
+        tasks = args.task.split(",")
+    else:
+        tasks = list(args.task)
+
+    for task in tasks:
         evaluate_fewshot(
             model,
             tokenizer=tokenizer,

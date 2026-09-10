@@ -24,6 +24,4 @@ accelerate launch --config_file static/finetune_config.yaml --main_process_port 
   --n_sentences=32 \
   --train_batch_size=2 \
   --eval_batch_size=16 \
-  --gpu_memory="14GiB" \
-  --cpu_memory="900GiB" \
   "$@"

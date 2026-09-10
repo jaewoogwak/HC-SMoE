@@ -1,0 +1,198 @@
+{
+  "alpha": 1.0,
+  "calib_seed": 42,
+  "layers": {
+    "model.layers.0.block_sparse_moe": {
+      "mean_unique_groups": 1.5672454833984375,
+      "u1_rate": 0.4327545166015625,
+      "num_tokens": 65536,
+      "u2_rate": 0.5672454833984375
+    },
+    "model.layers.1.block_sparse_moe": {
+      "mean_unique_groups": 1.5967559814453125,
+      "u1_rate": 0.4032440185546875,
+      "num_tokens": 65536,
+      "u2_rate": 0.5967559814453125
+    },
+    "model.layers.2.block_sparse_moe": {
+      "mean_unique_groups": 1.5853729248046875,
+      "u1_rate": 0.4146270751953125,
+      "num_tokens": 65536,
+      "u2_rate": 0.5853729248046875
+    },
+    "model.layers.3.block_sparse_moe": {
+      "mean_unique_groups": 1.5991668701171875,
+      "u1_rate": 0.4008331298828125,
+      "num_tokens": 65536,
+      "u2_rate": 0.5991668701171875
+    },
+    "model.layers.4.block_sparse_moe": {
+      "mean_unique_groups": 1.619293212890625,
+      "u1_rate": 0.380706787109375,
+      "num_tokens": 65536,
+      "u2_rate": 0.619293212890625
+    },
+    "model.layers.5.block_sparse_moe": {
+      "mean_unique_groups": 1.5950775146484375,
+      "u1_rate": 0.4049224853515625,
+      "num_tokens": 65536,
+      "u2_rate": 0.5950775146484375
+    },
+    "model.layers.6.block_sparse_moe": {
+      "mean_unique_groups": 1.5864410400390625,
+      "u1_rate": 0.4135589599609375,
+      "num_tokens": 65536,
+      "u2_rate": 0.5864410400390625
+    },
+    "model.layers.7.block_sparse_moe": {
+      "mean_unique_groups": 1.5739898681640625,
+      "u1_rate": 0.4260101318359375,
+      "num_tokens": 65536,
+      "u2_rate": 0.5739898681640625
+    },
+    "model.layers.8.block_sparse_moe": {
+      "mean_unique_groups": 1.609039306640625,
+      "u1_rate": 0.390960693359375,
+      "num_tokens": 65536,
+      "u2_rate": 0.609039306640625
+    },
+    "model.layers.9.block_sparse_moe": {
+      "mean_unique_groups": 1.5548248291015625,
+      "u1_rate": 0.4451751708984375,
+      "num_tokens": 65536,
+      "u2_rate": 0.5548248291015625
+    },
+    "model.layers.10.block_sparse_moe": {
+      "mean_unique_groups": 1.5379791259765625,
+      "u1_rate": 0.4620208740234375,
+      "num_tokens": 65536,
+      "u2_rate": 0.5379791259765625
+    },
+    "model.layers.11.block_sparse_moe": {
+      "mean_unique_groups": 1.4932861328125,
+      "u1_rate": 0.5067138671875,
+      "num_tokens": 65536,
+      "u2_rate": 0.4932861328125
+    },
+    "model.layers.12.block_sparse_moe": {
+      "mean_unique_groups": 1.4992218017578125,
+      "u1_rate": 0.5007781982421875,
+      "num_tokens": 65536,
+      "u2_rate": 0.4992218017578125
+    },
+    "model.layers.13.block_sparse_moe": {
+      "mean_unique_groups": 1.54510498046875,
+      "u1_rate": 0.45489501953125,
+      "num_tokens": 65536,
+      "u2_rate": 0.54510498046875
+    },
+    "model.layers.14.block_sparse_moe": {
+      "mean_unique_groups": 1.53399658203125,
+      "u1_rate": 0.46600341796875,
+      "num_tokens": 65536,
+      "u2_rate": 0.53399658203125
+    },
+    "model.layers.15.block_sparse_moe": {
+      "mean_unique_groups": 1.5614166259765625,
+      "u1_rate": 0.4385833740234375,
+      "num_tokens": 65536,
+      "u2_rate": 0.5614166259765625
+    },
+    "model.layers.16.block_sparse_moe": {
+      "mean_unique_groups": 1.5740814208984375,
+      "u1_rate": 0.4259185791015625,
+      "num_tokens": 65536,
+      "u2_rate": 0.5740814208984375
+    },
+    "model.layers.17.block_sparse_moe": {
+      "mean_unique_groups": 1.5389862060546875,
+      "u1_rate": 0.4610137939453125,
+      "num_tokens": 65536,
+      "u2_rate": 0.5389862060546875
+    },
+    "model.layers.18.block_sparse_moe": {
+      "mean_unique_groups": 1.5753021240234375,
+      "u1_rate": 0.4246978759765625,
+      "num_tokens": 65536,
+      "u2_rate": 0.5753021240234375
+    },
+    "model.layers.19.block_sparse_moe": {
+      "mean_unique_groups": 1.59619140625,
+      "u1_rate": 0.40380859375,
+      "num_tokens": 65536,
+      "u2_rate": 0.59619140625
+    },
+    "model.layers.20.block_sparse_moe": {
+      "mean_unique_groups": 1.5988922119140625,
+      "u1_rate": 0.4011077880859375,
+      "num_tokens": 65536,
+      "u2_rate": 0.5988922119140625
+    },
+    "model.layers.21.block_sparse_moe": {
+      "mean_unique_groups": 1.614501953125,
+      "u1_rate": 0.385498046875,
+      "num_tokens": 65536,
+      "u2_rate": 0.614501953125
+    },
+    "model.layers.22.block_sparse_moe": {
+      "mean_unique_groups": 1.608551025390625,
+      "u1_rate": 0.391448974609375,
+      "num_tokens": 65536,
+      "u2_rate": 0.608551025390625
+    },
+    "model.layers.23.block_sparse_moe": {
+      "mean_unique_groups": 1.6035003662109375,
+      "u1_rate": 0.3964996337890625,
+      "num_tokens": 65536,
+      "u2_rate": 0.6035003662109375
+    },
+    "model.layers.24.block_sparse_moe": {
+      "mean_unique_groups": 1.603240966796875,
+      "u1_rate": 0.396759033203125,
+      "num_tokens": 65536,
+      "u2_rate": 0.603240966796875
+    },
+    "model.layers.25.block_sparse_moe": {
+      "mean_unique_groups": 1.6070709228515625,
+      "u1_rate": 0.3929290771484375,
+      "num_tokens": 65536,
+      "u2_rate": 0.6070709228515625
+    },
+    "model.layers.26.block_sparse_moe": {
+      "mean_unique_groups": 1.5963287353515625,
+      "u1_rate": 0.4036712646484375,
+      "num_tokens": 65536,
+      "u2_rate": 0.5963287353515625
+    },
+    "model.layers.27.block_sparse_moe": {
+      "mean_unique_groups": 1.5712738037109375,
+      "u1_rate": 0.4287261962890625,
+      "num_tokens": 65536,
+      "u2_rate": 0.5712738037109375
+    },
+    "model.layers.28.block_sparse_moe": {
+      "mean_unique_groups": 1.5813751220703125,
+      "u1_rate": 0.4186248779296875,
+      "num_tokens": 65536,
+      "u2_rate": 0.5813751220703125
+    },
+    "model.layers.29.block_sparse_moe": {
+      "mean_unique_groups": 1.5322418212890625,
+      "u1_rate": 0.4677581787109375,
+      "num_tokens": 65536,
+      "u2_rate": 0.5322418212890625
+    },
+    "model.layers.30.block_sparse_moe": {
+      "mean_unique_groups": 1.5647735595703125,
+      "u1_rate": 0.4352264404296875,
+      "num_tokens": 65536,
+      "u2_rate": 0.5647735595703125
+    },
+    "model.layers.31.block_sparse_moe": {
+      "mean_unique_groups": 1.3858489990234375,
+      "u1_rate": 0.6141510009765625,
+      "num_tokens": 65536,
+      "u2_rate": 0.3858489990234375
+    }
+  }
+}

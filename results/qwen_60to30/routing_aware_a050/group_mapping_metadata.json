@@ -1,0 +1,16 @@
+{
+  "model_name": "Qwen/Qwen1.5-MoE-A2.7B-Chat",
+  "grouping_method": "routing_aware",
+  "alpha": 0.5,
+  "calibration_dataset": "c4",
+  "calibration_blocks": 32,
+  "calibration_block_size": 2048,
+  "calib_seed": 42,
+  "similarity_base": "expert-output",
+  "cluster": "hierarchical",
+  "linkage": "average",
+  "num_average_groups": 30,
+  "merge": "freq",
+  "top_k": 4,
+  "group_mapping_file": "group_state_dict.pt"
+}

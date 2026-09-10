@@ -47,7 +47,8 @@ def evaluate(args, model, tokenizer):
     result_dir = os.path.dirname(args.result_path)
     if result_dir:
         os.makedirs(result_dir, exist_ok=True)
-    for task in args.task.split(","):
+    tasks = args.task.split(",") if isinstance(args.task, str) else list(args.task)
+    for task in tasks:
         evaluate_fewshot(
             model, tokenizer=tokenizer, task=task.strip(),
             num_fewshot=args.num_fewshot, eval_batch_size=args.eval_batch_size,
@@ -82,8 +83,6 @@ def run_hcsmoe(
         cluster: str = "hierarchical",
         linkage: str = "average",
         merge: str = "freq",
-        gpu_memory: str = "14GiB",
-        cpu_memory: str = "900GiB",
 ):
     """Run a 60-expert to configurable-group Qwen comparison."""
     if grouping_method not in {"hcsmoe", "routing_aware"}:
@@ -102,7 +101,6 @@ def run_hcsmoe(
     tokenizer.pad_token_id = tokenizer.eos_token_id
     model = Qwen2MoeForCausalLM.from_pretrained(
         model_name, torch_dtype=torch.bfloat16, device_map="auto",
-        max_memory={0: gpu_memory, "cpu": cpu_memory}, offload_buffers=True,
     ).eval()
     if model_path:
         model.load_state_dict(torch.load(model_path, map_location="cpu"))

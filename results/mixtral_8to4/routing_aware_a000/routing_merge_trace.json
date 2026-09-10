@@ -1,0 +1,2341 @@
+{
+  "model.layers.0.block_sparse_moe": [
+    {
+      "step": 0,
+      "num_groups_before": 8,
+      "cluster_a": [
+        4
+      ],
+      "cluster_b": [
+        7
+      ],
+      "routing_delta": 0.03759765625,
+      "max_routing_delta": 0.0894775390625,
+      "routing_score": 0.40182968974113464,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 2.0,
+      "mean_unique_groups_after": 1.96240234375
+    },
+    {
+      "step": 1,
+      "num_groups_before": 7,
+      "cluster_a": [
+        2
+      ],
+      "cluster_b": [
+        3
+      ],
+      "routing_delta": 0.057342529296875,
+      "max_routing_delta": 0.097412109375,
+      "routing_score": 0.5767247080802917,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.96240234375,
+      "mean_unique_groups_after": 1.905059814453125
+    },
+    {
+      "step": 2,
+      "num_groups_before": 6,
+      "cluster_a": [
+        4,
+        7
+      ],
+      "cluster_b": [
+        5
+      ],
+      "routing_delta": 0.0919952392578125,
+      "max_routing_delta": 0.1306610107421875,
+      "routing_score": 0.6977216005325317,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.905059814453125,
+      "mean_unique_groups_after": 1.8130645751953125
+    },
+    {
+      "step": 3,
+      "num_groups_before": 5,
+      "cluster_a": [
+        2,
+        3
+      ],
+      "cluster_b": [
+        4,
+        5,
+        7
+      ],
+      "routing_delta": 0.2359161376953125,
+      "max_routing_delta": 0.2359161376953125,
+      "routing_score": 1.0,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.8130645751953125,
+      "mean_unique_groups_after": 1.5771484375
+    }
+  ],
+  "model.layers.1.block_sparse_moe": [
+    {
+      "step": 0,
+      "num_groups_before": 8,
+      "cluster_a": [
+        5
+      ],
+      "cluster_b": [
+        7
+      ],
+      "routing_delta": 0.0501556396484375,
+      "max_routing_delta": 0.0776824951171875,
+      "routing_score": 0.5794872045516968,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 2.0,
+      "mean_unique_groups_after": 1.9498443603515625
+    },
+    {
+      "step": 1,
+      "num_groups_before": 7,
+      "cluster_a": [
+        2
+      ],
+      "cluster_b": [
+        5,
+        7
+      ],
+      "routing_delta": 0.0511474609375,
+      "max_routing_delta": 0.0776824951171875,
+      "routing_score": 0.5946387052536011,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.9498443603515625,
+      "mean_unique_groups_after": 1.8986968994140625
+    },
+    {
+      "step": 2,
+      "num_groups_before": 6,
+      "cluster_a": [
+        1
+      ],
+      "cluster_b": [
+        2,
+        5,
+        7
+      ],
+      "routing_delta": 0.08709716796875,
+      "max_routing_delta": 0.1355133056640625,
+      "routing_score": 0.6073019504547119,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.8986968994140625,
+      "mean_unique_groups_after": 1.8115997314453125
+    },
+    {
+      "step": 3,
+      "num_groups_before": 5,
+      "cluster_a": [
+        0
+      ],
+      "cluster_b": [
+        6
+      ],
+      "routing_delta": 0.046478271484375,
+      "max_routing_delta": 0.191131591796875,
+      "routing_score": 0.19147121906280518,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.8115997314453125,
+      "mean_unique_groups_after": 1.7651214599609375
+    }
+  ],
+  "model.layers.2.block_sparse_moe": [
+    {
+      "step": 0,
+      "num_groups_before": 8,
+      "cluster_a": [
+        2
+      ],
+      "cluster_b": [
+        4
+      ],
+      "routing_delta": 0.046661376953125,
+      "max_routing_delta": 0.0713348388671875,
+      "routing_score": 0.5883401036262512,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 2.0,
+      "mean_unique_groups_after": 1.953338623046875
+    },
+    {
+      "step": 1,
+      "num_groups_before": 7,
+      "cluster_a": [
+        1
+      ],
+      "cluster_b": [
+        2,
+        4
+      ],
+      "routing_delta": 0.08697509765625,
+      "max_routing_delta": 0.08697509765625,
+      "routing_score": 1.0,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.953338623046875,
+      "mean_unique_groups_after": 1.866363525390625
+    },
+    {
+      "step": 2,
+      "num_groups_before": 6,
+      "cluster_a": [
+        0
+      ],
+      "cluster_b": [
+        1,
+        2,
+        4
+      ],
+      "routing_delta": 0.1026611328125,
+      "max_routing_delta": 0.1239013671875,
+      "routing_score": 0.8026371598243713,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.866363525390625,
+      "mean_unique_groups_after": 1.763702392578125
+    },
+    {
+      "step": 3,
+      "num_groups_before": 5,
+      "cluster_a": [
+        0,
+        1,
+        2,
+        4
+      ],
+      "cluster_b": [
+        3
+      ],
+      "routing_delta": 0.1759490966796875,
+      "max_routing_delta": 0.1759490966796875,
+      "routing_score": 1.0,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.763702392578125,
+      "mean_unique_groups_after": 1.5877532958984375
+    }
+  ],
+  "model.layers.3.block_sparse_moe": [
+    {
+      "step": 0,
+      "num_groups_before": 8,
+      "cluster_a": [
+        0
+      ],
+      "cluster_b": [
+        5
+      ],
+      "routing_delta": 0.0504913330078125,
+      "max_routing_delta": 0.0578765869140625,
+      "routing_score": 0.8406322002410889,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 2.0,
+      "mean_unique_groups_after": 1.9495086669921875
+    },
+    {
+      "step": 1,
+      "num_groups_before": 7,
+      "cluster_a": [
+        6
+      ],
+      "cluster_b": [
+        7
+      ],
+      "routing_delta": 0.0485076904296875,
+      "max_routing_delta": 0.0988922119140625,
+      "routing_score": 0.42323145270347595,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.9495086669921875,
+      "mean_unique_groups_after": 1.9010009765625
+    },
+    {
+      "step": 2,
+      "num_groups_before": 6,
+      "cluster_a": [
+        2
+      ],
+      "cluster_b": [
+        4
+      ],
+      "routing_delta": 0.0442352294921875,
+      "max_routing_delta": 0.1077880859375,
+      "routing_score": 0.27903756499290466,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.9010009765625,
+      "mean_unique_groups_after": 1.8567657470703125
+    },
+    {
+      "step": 3,
+      "num_groups_before": 5,
+      "cluster_a": [
+        0,
+        5
+      ],
+      "cluster_b": [
+        2,
+        4
+      ],
+      "routing_delta": 0.133026123046875,
+      "max_routing_delta": 0.1472320556640625,
+      "routing_score": 0.8886629939079285,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.8567657470703125,
+      "mean_unique_groups_after": 1.7237396240234375
+    }
+  ],
+  "model.layers.4.block_sparse_moe": [
+    {
+      "step": 0,
+      "num_groups_before": 8,
+      "cluster_a": [
+        2
+      ],
+      "cluster_b": [
+        6
+      ],
+      "routing_delta": 0.024749755859375,
+      "max_routing_delta": 0.069793701171875,
+      "routing_score": 0.18722467124462128,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 2.0,
+      "mean_unique_groups_after": 1.975250244140625
+    },
+    {
+      "step": 1,
+      "num_groups_before": 7,
+      "cluster_a": [
+        1
+      ],
+      "cluster_b": [
+        7
+      ],
+      "routing_delta": 0.022857666015625,
+      "max_routing_delta": 0.0970458984375,
+      "routing_score": 0.06786809861660004,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.975250244140625,
+      "mean_unique_groups_after": 1.952392578125
+    },
+    {
+      "step": 2,
+      "num_groups_before": 6,
+      "cluster_a": [
+        0
+      ],
+      "cluster_b": [
+        2,
+        6
+      ],
+      "routing_delta": 0.07177734375,
+      "max_routing_delta": 0.1474151611328125,
+      "routing_score": 0.41798755526542664,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.952392578125,
+      "mean_unique_groups_after": 1.880615234375
+    },
+    {
+      "step": 3,
+      "num_groups_before": 5,
+      "cluster_a": [
+        1,
+        7
+      ],
+      "cluster_b": [
+        3
+      ],
+      "routing_delta": 0.0838775634765625,
+      "max_routing_delta": 0.213226318359375,
+      "routing_score": 0.2941715121269226,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.880615234375,
+      "mean_unique_groups_after": 1.7967376708984375
+    }
+  ],
+  "model.layers.5.block_sparse_moe": [
+    {
+      "step": 0,
+      "num_groups_before": 8,
+      "cluster_a": [
+        0
+      ],
+      "cluster_b": [
+        6
+      ],
+      "routing_delta": 0.0376739501953125,
+      "max_routing_delta": 0.0636444091796875,
+      "routing_score": 0.46994706988334656,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 2.0,
+      "mean_unique_groups_after": 1.9623260498046875
+    },
+    {
+      "step": 1,
+      "num_groups_before": 7,
+      "cluster_a": [
+        1
+      ],
+      "cluster_b": [
+        7
+      ],
+      "routing_delta": 0.047607421875,
+      "max_routing_delta": 0.0870513916015625,
+      "routing_score": 0.39883720874786377,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.9623260498046875,
+      "mean_unique_groups_after": 1.9147186279296875
+    },
+    {
+      "step": 2,
+      "num_groups_before": 6,
+      "cluster_a": [
+        0,
+        6
+      ],
+      "cluster_b": [
+        4
+      ],
+      "routing_delta": 0.0870513916015625,
+      "max_routing_delta": 0.1491851806640625,
+      "routing_score": 0.5136168003082275,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.9147186279296875,
+      "mean_unique_groups_after": 1.827667236328125
+    },
+    {
+      "step": 3,
+      "num_groups_before": 5,
+      "cluster_a": [
+        1,
+        7
+      ],
+      "cluster_b": [
+        5
+      ],
+      "routing_delta": 0.07794189453125,
+      "max_routing_delta": 0.2325897216796875,
+      "routing_score": 0.2447839081287384,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.827667236328125,
+      "mean_unique_groups_after": 1.749725341796875
+    }
+  ],
+  "model.layers.6.block_sparse_moe": [
+    {
+      "step": 0,
+      "num_groups_before": 8,
+      "cluster_a": [
+        1
+      ],
+      "cluster_b": [
+        4
+      ],
+      "routing_delta": 0.0513153076171875,
+      "max_routing_delta": 0.0725250244140625,
+      "routing_score": 0.6136742830276489,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 2.0,
+      "mean_unique_groups_after": 1.9486846923828125
+    },
+    {
+      "step": 1,
+      "num_groups_before": 7,
+      "cluster_a": [
+        1,
+        4
+      ],
+      "cluster_b": [
+        2
+      ],
+      "routing_delta": 0.083221435546875,
+      "max_routing_delta": 0.083221435546875,
+      "routing_score": 1.0,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.9486846923828125,
+      "mean_unique_groups_after": 1.8654632568359375
+    },
+    {
+      "step": 2,
+      "num_groups_before": 6,
+      "cluster_a": [
+        5
+      ],
+      "cluster_b": [
+        6
+      ],
+      "routing_delta": 0.0525054931640625,
+      "max_routing_delta": 0.1204986572265625,
+      "routing_score": 0.33847981691360474,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.8654632568359375,
+      "mean_unique_groups_after": 1.812957763671875
+    },
+    {
+      "step": 3,
+      "num_groups_before": 5,
+      "cluster_a": [
+        0
+      ],
+      "cluster_b": [
+        1,
+        2,
+        4
+      ],
+      "routing_delta": 0.0975494384765625,
+      "max_routing_delta": 0.1604461669921875,
+      "routing_score": 0.5160267949104309,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.812957763671875,
+      "mean_unique_groups_after": 1.7154083251953125
+    }
+  ],
+  "model.layers.7.block_sparse_moe": [
+    {
+      "step": 0,
+      "num_groups_before": 8,
+      "cluster_a": [
+        1
+      ],
+      "cluster_b": [
+        4
+      ],
+      "routing_delta": 0.055877685546875,
+      "max_routing_delta": 0.0595855712890625,
+      "routing_score": 0.9025270938873291,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 2.0,
+      "mean_unique_groups_after": 1.944122314453125
+    },
+    {
+      "step": 1,
+      "num_groups_before": 7,
+      "cluster_a": [
+        0
+      ],
+      "cluster_b": [
+        2
+      ],
+      "routing_delta": 0.0400238037109375,
+      "max_routing_delta": 0.0829315185546875,
+      "routing_score": 0.3010191321372986,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.944122314453125,
+      "mean_unique_groups_after": 1.9040985107421875
+    },
+    {
+      "step": 2,
+      "num_groups_before": 6,
+      "cluster_a": [
+        5
+      ],
+      "cluster_b": [
+        7
+      ],
+      "routing_delta": 0.05218505859375,
+      "max_routing_delta": 0.1260528564453125,
+      "routing_score": 0.29318147897720337,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.9040985107421875,
+      "mean_unique_groups_after": 1.8519134521484375
+    },
+    {
+      "step": 3,
+      "num_groups_before": 5,
+      "cluster_a": [
+        3
+      ],
+      "cluster_b": [
+        5,
+        7
+      ],
+      "routing_delta": 0.0554351806640625,
+      "max_routing_delta": 0.1634063720703125,
+      "routing_score": 0.20261438190937042,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.8519134521484375,
+      "mean_unique_groups_after": 1.796478271484375
+    }
+  ],
+  "model.layers.8.block_sparse_moe": [
+    {
+      "step": 0,
+      "num_groups_before": 8,
+      "cluster_a": [
+        0
+      ],
+      "cluster_b": [
+        6
+      ],
+      "routing_delta": 0.0363922119140625,
+      "max_routing_delta": 0.05950927734375,
+      "routing_score": 0.4671122133731842,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 2.0,
+      "mean_unique_groups_after": 1.9636077880859375
+    },
+    {
+      "step": 1,
+      "num_groups_before": 7,
+      "cluster_a": [
+        0,
+        6
+      ],
+      "cluster_b": [
+        4
+      ],
+      "routing_delta": 0.0851898193359375,
+      "max_routing_delta": 0.095123291015625,
+      "routing_score": 0.8742514848709106,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.9636077880859375,
+      "mean_unique_groups_after": 1.87841796875
+    },
+    {
+      "step": 2,
+      "num_groups_before": 6,
+      "cluster_a": [
+        0,
+        4,
+        6
+      ],
+      "cluster_b": [
+        3
+      ],
+      "routing_delta": 0.1132659912109375,
+      "max_routing_delta": 0.1197662353515625,
+      "routing_score": 0.9372791647911072,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.87841796875,
+      "mean_unique_groups_after": 1.7651519775390625
+    },
+    {
+      "step": 3,
+      "num_groups_before": 5,
+      "cluster_a": [
+        0,
+        3,
+        4,
+        6
+      ],
+      "cluster_b": [
+        7
+      ],
+      "routing_delta": 0.1157989501953125,
+      "max_routing_delta": 0.1519012451171875,
+      "routing_score": 0.7211220860481262,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.7651519775390625,
+      "mean_unique_groups_after": 1.64935302734375
+    }
+  ],
+  "model.layers.9.block_sparse_moe": [
+    {
+      "step": 0,
+      "num_groups_before": 8,
+      "cluster_a": [
+        0
+      ],
+      "cluster_b": [
+        5
+      ],
+      "routing_delta": 0.06072998046875,
+      "max_routing_delta": 0.0815887451171875,
+      "routing_score": 0.6916309595108032,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 2.0,
+      "mean_unique_groups_after": 1.93927001953125
+    },
+    {
+      "step": 1,
+      "num_groups_before": 7,
+      "cluster_a": [
+        4
+      ],
+      "cluster_b": [
+        7
+      ],
+      "routing_delta": 0.0524444580078125,
+      "max_routing_delta": 0.1141204833984375,
+      "routing_score": 0.3843107521533966,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.93927001953125,
+      "mean_unique_groups_after": 1.8868255615234375
+    },
+    {
+      "step": 2,
+      "num_groups_before": 6,
+      "cluster_a": [
+        0,
+        5
+      ],
+      "cluster_b": [
+        3
+      ],
+      "routing_delta": 0.0760345458984375,
+      "max_routing_delta": 0.1141204833984375,
+      "routing_score": 0.6057494878768921,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.8868255615234375,
+      "mean_unique_groups_after": 1.810791015625
+    },
+    {
+      "step": 3,
+      "num_groups_before": 5,
+      "cluster_a": [
+        1
+      ],
+      "cluster_b": [
+        2
+      ],
+      "routing_delta": 0.059295654296875,
+      "max_routing_delta": 0.1536102294921875,
+      "routing_score": 0.306985080242157,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.810791015625,
+      "mean_unique_groups_after": 1.751495361328125
+    }
+  ],
+  "model.layers.10.block_sparse_moe": [
+    {
+      "step": 0,
+      "num_groups_before": 8,
+      "cluster_a": [
+        5
+      ],
+      "cluster_b": [
+        6
+      ],
+      "routing_delta": 0.0618896484375,
+      "max_routing_delta": 0.127899169921875,
+      "routing_score": 0.4530973434448242,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 2.0,
+      "mean_unique_groups_after": 1.9381103515625
+    },
+    {
+      "step": 1,
+      "num_groups_before": 7,
+      "cluster_a": [
+        2
+      ],
+      "cluster_b": [
+        7
+      ],
+      "routing_delta": 0.0286712646484375,
+      "max_routing_delta": 0.127899169921875,
+      "routing_score": 0.17787609994411469,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.9381103515625,
+      "mean_unique_groups_after": 1.9094390869140625
+    },
+    {
+      "step": 2,
+      "num_groups_before": 6,
+      "cluster_a": [
+        1
+      ],
+      "cluster_b": [
+        3
+      ],
+      "routing_delta": 0.127899169921875,
+      "max_routing_delta": 0.145172119140625,
+      "routing_score": 0.8748064637184143,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.9094390869140625,
+      "mean_unique_groups_after": 1.7815399169921875
+    },
+    {
+      "step": 3,
+      "num_groups_before": 5,
+      "cluster_a": [
+        2,
+        7
+      ],
+      "cluster_b": [
+        5,
+        6
+      ],
+      "routing_delta": 0.1197509765625,
+      "max_routing_delta": 0.145172119140625,
+      "routing_score": 0.784587562084198,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.7815399169921875,
+      "mean_unique_groups_after": 1.6617889404296875
+    }
+  ],
+  "model.layers.11.block_sparse_moe": [
+    {
+      "step": 0,
+      "num_groups_before": 8,
+      "cluster_a": [
+        0
+      ],
+      "cluster_b": [
+        7
+      ],
+      "routing_delta": 0.02288818359375,
+      "max_routing_delta": 0.114105224609375,
+      "routing_score": 0.18920385837554932,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 2.0,
+      "mean_unique_groups_after": 1.97711181640625
+    },
+    {
+      "step": 1,
+      "num_groups_before": 7,
+      "cluster_a": [
+        1
+      ],
+      "cluster_b": [
+        6
+      ],
+      "routing_delta": 0.0402374267578125,
+      "max_routing_delta": 0.1396636962890625,
+      "routing_score": 0.2798408567905426,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.97711181640625,
+      "mean_unique_groups_after": 1.9368743896484375
+    },
+    {
+      "step": 2,
+      "num_groups_before": 6,
+      "cluster_a": [
+        0,
+        7
+      ],
+      "cluster_b": [
+        1,
+        6
+      ],
+      "routing_delta": 0.2747802734375,
+      "max_routing_delta": 0.2747802734375,
+      "routing_score": 1.0,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.9368743896484375,
+      "mean_unique_groups_after": 1.6620941162109375
+    },
+    {
+      "step": 3,
+      "num_groups_before": 5,
+      "cluster_a": [
+        2
+      ],
+      "cluster_b": [
+        5
+      ],
+      "routing_delta": 0.114105224609375,
+      "max_routing_delta": 0.1511077880859375,
+      "routing_score": 0.7525005340576172,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.6620941162109375,
+      "mean_unique_groups_after": 1.5479888916015625
+    }
+  ],
+  "model.layers.12.block_sparse_moe": [
+    {
+      "step": 0,
+      "num_groups_before": 8,
+      "cluster_a": [
+        2
+      ],
+      "cluster_b": [
+        5
+      ],
+      "routing_delta": 0.0307769775390625,
+      "max_routing_delta": 0.079803466796875,
+      "routing_score": 0.3377988338470459,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 2.0,
+      "mean_unique_groups_after": 1.9692230224609375
+    },
+    {
+      "step": 1,
+      "num_groups_before": 7,
+      "cluster_a": [
+        2,
+        5
+      ],
+      "cluster_b": [
+        4
+      ],
+      "routing_delta": 0.112945556640625,
+      "max_routing_delta": 0.1177825927734375,
+      "routing_score": 0.9568178653717041,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.9692230224609375,
+      "mean_unique_groups_after": 1.8562774658203125
+    },
+    {
+      "step": 2,
+      "num_groups_before": 6,
+      "cluster_a": [
+        0
+      ],
+      "cluster_b": [
+        1
+      ],
+      "routing_delta": 0.033538818359375,
+      "max_routing_delta": 0.156280517578125,
+      "routing_score": 0.18450932204723358,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.8562774658203125,
+      "mean_unique_groups_after": 1.8227386474609375
+    },
+    {
+      "step": 3,
+      "num_groups_before": 5,
+      "cluster_a": [
+        0,
+        1
+      ],
+      "cluster_b": [
+        2,
+        4,
+        5
+      ],
+      "routing_delta": 0.254608154296875,
+      "max_routing_delta": 0.254608154296875,
+      "routing_score": 1.0,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.8227386474609375,
+      "mean_unique_groups_after": 1.5681304931640625
+    }
+  ],
+  "model.layers.13.block_sparse_moe": [
+    {
+      "step": 0,
+      "num_groups_before": 8,
+      "cluster_a": [
+        5
+      ],
+      "cluster_b": [
+        6
+      ],
+      "routing_delta": 0.05078125,
+      "max_routing_delta": 0.0806732177734375,
+      "routing_score": 0.5807832479476929,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 2.0,
+      "mean_unique_groups_after": 1.94921875
+    },
+    {
+      "step": 1,
+      "num_groups_before": 7,
+      "cluster_a": [
+        1
+      ],
+      "cluster_b": [
+        5,
+        6
+      ],
+      "routing_delta": 0.1160736083984375,
+      "max_routing_delta": 0.1160736083984375,
+      "routing_score": 1.0,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.94921875,
+      "mean_unique_groups_after": 1.8331451416015625
+    },
+    {
+      "step": 2,
+      "num_groups_before": 6,
+      "cluster_a": [
+        2
+      ],
+      "cluster_b": [
+        7
+      ],
+      "routing_delta": 0.0523834228515625,
+      "max_routing_delta": 0.135223388671875,
+      "routing_score": 0.34177982807159424,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.8331451416015625,
+      "mean_unique_groups_after": 1.78076171875
+    },
+    {
+      "step": 3,
+      "num_groups_before": 5,
+      "cluster_a": [
+        1,
+        5,
+        6
+      ],
+      "cluster_b": [
+        3
+      ],
+      "routing_delta": 0.135223388671875,
+      "max_routing_delta": 0.1591033935546875,
+      "routing_score": 0.8161635398864746,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.78076171875,
+      "mean_unique_groups_after": 1.645538330078125
+    }
+  ],
+  "model.layers.14.block_sparse_moe": [
+    {
+      "step": 0,
+      "num_groups_before": 8,
+      "cluster_a": [
+        5
+      ],
+      "cluster_b": [
+        7
+      ],
+      "routing_delta": 0.04302978515625,
+      "max_routing_delta": 0.1085662841796875,
+      "routing_score": 0.3771751821041107,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 2.0,
+      "mean_unique_groups_after": 1.95697021484375
+    },
+    {
+      "step": 1,
+      "num_groups_before": 7,
+      "cluster_a": [
+        5,
+        7
+      ],
+      "cluster_b": [
+        6
+      ],
+      "routing_delta": 0.15411376953125,
+      "max_routing_delta": 0.15411376953125,
+      "routing_score": 1.0,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.95697021484375,
+      "mean_unique_groups_after": 1.8028564453125
+    },
+    {
+      "step": 2,
+      "num_groups_before": 6,
+      "cluster_a": [
+        4
+      ],
+      "cluster_b": [
+        5,
+        6,
+        7
+      ],
+      "routing_delta": 0.0992584228515625,
+      "max_routing_delta": 0.148468017578125,
+      "routing_score": 0.6507850289344788,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.8028564453125,
+      "mean_unique_groups_after": 1.7035980224609375
+    },
+    {
+      "step": 3,
+      "num_groups_before": 5,
+      "cluster_a": [
+        0
+      ],
+      "cluster_b": [
+        3
+      ],
+      "routing_delta": 0.1085662841796875,
+      "max_routing_delta": 0.196014404296875,
+      "routing_score": 0.5105474591255188,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.7035980224609375,
+      "mean_unique_groups_after": 1.59503173828125
+    }
+  ],
+  "model.layers.15.block_sparse_moe": [
+    {
+      "step": 0,
+      "num_groups_before": 8,
+      "cluster_a": [
+        2
+      ],
+      "cluster_b": [
+        4
+      ],
+      "routing_delta": 0.057159423828125,
+      "max_routing_delta": 0.104736328125,
+      "routing_score": 0.5244776606559753,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 2.0,
+      "mean_unique_groups_after": 1.942840576171875
+    },
+    {
+      "step": 1,
+      "num_groups_before": 7,
+      "cluster_a": [
+        1
+      ],
+      "cluster_b": [
+        5
+      ],
+      "routing_delta": 0.0610504150390625,
+      "max_routing_delta": 0.135101318359375,
+      "routing_score": 0.4321984350681305,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.942840576171875,
+      "mean_unique_groups_after": 1.8817901611328125
+    },
+    {
+      "step": 2,
+      "num_groups_before": 6,
+      "cluster_a": [
+        2,
+        4
+      ],
+      "cluster_b": [
+        3
+      ],
+      "routing_delta": 0.049163818359375,
+      "max_routing_delta": 0.135101318359375,
+      "routing_score": 0.34105533361434937,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.8817901611328125,
+      "mean_unique_groups_after": 1.8326263427734375
+    },
+    {
+      "step": 3,
+      "num_groups_before": 5,
+      "cluster_a": [
+        0
+      ],
+      "cluster_b": [
+        1,
+        5
+      ],
+      "routing_delta": 0.0906829833984375,
+      "max_routing_delta": 0.1476898193359375,
+      "routing_score": 0.6013657450675964,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.8326263427734375,
+      "mean_unique_groups_after": 1.741943359375
+    }
+  ],
+  "model.layers.16.block_sparse_moe": [
+    {
+      "step": 0,
+      "num_groups_before": 8,
+      "cluster_a": [
+        4
+      ],
+      "cluster_b": [
+        6
+      ],
+      "routing_delta": 0.0578460693359375,
+      "max_routing_delta": 0.1011962890625,
+      "routing_score": 0.565596342086792,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 2.0,
+      "mean_unique_groups_after": 1.9421539306640625
+    },
+    {
+      "step": 1,
+      "num_groups_before": 7,
+      "cluster_a": [
+        4,
+        6
+      ],
+      "cluster_b": [
+        7
+      ],
+      "routing_delta": 0.0833740234375,
+      "max_routing_delta": 0.103912353515625,
+      "routing_score": 0.7996427416801453,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.9421539306640625,
+      "mean_unique_groups_after": 1.8587799072265625
+    },
+    {
+      "step": 2,
+      "num_groups_before": 6,
+      "cluster_a": [
+        3
+      ],
+      "cluster_b": [
+        4,
+        6,
+        7
+      ],
+      "routing_delta": 0.1125335693359375,
+      "max_routing_delta": 0.1671905517578125,
+      "routing_score": 0.670317530632019,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.8587799072265625,
+      "mean_unique_groups_after": 1.746246337890625
+    },
+    {
+      "step": 3,
+      "num_groups_before": 5,
+      "cluster_a": [
+        2
+      ],
+      "cluster_b": [
+        3,
+        4,
+        6,
+        7
+      ],
+      "routing_delta": 0.122528076171875,
+      "max_routing_delta": 0.179443359375,
+      "routing_score": 0.6803222298622131,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.746246337890625,
+      "mean_unique_groups_after": 1.62371826171875
+    }
+  ],
+  "model.layers.17.block_sparse_moe": [
+    {
+      "step": 0,
+      "num_groups_before": 8,
+      "cluster_a": [
+        6
+      ],
+      "cluster_b": [
+        7
+      ],
+      "routing_delta": 0.042816162109375,
+      "max_routing_delta": 0.1022491455078125,
+      "routing_score": 0.41136467456817627,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 2.0,
+      "mean_unique_groups_after": 1.957183837890625
+    },
+    {
+      "step": 1,
+      "num_groups_before": 7,
+      "cluster_a": [
+        2
+      ],
+      "cluster_b": [
+        5
+      ],
+      "routing_delta": 0.062103271484375,
+      "max_routing_delta": 0.128936767578125,
+      "routing_score": 0.4764523208141327,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.957183837890625,
+      "mean_unique_groups_after": 1.89508056640625
+    },
+    {
+      "step": 2,
+      "num_groups_before": 6,
+      "cluster_a": [
+        3
+      ],
+      "cluster_b": [
+        6,
+        7
+      ],
+      "routing_delta": 0.128936767578125,
+      "max_routing_delta": 0.1482391357421875,
+      "routing_score": 0.8686532974243164,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.89508056640625,
+      "mean_unique_groups_after": 1.766143798828125
+    },
+    {
+      "step": 3,
+      "num_groups_before": 5,
+      "cluster_a": [
+        2,
+        5
+      ],
+      "cluster_b": [
+        3,
+        6,
+        7
+      ],
+      "routing_delta": 0.106475830078125,
+      "max_routing_delta": 0.1482391357421875,
+      "routing_score": 0.7158135175704956,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.766143798828125,
+      "mean_unique_groups_after": 1.65966796875
+    }
+  ],
+  "model.layers.18.block_sparse_moe": [
+    {
+      "step": 0,
+      "num_groups_before": 8,
+      "cluster_a": [
+        4
+      ],
+      "cluster_b": [
+        7
+      ],
+      "routing_delta": 0.0529022216796875,
+      "max_routing_delta": 0.08795166015625,
+      "routing_score": 0.5809158682823181,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 2.0,
+      "mean_unique_groups_after": 1.9470977783203125
+    },
+    {
+      "step": 1,
+      "num_groups_before": 7,
+      "cluster_a": [
+        4,
+        7
+      ],
+      "cluster_b": [
+        5
+      ],
+      "routing_delta": 0.087860107421875,
+      "max_routing_delta": 0.1195220947265625,
+      "routing_score": 0.7251655459403992,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.9470977783203125,
+      "mean_unique_groups_after": 1.8592376708984375
+    },
+    {
+      "step": 2,
+      "num_groups_before": 6,
+      "cluster_a": [
+        3
+      ],
+      "cluster_b": [
+        6
+      ],
+      "routing_delta": 0.067535400390625,
+      "max_routing_delta": 0.133819580078125,
+      "routing_score": 0.48815834522247314,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.8592376708984375,
+      "mean_unique_groups_after": 1.7917022705078125
+    },
+    {
+      "step": 3,
+      "num_groups_before": 5,
+      "cluster_a": [
+        1
+      ],
+      "cluster_b": [
+        3,
+        6
+      ],
+      "routing_delta": 0.097625732421875,
+      "max_routing_delta": 0.18023681640625,
+      "routing_score": 0.5304015874862671,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.7917022705078125,
+      "mean_unique_groups_after": 1.6940765380859375
+    }
+  ],
+  "model.layers.19.block_sparse_moe": [
+    {
+      "step": 0,
+      "num_groups_before": 8,
+      "cluster_a": [
+        2
+      ],
+      "cluster_b": [
+        3
+      ],
+      "routing_delta": 0.041961669921875,
+      "max_routing_delta": 0.097686767578125,
+      "routing_score": 0.4051148295402527,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 2.0,
+      "mean_unique_groups_after": 1.958038330078125
+    },
+    {
+      "step": 1,
+      "num_groups_before": 7,
+      "cluster_a": [
+        1
+      ],
+      "cluster_b": [
+        2,
+        3
+      ],
+      "routing_delta": 0.0743255615234375,
+      "max_routing_delta": 0.11859130859375,
+      "routing_score": 0.5760011672973633,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.958038330078125,
+      "mean_unique_groups_after": 1.8837127685546875
+    },
+    {
+      "step": 2,
+      "num_groups_before": 6,
+      "cluster_a": [
+        0
+      ],
+      "cluster_b": [
+        6
+      ],
+      "routing_delta": 0.03814697265625,
+      "max_routing_delta": 0.14508056640625,
+      "routing_score": 0.18302634358406067,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.8837127685546875,
+      "mean_unique_groups_after": 1.8455657958984375
+    },
+    {
+      "step": 3,
+      "num_groups_before": 5,
+      "cluster_a": [
+        0,
+        6
+      ],
+      "cluster_b": [
+        1,
+        2,
+        3
+      ],
+      "routing_delta": 0.2267608642578125,
+      "max_routing_delta": 0.2267608642578125,
+      "routing_score": 1.0,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.8455657958984375,
+      "mean_unique_groups_after": 1.618804931640625
+    }
+  ],
+  "model.layers.20.block_sparse_moe": [
+    {
+      "step": 0,
+      "num_groups_before": 8,
+      "cluster_a": [
+        2
+      ],
+      "cluster_b": [
+        3
+      ],
+      "routing_delta": 0.02606201171875,
+      "max_routing_delta": 0.074554443359375,
+      "routing_score": 0.13851992785930634,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 2.0,
+      "mean_unique_groups_after": 1.97393798828125
+    },
+    {
+      "step": 1,
+      "num_groups_before": 7,
+      "cluster_a": [
+        2,
+        3
+      ],
+      "cluster_b": [
+        6
+      ],
+      "routing_delta": 0.0626068115234375,
+      "max_routing_delta": 0.099151611328125,
+      "routing_score": 0.5481984615325928,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.97393798828125,
+      "mean_unique_groups_after": 1.9113311767578125
+    },
+    {
+      "step": 2,
+      "num_groups_before": 6,
+      "cluster_a": [
+        1
+      ],
+      "cluster_b": [
+        7
+      ],
+      "routing_delta": 0.069000244140625,
+      "max_routing_delta": 0.1181793212890625,
+      "routing_score": 0.5077886581420898,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.9113311767578125,
+      "mean_unique_groups_after": 1.8423309326171875
+    },
+    {
+      "step": 3,
+      "num_groups_before": 5,
+      "cluster_a": [
+        0
+      ],
+      "cluster_b": [
+        2,
+        3,
+        6
+      ],
+      "routing_delta": 0.11114501953125,
+      "max_routing_delta": 0.1892242431640625,
+      "routing_score": 0.5186718106269836,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.8423309326171875,
+      "mean_unique_groups_after": 1.7311859130859375
+    }
+  ],
+  "model.layers.21.block_sparse_moe": [
+    {
+      "step": 0,
+      "num_groups_before": 8,
+      "cluster_a": [
+        2
+      ],
+      "cluster_b": [
+        6
+      ],
+      "routing_delta": 0.065277099609375,
+      "max_routing_delta": 0.065277099609375,
+      "routing_score": 1.0,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 2.0,
+      "mean_unique_groups_after": 1.934722900390625
+    },
+    {
+      "step": 1,
+      "num_groups_before": 7,
+      "cluster_a": [
+        2,
+        6
+      ],
+      "cluster_b": [
+        7
+      ],
+      "routing_delta": 0.0615997314453125,
+      "max_routing_delta": 0.08343505859375,
+      "routing_score": 0.6578192114830017,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.934722900390625,
+      "mean_unique_groups_after": 1.8731231689453125
+    },
+    {
+      "step": 2,
+      "num_groups_before": 6,
+      "cluster_a": [
+        3
+      ],
+      "cluster_b": [
+        4
+      ],
+      "routing_delta": 0.038818359375,
+      "max_routing_delta": 0.1186370849609375,
+      "routing_score": 0.16955071687698364,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.8731231689453125,
+      "mean_unique_groups_after": 1.8343048095703125
+    },
+    {
+      "step": 3,
+      "num_groups_before": 5,
+      "cluster_a": [
+        0
+      ],
+      "cluster_b": [
+        5
+      ],
+      "routing_delta": 0.03204345703125,
+      "max_routing_delta": 0.2294921875,
+      "routing_score": 0.0,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.8343048095703125,
+      "mean_unique_groups_after": 1.8022613525390625
+    }
+  ],
+  "model.layers.22.block_sparse_moe": [
+    {
+      "step": 0,
+      "num_groups_before": 8,
+      "cluster_a": [
+        3
+      ],
+      "cluster_b": [
+        4
+      ],
+      "routing_delta": 0.0578155517578125,
+      "max_routing_delta": 0.076446533203125,
+      "routing_score": 0.7029919624328613,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 2.0,
+      "mean_unique_groups_after": 1.9421844482421875
+    },
+    {
+      "step": 1,
+      "num_groups_before": 7,
+      "cluster_a": [
+        1
+      ],
+      "cluster_b": [
+        2
+      ],
+      "routing_delta": 0.042022705078125,
+      "max_routing_delta": 0.10107421875,
+      "routing_score": 0.2566269636154175,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.9421844482421875,
+      "mean_unique_groups_after": 1.9001617431640625
+    },
+    {
+      "step": 2,
+      "num_groups_before": 6,
+      "cluster_a": [
+        0
+      ],
+      "cluster_b": [
+        3,
+        4
+      ],
+      "routing_delta": 0.065582275390625,
+      "max_routing_delta": 0.10107421875,
+      "routing_score": 0.5499225854873657,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.9001617431640625,
+      "mean_unique_groups_after": 1.8345794677734375
+    },
+    {
+      "step": 3,
+      "num_groups_before": 5,
+      "cluster_a": [
+        0,
+        3,
+        4
+      ],
+      "cluster_b": [
+        6
+      ],
+      "routing_delta": 0.1309356689453125,
+      "max_routing_delta": 0.1715087890625,
+      "routing_score": 0.7282297611236572,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.8345794677734375,
+      "mean_unique_groups_after": 1.703643798828125
+    }
+  ],
+  "model.layers.23.block_sparse_moe": [
+    {
+      "step": 0,
+      "num_groups_before": 8,
+      "cluster_a": [
+        1
+      ],
+      "cluster_b": [
+        5
+      ],
+      "routing_delta": 0.0324554443359375,
+      "max_routing_delta": 0.0980987548828125,
+      "routing_score": 0.25660964846611023,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 2.0,
+      "mean_unique_groups_after": 1.9675445556640625
+    },
+    {
+      "step": 1,
+      "num_groups_before": 7,
+      "cluster_a": [
+        0
+      ],
+      "cluster_b": [
+        4
+      ],
+      "routing_delta": 0.05364990234375,
+      "max_routing_delta": 0.142669677734375,
+      "routing_score": 0.3300413489341736,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.9675445556640625,
+      "mean_unique_groups_after": 1.9138946533203125
+    },
+    {
+      "step": 2,
+      "num_groups_before": 6,
+      "cluster_a": [
+        1,
+        5
+      ],
+      "cluster_b": [
+        2
+      ],
+      "routing_delta": 0.0803070068359375,
+      "max_routing_delta": 0.142669677734375,
+      "routing_score": 0.5306614637374878,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.9138946533203125,
+      "mean_unique_groups_after": 1.833587646484375
+    },
+    {
+      "step": 3,
+      "num_groups_before": 5,
+      "cluster_a": [
+        0,
+        4
+      ],
+      "cluster_b": [
+        1,
+        2,
+        5
+      ],
+      "routing_delta": 0.1735992431640625,
+      "max_routing_delta": 0.1735992431640625,
+      "routing_score": 1.0,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.833587646484375,
+      "mean_unique_groups_after": 1.6599884033203125
+    }
+  ],
+  "model.layers.24.block_sparse_moe": [
+    {
+      "step": 0,
+      "num_groups_before": 8,
+      "cluster_a": [
+        0
+      ],
+      "cluster_b": [
+        2
+      ],
+      "routing_delta": 0.063201904296875,
+      "max_routing_delta": 0.0674285888671875,
+      "routing_score": 0.9174120426177979,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 2.0,
+      "mean_unique_groups_after": 1.936798095703125
+    },
+    {
+      "step": 1,
+      "num_groups_before": 7,
+      "cluster_a": [
+        0,
+        2
+      ],
+      "cluster_b": [
+        3
+      ],
+      "routing_delta": 0.09027099609375,
+      "max_routing_delta": 0.09027099609375,
+      "routing_score": 1.0,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.936798095703125,
+      "mean_unique_groups_after": 1.846527099609375
+    },
+    {
+      "step": 2,
+      "num_groups_before": 6,
+      "cluster_a": [
+        0,
+        2,
+        3
+      ],
+      "cluster_b": [
+        7
+      ],
+      "routing_delta": 0.1291351318359375,
+      "max_routing_delta": 0.1291351318359375,
+      "routing_score": 1.0,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.846527099609375,
+      "mean_unique_groups_after": 1.7173919677734375
+    },
+    {
+      "step": 3,
+      "num_groups_before": 5,
+      "cluster_a": [
+        1
+      ],
+      "cluster_b": [
+        4
+      ],
+      "routing_delta": 0.0437164306640625,
+      "max_routing_delta": 0.1334991455078125,
+      "routing_score": 0.22660358250141144,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.7173919677734375,
+      "mean_unique_groups_after": 1.673675537109375
+    }
+  ],
+  "model.layers.25.block_sparse_moe": [
+    {
+      "step": 0,
+      "num_groups_before": 8,
+      "cluster_a": [
+        2
+      ],
+      "cluster_b": [
+        3
+      ],
+      "routing_delta": 0.0384521484375,
+      "max_routing_delta": 0.084136962890625,
+      "routing_score": 0.37047940492630005,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 2.0,
+      "mean_unique_groups_after": 1.9615478515625
+    },
+    {
+      "step": 1,
+      "num_groups_before": 7,
+      "cluster_a": [
+        5
+      ],
+      "cluster_b": [
+        7
+      ],
+      "routing_delta": 0.039398193359375,
+      "max_routing_delta": 0.09912109375,
+      "routing_score": 0.3178808093070984,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.9615478515625,
+      "mean_unique_groups_after": 1.922149658203125
+    },
+    {
+      "step": 2,
+      "num_groups_before": 6,
+      "cluster_a": [
+        2,
+        3
+      ],
+      "cluster_b": [
+        6
+      ],
+      "routing_delta": 0.079803466796875,
+      "max_routing_delta": 0.12481689453125,
+      "routing_score": 0.5759056806564331,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.922149658203125,
+      "mean_unique_groups_after": 1.84234619140625
+    },
+    {
+      "step": 3,
+      "num_groups_before": 5,
+      "cluster_a": [
+        2,
+        3,
+        6
+      ],
+      "cluster_b": [
+        5,
+        7
+      ],
+      "routing_delta": 0.1663970947265625,
+      "max_routing_delta": 0.1663970947265625,
+      "routing_score": 1.0,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.84234619140625,
+      "mean_unique_groups_after": 1.6759490966796875
+    }
+  ],
+  "model.layers.26.block_sparse_moe": [
+    {
+      "step": 0,
+      "num_groups_before": 8,
+      "cluster_a": [
+        2
+      ],
+      "cluster_b": [
+        5
+      ],
+      "routing_delta": 0.04449462890625,
+      "max_routing_delta": 0.0997161865234375,
+      "routing_score": 0.3876480460166931,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 2.0,
+      "mean_unique_groups_after": 1.95550537109375
+    },
+    {
+      "step": 1,
+      "num_groups_before": 7,
+      "cluster_a": [
+        2,
+        5
+      ],
+      "cluster_b": [
+        7
+      ],
+      "routing_delta": 0.0970611572265625,
+      "max_routing_delta": 0.1320953369140625,
+      "routing_score": 0.7141434550285339,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.95550537109375,
+      "mean_unique_groups_after": 1.8584442138671875
+    },
+    {
+      "step": 2,
+      "num_groups_before": 6,
+      "cluster_a": [
+        0
+      ],
+      "cluster_b": [
+        2,
+        5,
+        7
+      ],
+      "routing_delta": 0.1248931884765625,
+      "max_routing_delta": 0.1759490966796875,
+      "routing_score": 0.6913284063339233,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.8584442138671875,
+      "mean_unique_groups_after": 1.733551025390625
+    },
+    {
+      "step": 3,
+      "num_groups_before": 5,
+      "cluster_a": [
+        0,
+        2,
+        5,
+        7
+      ],
+      "cluster_b": [
+        3
+      ],
+      "routing_delta": 0.2184906005859375,
+      "max_routing_delta": 0.2184906005859375,
+      "routing_score": 1.0,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.733551025390625,
+      "mean_unique_groups_after": 1.5150604248046875
+    }
+  ],
+  "model.layers.27.block_sparse_moe": [
+    {
+      "step": 0,
+      "num_groups_before": 8,
+      "cluster_a": [
+        0
+      ],
+      "cluster_b": [
+        3
+      ],
+      "routing_delta": 0.0692901611328125,
+      "max_routing_delta": 0.0692901611328125,
+      "routing_score": 1.0,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 2.0,
+      "mean_unique_groups_after": 1.9307098388671875
+    },
+    {
+      "step": 1,
+      "num_groups_before": 7,
+      "cluster_a": [
+        0,
+        3
+      ],
+      "cluster_b": [
+        6
+      ],
+      "routing_delta": 0.048095703125,
+      "max_routing_delta": 0.083740234375,
+      "routing_score": 0.46434304118156433,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.9307098388671875,
+      "mean_unique_groups_after": 1.8826141357421875
+    },
+    {
+      "step": 2,
+      "num_groups_before": 6,
+      "cluster_a": [
+        0,
+        3,
+        6
+      ],
+      "cluster_b": [
+        4
+      ],
+      "routing_delta": 0.1275482177734375,
+      "max_routing_delta": 0.12933349609375,
+      "routing_score": 0.9840794801712036,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.8826141357421875,
+      "mean_unique_groups_after": 1.75506591796875
+    },
+    {
+      "step": 3,
+      "num_groups_before": 5,
+      "cluster_a": [
+        0,
+        3,
+        4,
+        6
+      ],
+      "cluster_b": [
+        7
+      ],
+      "routing_delta": 0.105438232421875,
+      "max_routing_delta": 0.1837921142578125,
+      "routing_score": 0.5190596580505371,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.75506591796875,
+      "mean_unique_groups_after": 1.649627685546875
+    }
+  ],
+  "model.layers.28.block_sparse_moe": [
+    {
+      "step": 0,
+      "num_groups_before": 8,
+      "cluster_a": [
+        0
+      ],
+      "cluster_b": [
+        5
+      ],
+      "routing_delta": 0.0446319580078125,
+      "max_routing_delta": 0.0974884033203125,
+      "routing_score": 0.4158515930175781,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 2.0,
+      "mean_unique_groups_after": 1.9553680419921875
+    },
+    {
+      "step": 1,
+      "num_groups_before": 7,
+      "cluster_a": [
+        1
+      ],
+      "cluster_b": [
+        2
+      ],
+      "routing_delta": 0.092193603515625,
+      "max_routing_delta": 0.1502227783203125,
+      "routing_score": 0.5948220491409302,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.9553680419921875,
+      "mean_unique_groups_after": 1.8631744384765625
+    },
+    {
+      "step": 2,
+      "num_groups_before": 6,
+      "cluster_a": [
+        0,
+        5
+      ],
+      "cluster_b": [
+        6
+      ],
+      "routing_delta": 0.0366668701171875,
+      "max_routing_delta": 0.1502227783203125,
+      "routing_score": 0.2071169763803482,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.8631744384765625,
+      "mean_unique_groups_after": 1.826507568359375
+    },
+    {
+      "step": 3,
+      "num_groups_before": 5,
+      "cluster_a": [
+        1,
+        2
+      ],
+      "cluster_b": [
+        7
+      ],
+      "routing_delta": 0.0626220703125,
+      "max_routing_delta": 0.1725921630859375,
+      "routing_score": 0.32366740703582764,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.826507568359375,
+      "mean_unique_groups_after": 1.763885498046875
+    }
+  ],
+  "model.layers.29.block_sparse_moe": [
+    {
+      "step": 0,
+      "num_groups_before": 8,
+      "cluster_a": [
+        0
+      ],
+      "cluster_b": [
+        2
+      ],
+      "routing_delta": 0.1256256103515625,
+      "max_routing_delta": 0.1276397705078125,
+      "routing_score": 0.9838433265686035,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 2.0,
+      "mean_unique_groups_after": 1.8743743896484375
+    },
+    {
+      "step": 1,
+      "num_groups_before": 7,
+      "cluster_a": [
+        3
+      ],
+      "cluster_b": [
+        6
+      ],
+      "routing_delta": 0.087432861328125,
+      "max_routing_delta": 0.1276397705078125,
+      "routing_score": 0.6696339249610901,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.8743743896484375,
+      "mean_unique_groups_after": 1.7869415283203125
+    },
+    {
+      "step": 2,
+      "num_groups_before": 6,
+      "cluster_a": [
+        1
+      ],
+      "cluster_b": [
+        7
+      ],
+      "routing_delta": 0.0927734375,
+      "max_routing_delta": 0.1276397705078125,
+      "routing_score": 0.7016581892967224,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.7869415283203125,
+      "mean_unique_groups_after": 1.6941680908203125
+    },
+    {
+      "step": 3,
+      "num_groups_before": 5,
+      "cluster_a": [
+        0,
+        2
+      ],
+      "cluster_b": [
+        1,
+        7
+      ],
+      "routing_delta": 0.0973663330078125,
+      "max_routing_delta": 0.1325531005859375,
+      "routing_score": 0.6993089318275452,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.6941680908203125,
+      "mean_unique_groups_after": 1.5968017578125
+    }
+  ],
+  "model.layers.30.block_sparse_moe": [
+    {
+      "step": 0,
+      "num_groups_before": 8,
+      "cluster_a": [
+        4
+      ],
+      "cluster_b": [
+        7
+      ],
+      "routing_delta": 0.019683837890625,
+      "max_routing_delta": 0.128265380859375,
+      "routing_score": 0.14296036958694458,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 2.0,
+      "mean_unique_groups_after": 1.980316162109375
+    },
+    {
+      "step": 1,
+      "num_groups_before": 7,
+      "cluster_a": [
+        3
+      ],
+      "cluster_b": [
+        4,
+        7
+      ],
+      "routing_delta": 0.055572509765625,
+      "max_routing_delta": 0.1298370361328125,
+      "routing_score": 0.42100879549980164,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.980316162109375,
+      "mean_unique_groups_after": 1.92474365234375
+    },
+    {
+      "step": 2,
+      "num_groups_before": 6,
+      "cluster_a": [
+        2
+      ],
+      "cluster_b": [
+        6
+      ],
+      "routing_delta": 0.128265380859375,
+      "max_routing_delta": 0.167510986328125,
+      "routing_score": 0.7634942531585693,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.92474365234375,
+      "mean_unique_groups_after": 1.796478271484375
+    },
+    {
+      "step": 3,
+      "num_groups_before": 5,
+      "cluster_a": [
+        0
+      ],
+      "cluster_b": [
+        3,
+        4,
+        7
+      ],
+      "routing_delta": 0.1448974609375,
+      "max_routing_delta": 0.167510986328125,
+      "routing_score": 0.8637241125106812,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.796478271484375,
+      "mean_unique_groups_after": 1.651580810546875
+    }
+  ],
+  "model.layers.31.block_sparse_moe": [
+    {
+      "step": 0,
+      "num_groups_before": 8,
+      "cluster_a": [
+        0
+      ],
+      "cluster_b": [
+        4
+      ],
+      "routing_delta": 0.13433837890625,
+      "max_routing_delta": 0.1679840087890625,
+      "routing_score": 0.7995636463165283,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 2.0,
+      "mean_unique_groups_after": 1.86566162109375
+    },
+    {
+      "step": 1,
+      "num_groups_before": 7,
+      "cluster_a": [
+        3
+      ],
+      "cluster_b": [
+        7
+      ],
+      "routing_delta": 0.0316925048828125,
+      "max_routing_delta": 0.1679840087890625,
+      "routing_score": 0.18807381391525269,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.86566162109375,
+      "mean_unique_groups_after": 1.8339691162109375
+    },
+    {
+      "step": 2,
+      "num_groups_before": 6,
+      "cluster_a": [
+        2
+      ],
+      "cluster_b": [
+        6
+      ],
+      "routing_delta": 0.0141143798828125,
+      "max_routing_delta": 0.1681060791015625,
+      "routing_score": 0.0814599096775055,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.8339691162109375,
+      "mean_unique_groups_after": 1.819854736328125
+    },
+    {
+      "step": 3,
+      "num_groups_before": 5,
+      "cluster_a": [
+        1
+      ],
+      "cluster_b": [
+        5
+      ],
+      "routing_delta": 0.1679534912109375,
+      "max_routing_delta": 0.315826416015625,
+      "routing_score": 0.530156135559082,
+      "output_score": 1.0,
+      "merge_score": 1.0,
+      "mean_unique_groups_before": 1.819854736328125,
+      "mean_unique_groups_after": 1.6519012451171875
+    }
+  ]
+}

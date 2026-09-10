@@ -1,0 +1,17 @@
+|  Tasks   |Version|Filter|n-shot|Metric|   |Value |   |Stderr|
+|----------|------:|------|-----:|------|---|-----:|---|-----:|
+|winogrande|      1|none  |     0|acc   |↑  |0.7395|±  |0.0123|
+
+|    Tasks    |Version|Filter|n-shot| Metric |   |Value |   |Stderr|
+|-------------|------:|------|-----:|--------|---|-----:|---|-----:|
+|arc_challenge|      1|none  |     0|acc     |↑  |0.4650|±  |0.0146|
+|             |       |none  |     0|acc_norm|↑  |0.4778|±  |0.0146|
+
+| Tasks  |Version|Filter|n-shot| Metric |   |Value |   |Stderr|
+|--------|------:|------|-----:|--------|---|-----:|---|-----:|
+|arc_easy|      1|none  |     0|acc     |↑  |0.7420|±  |0.0090|
+|        |       |none  |     0|acc_norm|↑  |0.7151|±  |0.0093|
+
+|Tasks|Version|Filter|n-shot|Metric|   |Value |   |Stderr|
+|-----|------:|------|-----:|------|---|-----:|---|-----:|
+|boolq|      2|none  |     0|acc   |↑  |0.8437|±  |0.0064|

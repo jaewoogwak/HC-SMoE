@@ -1,0 +1,15 @@
+{
+  "model_name": "mistralai/Mixtral-8x7B-v0.1",
+  "grouping_method": "routing_aware",
+  "alpha": 1.0,
+  "calibration_dataset": "c4",
+  "calibration_blocks": 32,
+  "calibration_block_size": 2048,
+  "calib_seed": 42,
+  "similarity_base": "expert-output",
+  "cluster": "hierarchical",
+  "linkage": "average",
+  "num_average_groups": 4,
+  "merge": "freq",
+  "group_mapping_file": "group_state_dict.pt"
+}
