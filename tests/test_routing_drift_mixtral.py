@@ -1,4 +1,6 @@
 from types import SimpleNamespace
+from pathlib import Path
+import tempfile
 import unittest
 
 import torch
@@ -12,6 +14,17 @@ from hcsmoe.merging.sequential_drift_mixtral import (
     compare_fixed_routing_traces,
     free_generation_summary,
     make_global_sample_plan,
+)
+from hcsmoe.merging.pg19_drift_mixtral import (
+    aggregate_forced_metrics,
+    aggregate_free_summaries,
+    collect_document_routing_traces,
+    compare_decode_document,
+    compare_prefill_document,
+    save_pg19_plots,
+    select_pg19_documents_from_rows,
+    stack_document_metrics,
+    summarize_free_document,
 )
 
 
@@ -98,6 +111,7 @@ class TinyCausalLM(nn.Module):
         super().__init__()
         self.model = TinyBackbone(first_delta)
         self.cache_identity = object()
+        self.config = SimpleNamespace(num_experts_per_tok=2, num_local_experts=4)
 
     def get_input_embeddings(self):
         return self.model.embed_tokens
@@ -148,6 +162,119 @@ def test_forced_decode_uses_identical_tokens_and_model_owned_caches():
     assert not metrics["routing_shift"].any()
 
 
+class TinyTokenizer:
+    def __call__(self, text, max_length, **_kwargs):
+        return {"input_ids": [ord(character) % 16 for character in text[:max_length]]}
+
+
+def test_pg19_document_selection_is_seeded_contiguous_and_length_filtered():
+    rows = [
+        {"text": "a" * 3, "url": "short"},
+        {"text": "b" * 10, "url": "book-b", "short_book_title": "B"},
+        {"text": "c" * 10, "url": "book-c", "short_book_title": "C"},
+        {"text": "d" * 10, "url": "book-d", "short_book_title": "D"},
+    ]
+    first = select_pg19_documents_from_rows(rows, TinyTokenizer(), 2, 4, 2, seed=17)
+    second = select_pg19_documents_from_rows(rows, TinyTokenizer(), 2, 4, 2, seed=17)
+    assert [document.source_index for document in first] == [document.source_index for document in second]
+    assert all(document.source_index != 0 for document in first)
+    assert all(document.input_ids.numel() == 6 for document in first)
+    for document in first:
+        expected = [ord(character) % 16 for character in rows[document.source_index]["text"][:6]]
+        assert document.input_ids.tolist() == expected
+
+
+def test_pg19_prefill_forced_and_free_use_full_contiguous_inputs():
+    torch.manual_seed(23)
+    original_model = TinyCausalLM()
+    merged_model = TinyCausalLM(first_delta=[0.0, 0.0, 5.0, 0.0])
+    merged_model.model.embed_tokens.load_state_dict(original_model.model.embed_tokens.state_dict())
+    document = select_pg19_documents_from_rows(
+        [{"text": "abcdefgh", "url": "tiny-book"}], TinyTokenizer(), 1, 5, 3, seed=1
+    )[0]
+    original = collect_document_routing_traces(original_model, document, 5, 3, "tiny original")
+    merged = collect_document_routing_traces(merged_model, document, 5, 3, "tiny merged")
+    assert original.prefill.hidden.shape[:2] == (2, 5)
+    rows, raw = compare_prefill_document(original.prefill, merged.prefill, document.document_id)
+    assert rows[0]["routing_shift_rate"] == 0.0
+    assert raw["input_token_ids"].tolist() == document.input_ids[:5].tolist()
+    forced = compare_decode_document(original.forced, merged.forced, require_identical_tokens=True)
+    assert forced["original_token_ids"].tolist() == document.input_ids[5:].tolist()
+    assert forced["merged_token_ids"].tolist() == document.input_ids[5:].tolist()
+
+
+def test_pg19_document_aggregation_retains_document_axis_and_std():
+    base = {
+        "original_token_ids": torch.tensor([1, 2]),
+        "merged_token_ids": torch.tensor([1, 2]),
+        "token_equal": torch.tensor([True, True]),
+        "original_topk": torch.zeros(2, 2, 2, dtype=torch.long),
+        "merged_topk": torch.zeros(2, 2, 2, dtype=torch.long),
+        "exact_topk_match": torch.ones(2, 2, dtype=torch.bool),
+        "routing_shift": torch.zeros(2, 2, dtype=torch.bool),
+        "topk_overlap": torch.ones(2, 2),
+        "hidden_relative_l2": torch.zeros(2, 2),
+        "original_margin": torch.ones(2, 2),
+        "merged_margin": torch.ones(2, 2),
+    }
+    changed = {key: value.clone() for key, value in base.items()}
+    changed["routing_shift"].fill_(True)
+    changed["exact_topk_match"].fill_(False)
+    raw = stack_document_metrics(["a", "b"], [base, changed])
+    summary = aggregate_forced_metrics(raw)
+    assert raw["routing_shift"].shape == (2, 2, 2)
+    assert summary["routing_shift_by_step_mean"] == [0.5, 0.5]
+    assert summary["routing_shift_by_step_std_across_documents"] == [0.5, 0.5]
+
+
+def test_pg19_free_summary_uses_only_shared_token_prefix():
+    original = _trace([[[0, 1], [0, 1], [0, 1]], [[2, 3], [2, 3], [2, 3]]], tokens=(5, 6, 7))
+    merged = _trace([[[0, 1], [0, 2], [4, 5]], [[2, 3], [2, 3], [0, 1]]], tokens=(5, 6, 9))
+    metrics = compare_decode_document(original, merged, require_identical_tokens=False)
+    document = summarize_free_document(metrics)
+    aggregate = aggregate_free_summaries([document])
+    assert document["first_routing_divergence_step"] == 1
+    assert document["first_token_divergence_step"] == 2
+    assert metrics["post_token_divergence"].tolist() == [False, False, True]
+    assert aggregate["fraction_routing_divergence_precedes_token_divergence"] == 1.0
+
+
+def test_pg19_required_plots_are_created():
+    layers = []
+    for layer in range(2):
+        row = {
+            "layer": layer,
+            "routing_shift_rate": 0.1 * layer,
+            "routing_shift_rate_std_across_documents": 0.01,
+            "mean_hidden_relative_l2": 0.2 * layer,
+            "mean_hidden_relative_l2_std_across_documents": 0.02,
+        }
+        for key in (
+            "original_margin_shifted",
+            "original_margin_non_shifted",
+            "merged_margin_shifted",
+            "merged_margin_non_shifted",
+        ):
+            row[key] = None if layer == 0 and key.endswith("shifted") and not key.endswith("non_shifted") else 0.3
+            row[f"{key}_std_across_documents"] = None if row[key] is None else 0.02
+        layers.append(row)
+    forced = {
+        "decode_steps": 3,
+        "routing_shift_heatmap_mean": [[0.0, 0.1, 0.2], [0.1, 0.2, 0.3]],
+        "topk_overlap_heatmap_mean": [[1.0, 0.9, 0.8], [0.9, 0.8, 0.7]],
+        "routing_shift_by_step_mean": [0.05, 0.15, 0.25],
+        "routing_shift_by_step_std_across_documents": [0.01] * 3,
+        "routing_shift_by_layer_mean": [0.1, 0.2],
+        "routing_shift_by_layer_std_across_documents": [0.01] * 2,
+        "hidden_relative_l2_by_step_mean": [0.1, 0.2, 0.3],
+        "hidden_relative_l2_by_step_std_across_documents": [0.01] * 3,
+    }
+    with tempfile.TemporaryDirectory() as directory:
+        paths = save_pg19_plots(layers, forced, directory)
+        assert len(paths) == 8
+        assert all(Path(path).is_file() for path in paths)
+
+
 class RoutingDriftUnitTests(unittest.TestCase):
     """Expose the dependency-free checks to the standard-library test runner."""
 
@@ -166,6 +293,19 @@ class RoutingDriftUnitTests(unittest.TestCase):
     test_forced_decode_uses_identical_tokens_and_model_owned_caches = staticmethod(
         test_forced_decode_uses_identical_tokens_and_model_owned_caches
     )
+    test_pg19_document_selection_is_seeded_contiguous_and_length_filtered = staticmethod(
+        test_pg19_document_selection_is_seeded_contiguous_and_length_filtered
+    )
+    test_pg19_prefill_forced_and_free_use_full_contiguous_inputs = staticmethod(
+        test_pg19_prefill_forced_and_free_use_full_contiguous_inputs
+    )
+    test_pg19_document_aggregation_retains_document_axis_and_std = staticmethod(
+        test_pg19_document_aggregation_retains_document_axis_and_std
+    )
+    test_pg19_free_summary_uses_only_shared_token_prefix = staticmethod(
+        test_pg19_free_summary_uses_only_shared_token_prefix
+    )
+    test_pg19_required_plots_are_created = staticmethod(test_pg19_required_plots_are_created)
 
 
 if __name__ == "__main__":
