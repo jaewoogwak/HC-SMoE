@@ -1,0 +1,16 @@
+{
+  "model_name": "Qwen/Qwen1.5-MoE-A2.7B-Chat",
+  "model_path": "/home/jaewoo/HC-SMoE/results/qwen_60to30/model.pth",
+  "group_state_path": "/home/jaewoo/HC-SMoE/results/qwen_60to30/group_state_dict.pt",
+  "dataset_name": "emozilla/pg19-test",
+  "dataset_split": "test",
+  "num_documents": 8,
+  "prefill_tokens": 2048,
+  "decode_steps": 512,
+  "seed": 42,
+  "comparison": "Original Qwen vs vanilla HC-SMoE 60-to-30",
+  "router_comparison": "unchanged original sparse expert IDs; shared expert and merged group IDs are excluded",
+  "prefill": "all positions in one contiguous segment per PG19 document",
+  "forced_decode": "ground-truth PG19 continuation with separate model-owned KV caches",
+  "free_decode": "independent greedy decoding; post-token-divergence routes are flagged"
+}
