@@ -145,8 +145,11 @@ def relative_l2(left: torch.Tensor, right: torch.Tensor) -> torch.Tensor:
 def pair_output_statistics(
     experts: Sequence[torch.nn.Module], x_cpu: torch.Tensor, topk_cpu: torch.Tensor,
     pair_rows: Sequence[Mapping[str, Any]], device: torch.device, chunk_size: int, min_corouted_tokens: int,
+    pair_batch_size: int = 64,
 ) -> List[Dict[str, Any]]:
     """Stream expert output statistics without retaining all-token expert outputs."""
+    if pair_batch_size <= 0:
+        raise ValueError("pair_batch_size must be positive")
     unique_pairs = sorted({(int(row["expert_i"]), int(row["expert_j"])) for row in pair_rows})
     num_experts, hidden = len(experts), x_cpu.shape[-1]
     means = torch.zeros((num_experts, hidden), dtype=torch.float32)
@@ -157,19 +160,29 @@ def pair_output_statistics(
         # This is bounded [experts, chunk, hidden], not a whole-trace tensor.
         outputs = torch.stack([expert(x).float() for expert in experts], dim=0)
         means += outputs.sum(dim=1).cpu()
-        topk = topk_cpu[start:start + len(x)]
-        for i, j in unique_pairs:
-            active_i = (topk == i).any(dim=1).to(device)
-            active_j = (topk == j).any(dim=1).to(device)
-            union = active_i | active_j
-            corouted = active_i & active_j
-            rel = relative_l2(outputs[i], outputs[j])
-            if union.any():
-                stats[(i, j)]["union_sum"] += float(rel[union].sum())
-                stats[(i, j)]["union_count"] += int(union.sum())
-            if corouted.any():
-                stats[(i, j)]["corouted_sum"] += float(rel[corouted].sum())
-                stats[(i, j)]["corouted_count"] += int(corouted.sum())
+        topk = topk_cpu[start:start + len(x)].to(device, non_blocking=True)
+        for pair_start in range(0, len(unique_pairs), pair_batch_size):
+            pair_batch = unique_pairs[pair_start:pair_start + pair_batch_size]
+            left = torch.tensor([pair[0] for pair in pair_batch], device=device)
+            right = torch.tensor([pair[1] for pair in pair_batch], device=device)
+            # [pairs, tokens, hidden] and [tokens, pairs]; all relevant pairs
+            # share these batched kernels instead of one rel-L2 kernel each.
+            rel = relative_l2(outputs[left], outputs[right])
+            active_left = (topk.unsqueeze(-1) == left).any(dim=1)
+            active_right = (topk.unsqueeze(-1) == right).any(dim=1)
+            union = active_left | active_right
+            corouted = active_left & active_right
+            union_sums = (rel * union.T).sum(dim=1).cpu().tolist()
+            corouted_sums = (rel * corouted.T).sum(dim=1).cpu().tolist()
+            union_counts = union.sum(dim=0).cpu().tolist()
+            corouted_counts = corouted.sum(dim=0).cpu().tolist()
+            for pair, union_sum, corouted_sum, union_count, corouted_count in zip(
+                pair_batch, union_sums, corouted_sums, union_counts, corouted_counts
+            ):
+                stats[pair]["union_sum"] += union_sum
+                stats[pair]["corouted_sum"] += corouted_sum
+                stats[pair]["union_count"] += union_count
+                stats[pair]["corouted_count"] += corouted_count
         del x, outputs
     means /= len(x_cpu)
     result: Dict[Tuple[int, int], Dict[str, Any]] = {}
@@ -210,7 +223,13 @@ def run_moe_on_input(moe: torch.nn.Module, x_cpu: torch.Tensor, *, is_qwen: bool
     chunks = []
     for start in range(0, len(x_cpu), chunk_size):
         x = x_cpu[start:start + chunk_size].to(device, non_blocking=True)
-        chunks.append(moe_output(moe(x)).float().cpu())
+        x = x.unsqueeze(0)  # [1, chunk, hidden]
+
+        y = moe_output(moe(x))
+
+        chunks.append(
+            y.reshape(-1, y.shape[-1]).float().cpu()
+        )
     return torch.cat(chunks, dim=0)
 
 
@@ -423,7 +442,8 @@ def analyze(args: argparse.Namespace) -> None:
             categories = pair_categories(labels0, labels05, labels1)
             moe = original.model.layers[index].mlp if spec["is_qwen"] else original.model.layers[index].block_sparse_moe
             values = pair_output_statistics(moe.experts, trace[name]["inputs"], trace[name]["topk"], categories,
-                                            execution_device(moe, spec["is_qwen"]), args.chunk_size, args.min_corouted_tokens)
+                                            execution_device(moe, spec["is_qwen"]), args.chunk_size,
+                                            args.min_corouted_tokens, args.pair_batch_size)
             for row in values:
                 for metric in ("hc_mean_l2", "hc_mean_rel_l2", "coactivation_rate", "routing_jaccard", "active_union_rel_l2"):
                     if not math.isfinite(float(row[metric])):
@@ -497,6 +517,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--batch_size", type=int, default=1)
     parser.add_argument("--num_workers", type=int, default=4)
     parser.add_argument("--chunk_size", type=int, default=128)
+    parser.add_argument("--pair_batch_size", type=int, default=64)
     parser.add_argument("--min_corouted_tokens", type=int, default=32)
     return parser
 

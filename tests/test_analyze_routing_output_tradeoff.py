@@ -9,6 +9,7 @@ from hcsmoe.analyze_routing_output_tradeoff import (
     pair_categories,
     pair_output_statistics,
     relative_l2,
+    run_moe_on_input,
     routing_overlap,
     validate_mappings,
 )
@@ -49,6 +50,29 @@ def test_active_union_and_corouted_relative_l2_toy_values():
     assert rows[0]["corouted_rel_l2"] == 2.0
 
 
+def test_pair_batching_preserves_pair_metrics():
+    class Scale(torch.nn.Module):
+        def __init__(self, scale):
+            super().__init__()
+            self.scale = scale
+
+        def forward(self, x):
+            return self.scale * x
+
+    kwargs = dict(
+        experts=[Scale(1.0), Scale(-1.0), Scale(0.5)],
+        x_cpu=torch.tensor([[1.0], [2.0], [3.0], [4.0]]),
+        topk_cpu=torch.tensor([[0, 1], [0, 2], [1, 2], [0, 1]]),
+        pair_rows=[{"expert_i": 0, "expert_j": 1}, {"expert_i": 0, "expert_j": 2}],
+        device=torch.device("cpu"), chunk_size=2, min_corouted_tokens=1,
+    )
+    scalar_batches = pair_output_statistics(**kwargs, pair_batch_size=1)
+    vector_batches = pair_output_statistics(**kwargs, pair_batch_size=2)
+    for scalar, vector in zip(scalar_batches, vector_batches):
+        for key in ("hc_mean_l2", "coactivation_rate", "routing_jaccard", "active_union_rel_l2", "corouted_rel_l2"):
+            assert math.isclose(scalar[key], vector[key], abs_tol=1e-6)
+
+
 def test_heldout_u_rates_sum_to_one():
     metrics = routing_metrics(torch.tensor([0, 0, 1, 2]), torch.tensor([[0, 1], [0, 2], [1, 2]]))
     assert math.isclose(metrics["u1_rate"] + metrics["u2_rate"], 1.0, abs_tol=1e-6)
@@ -76,6 +100,24 @@ def test_no_nonfinite_except_explicit_low_coroute_case():
     )[0]
     assert all(math.isfinite(float(row[key])) for key in ("hc_mean_l2", "coactivation_rate", "routing_jaccard", "active_union_rel_l2"))
     assert math.isnan(row["corouted_rel_l2"])
+
+
+def test_run_moe_on_input_restores_three_dimensions_and_tuple_output():
+    class ThreeDimensionalMoE(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.input_shapes = []
+
+        def forward(self, x):
+            assert x.ndim == 3
+            self.input_shapes.append(tuple(x.shape))
+            return x + 1.0, torch.zeros(x.shape[:-1])
+
+    moe = ThreeDimensionalMoE()
+    x = torch.arange(10, dtype=torch.float32).reshape(5, 2)
+    actual = run_moe_on_input(moe, x, is_qwen=False, chunk_size=2)
+    assert moe.input_shapes == [(1, 2, 2), (1, 2, 2), (1, 1, 2)]
+    assert torch.equal(actual, x + 1.0)
 
 
 def test_local_comparison_uses_the_same_x_tensor():
