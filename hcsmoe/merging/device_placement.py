@@ -1,4 +1,4 @@
-"""Static A100-aware placement helpers for Mixtral analysis models."""
+"""Automatic A100-aware placement helpers for routing-drift analysis models."""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -102,7 +102,11 @@ def _normalized_device(target: Any) -> str:
     return "cuda" if device.type == "cuda" else device.type
 
 
-def _assert_whole_decoder_layers(model: torch.nn.Module, device_map: dict[str, Any]) -> None:
+def _assert_whole_decoder_layers(
+    model: torch.nn.Module,
+    device_map: dict[str, Any],
+    decoder_layer_name: str,
+) -> None:
     """Guard against expert-level maps that recreate per-token transfer pathology."""
     for layer_index, layer in enumerate(model.model.layers):
         prefix = f"model.layers.{layer_index}."
@@ -112,13 +116,15 @@ def _assert_whole_decoder_layers(model: torch.nn.Module, device_map: dict[str, A
         }
         if targets and len(targets) != 1:
             raise AssertionError(
-                f"auto placement split MixtralDecoderLayer {layer_index} across {sorted(targets)}"
+                f"auto placement split {decoder_layer_name} {layer_index} across {sorted(targets)}"
             )
 
 
 def place_model_for_analysis(
     model: torch.nn.Module,
     settings: PlacementSettings,
+    no_split_module_classes: Optional[list[str]] = None,
+    decoder_layer_name: Optional[str] = None,
 ) -> torch.nn.Module:
     """Place a fully materialized CPU model without changing its weights."""
     model.eval()
@@ -143,16 +149,18 @@ def place_model_for_analysis(
     tie_weights = getattr(model, "tie_weights", None)
     if callable(tie_weights):
         tie_weights()
+    no_split = no_split_module_classes or MIXTRAL_NO_SPLIT_MODULE_CLASSES
+    decoder_name = decoder_layer_name or no_split[0]
     device_map = infer_auto_device_map(
         model,
         max_memory=settings.max_memory,
-        no_split_module_classes=MIXTRAL_NO_SPLIT_MODULE_CLASSES,
+        no_split_module_classes=no_split,
         dtype=torch.bfloat16,
         offload_buffers=True,
         clean_result=True,
         fallback_allocation=True,
     )
-    _assert_whole_decoder_layers(model, device_map)
+    _assert_whole_decoder_layers(model, device_map, decoder_name)
     model = dispatch_model(
         model,
         device_map=device_map,
@@ -192,8 +200,6 @@ def print_placement_environment(settings: PlacementSettings) -> None:
 
 
 def print_model_placement(model: torch.nn.Module, label: str) -> None:
-    if torch.cuda.is_available():
-        torch.cuda.synchronize()
     counts = _parameter_placement_counts(model)
     summary = ", ".join(
         f"{device}_params={parameters:,} ({tensors} tensors)"

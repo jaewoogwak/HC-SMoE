@@ -21,6 +21,11 @@ from hcsmoe.merging.sequential_drift_qwen import (
     free_generation_summary,
     make_global_sample_plan,
 )
+from hcsmoe.merging.pg19_drift_mixtral import (
+    QWEN_ADAPTER,
+    collect_document_routing_traces,
+    select_pg19_documents_from_rows,
+)
 
 
 def _trace(topk, hidden=None, tokens=(1, 2, 3)):
@@ -102,6 +107,11 @@ class TinyQwenCausalLM(nn.Module):
             logits=logits,
             past_key_values=(self.cache_identity, prior_length + input_ids.shape[1]),
         )
+
+
+class TinyTokenizer:
+    def __call__(self, text, max_length, **_kwargs):
+        return {"input_ids": [ord(character) % 16 for character in text[:max_length]]}
 
 
 class QwenRoutingDriftUnitTests(unittest.TestCase):
@@ -229,6 +239,22 @@ class QwenRoutingDriftUnitTests(unittest.TestCase):
         self.assertEqual(trace.topk.shape, (2, 4, 4))
         self.assertEqual(trace.margin.shape, (2, 4))
         self.assertEqual(trace.num_experts, 6)
+
+    def test_qwen_uses_common_pg19_adapter_and_excludes_shared_expert_from_routes(self):
+        torch.manual_seed(13)
+        model = TinyQwenCausalLM()
+        document = select_pg19_documents_from_rows(
+            [{"text": "abcdefgh", "url": "tiny-qwen"}], TinyTokenizer(), 1, 5, 3, seed=1
+        )[0]
+        traces = collect_document_routing_traces(
+            model, document, 5, 3, "tiny qwen", adapter=QWEN_ADAPTER
+        )
+        self.assertEqual(traces.prefill.top_k, 4)
+        self.assertEqual(traces.prefill.num_experts, 6)
+        self.assertEqual(traces.prefill.topk.shape, (2, 5, 4))
+        self.assertEqual(traces.forced.token_ids.tolist(), document.input_ids[5:].tolist())
+        # Shared-expert modules are active in TinyQwenMoE but never appear in router IDs.
+        self.assertTrue((traces.prefill.topk < model.config.num_experts).all())
 
     @unittest.skipUnless(torch.cuda.is_available(), "loader requires the analysis CUDA environment")
     def test_actual_qwen_checkpoint_loader_restores_alias_topology(self):

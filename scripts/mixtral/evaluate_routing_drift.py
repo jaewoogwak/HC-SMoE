@@ -215,7 +215,7 @@ def main() -> None:
         rows, prefill_raw = compare_prefill_document(original.prefill, merged.prefill, document.document_id)
         forced = compare_decode_document(original.forced, merged.forced, require_identical_tokens=True)
         free = compare_decode_document(original.free, merged.free, require_identical_tokens=False)
-        free_summary = summarize_free_document(free)
+        free_summary = summarize_free_document(free, prefill_raw["routing_shift"])
         free_summary["document_id"] = document.document_id
         free_summary["source_index"] = document.source_index
         prefill_document_rows.append(rows)

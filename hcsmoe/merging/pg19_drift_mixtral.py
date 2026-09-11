@@ -8,21 +8,98 @@ from __future__ import annotations
 import math
 import random
 import statistics
-import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Optional, Sequence
 
 import torch
 from tqdm import tqdm
 
-from hcsmoe.merging.sequential_drift_mixtral import (
-    EPSILON,
-    RoutingDriftTrace,
-    _forward_input_device,
-    _route_comparison,
-    freeze_for_analysis,
+from hcsmoe.merging.sequential_drift_mixtral import EPSILON, _forward_input_device, freeze_for_analysis
+
+
+@dataclass(frozen=True)
+class PG19ModelAdapter:
+    """Small architecture adapter; all PG19 collection remains model-independent."""
+
+    name: str
+    moe_attribute: str
+    top_k_config: str
+    expert_count_config: str
+    requires_gate_attribute: bool = True
+
+    def sparse_layers(self, model: torch.nn.Module) -> list[tuple[int, torch.nn.Module]]:
+        layers: list[tuple[int, torch.nn.Module]] = []
+        for index, layer in enumerate(model.model.layers):
+            moe = getattr(layer, self.moe_attribute, None)
+            # Qwen may have non-MoE MLPs; its shared expert is deliberately not
+            # inspected or included.  Mixtral has an MoE block in every layer.
+            if moe is not None and (not self.requires_gate_attribute or hasattr(moe, "gate")):
+                layers.append((index, moe))
+        if not layers:
+            raise AssertionError(f"{self.name}: no sparse MoE layers found via layer.{self.moe_attribute}")
+        return layers
+
+    def routing_config(self, model: torch.nn.Module) -> tuple[int, int]:
+        top_k = int(getattr(model.config, self.top_k_config))
+        num_experts = int(getattr(model.config, self.expert_count_config))
+        if not 1 <= top_k < num_experts:
+            raise ValueError(f"{self.name}: invalid sparse routing K={top_k}, experts={num_experts}")
+        return top_k, num_experts
+
+
+MIXTRAL_ADAPTER = PG19ModelAdapter(
+    "Mixtral", "block_sparse_moe", "num_experts_per_tok", "num_local_experts", requires_gate_attribute=False
 )
+QWEN_ADAPTER = PG19ModelAdapter("Qwen", "mlp", "num_experts_per_tok", "num_experts")
+
+
+@dataclass
+class RoutingDriftTrace:
+    """CPU-resident generic sparse-router trace in original expert-ID space."""
+
+    hidden: torch.Tensor
+    topk: torch.Tensor
+    margin: torch.Tensor
+    layer_indices: tuple[int, ...]
+    top_k: int
+    num_experts: int
+    token_ids: Optional[torch.Tensor] = None
+    input_id_batches: list[torch.Tensor] = field(default_factory=list)
+
+    @property
+    def top2(self) -> torch.Tensor:
+        """Compatibility alias for existing Mixtral PG19 consumers (K remains dynamic)."""
+        return self.topk
+
+
+def _route_comparison(original_topk: torch.Tensor, merged_topk: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    """Set-based top-K equality and overlap; ordering of router top-k IDs is irrelevant."""
+    if original_topk.shape != merged_topk.shape or original_topk.ndim < 1:
+        raise AssertionError("routing traces must have matching [..., K] shapes")
+    top_k = original_topk.shape[-1]
+    if top_k <= 0:
+        raise AssertionError("routing traces need a positive top-k dimension")
+    original_set = original_topk.sort(dim=-1).values
+    merged_set = merged_topk.sort(dim=-1).values
+    exact = (original_set == merged_set).all(dim=-1)
+    overlap = (
+        (merged_topk.unsqueeze(-1) == original_topk.unsqueeze(-2)).any(dim=-1).sum(dim=-1).float() / top_k
+    )
+    return exact, overlap
+
+
+def _trace_topk(trace: Any) -> torch.Tensor:
+    """Read generic traces and the legacy Mixtral ``top2`` trace used by old tests."""
+    return trace.topk if hasattr(trace, "topk") else trace.top2
+
+
+def _same_routing_configuration(original: Any, merged: Any) -> bool:
+    fields = ("layer_indices", "top_k", "num_experts")
+    return all(
+        not hasattr(original, field) or not hasattr(merged, field) or getattr(original, field) == getattr(merged, field)
+        for field in fields
+    )
 
 
 @dataclass(frozen=True)
@@ -128,16 +205,17 @@ def load_pg19_documents(
 class _ContiguousRoutingCapture:
     """Capture every MoE input and router decision in one forward."""
 
-    def __init__(self, num_layers: int, token_count: int, top_k: int, num_experts: int) -> None:
+    def __init__(self, layer_indices: tuple[int, ...], token_count: int, top_k: int, num_experts: int) -> None:
         if not 1 <= top_k < num_experts:
             raise ValueError(f"router boundary needs 1 <= K < experts, got K={top_k}, experts={num_experts}")
-        self.num_layers = num_layers
+        self.layer_indices = layer_indices
+        self.num_layers = len(layer_indices)
         self.token_count = token_count
         self.top_k = top_k
         self.num_experts = num_experts
-        self.hidden: list[Optional[torch.Tensor]] = [None] * num_layers
-        self.topk: list[Optional[torch.Tensor]] = [None] * num_layers
-        self.margin: list[Optional[torch.Tensor]] = [None] * num_layers
+        self.hidden: list[Optional[torch.Tensor]] = [None] * self.num_layers
+        self.topk: list[Optional[torch.Tensor]] = [None] * self.num_layers
+        self.margin: list[Optional[torch.Tensor]] = [None] * self.num_layers
 
     def moe_input_hook(self, layer_index: int):
         def hook(_module: torch.nn.Module, inputs: tuple[torch.Tensor, ...]) -> None:
@@ -146,7 +224,9 @@ class _ContiguousRoutingCapture:
                 raise AssertionError(
                     f"layer {layer_index}: expected all {self.token_count} contiguous tokens, got {rows.shape[0]}"
                 )
-            self.hidden[layer_index] = rows.cpu()
+            # Keep one detached full prefill tensor on this layer's execution device.
+            # It is moved to CPU once in finalize(), after the complete forward.
+            self.hidden[layer_index] = rows.clone()
 
         return hook
 
@@ -161,49 +241,77 @@ class _ContiguousRoutingCapture:
                     f"got {list(logits.shape)}"
                 )
             boundary = torch.topk(logits, self.top_k + 1, dim=-1)
-            self.topk[layer_index] = boundary.indices[:, : self.top_k].cpu()
-            self.margin[layer_index] = (
-                boundary.values[:, self.top_k - 1] - boundary.values[:, self.top_k]
-            ).cpu()
+            self.topk[layer_index] = boundary.indices[:, : self.top_k].clone()
+            self.margin[layer_index] = (boundary.values[:, self.top_k - 1] - boundary.values[:, self.top_k]).clone()
 
         return hook
 
-    def register(self, model: torch.nn.Module) -> list[Any]:
+    def register(self, sparse_layers: list[tuple[int, torch.nn.Module]]) -> list[Any]:
         handles = []
-        for layer_index, layer in enumerate(model.model.layers):
-            moe = layer.block_sparse_moe
-            handles.append(moe.register_forward_pre_hook(self.moe_input_hook(layer_index)))
-            handles.append(moe.register_forward_hook(self.router_hook(layer_index)))
+        for trace_index, (layer_index, moe) in enumerate(sparse_layers):
+            handles.append(moe.register_forward_pre_hook(self.moe_input_hook(trace_index)))
+            handles.append(moe.register_forward_hook(self.router_hook(trace_index)))
         return handles
 
     def finalize(self, token_ids: torch.Tensor) -> RoutingDriftTrace:
         if any(value is None for value in self.hidden + self.topk + self.margin):
             raise AssertionError("contiguous prefill trace is incomplete")
-        return RoutingDriftTrace(
-            hidden=torch.stack([value for value in self.hidden if value is not None]),
-            top2=torch.stack([value for value in self.topk if value is not None]),
-            margin=torch.stack([value for value in self.margin if value is not None]),
+        trace = RoutingDriftTrace(
+            hidden=torch.stack([value.detach().cpu() for value in self.hidden if value is not None]),
+            topk=torch.stack([value.detach().cpu() for value in self.topk if value is not None]),
+            margin=torch.stack([value.detach().cpu() for value in self.margin if value is not None]),
+            layer_indices=self.layer_indices,
+            top_k=self.top_k,
+            num_experts=self.num_experts,
             token_ids=token_ids.detach().cpu().reshape(-1).clone(),
         )
+        # Release device-side buffers before forced/free decoding begins.
+        self.hidden, self.topk, self.margin = [], [], []
+        return trace
 
 
 class _IncrementalRoutingCapture:
     """Capture routing information for each newly processed decode token."""
 
-    def __init__(self, num_layers: int, top_k: int, num_experts: int) -> None:
-        self.num_layers = num_layers
+    def __init__(self, layer_indices: tuple[int, ...], top_k: int, num_experts: int) -> None:
+        self.layer_indices = layer_indices
+        self.num_layers = len(layer_indices)
         self.top_k = top_k
         self.num_experts = num_experts
-        self.hidden: list[list[torch.Tensor]] = [[] for _ in range(num_layers)]
-        self.topk: list[list[torch.Tensor]] = [[] for _ in range(num_layers)]
-        self.margin: list[list[torch.Tensor]] = [[] for _ in range(num_layers)]
+        self.decode_steps: Optional[int] = None
+        self.step: Optional[int] = None
+        self.hidden: list[Optional[torch.Tensor]] = [None] * self.num_layers
+        self.topk: list[Optional[torch.Tensor]] = [None] * self.num_layers
+        self.margin: list[Optional[torch.Tensor]] = [None] * self.num_layers
+
+    def begin_step(self, step: int, decode_steps: int) -> None:
+        if self.decode_steps is None:
+            self.decode_steps = decode_steps
+        elif self.decode_steps != decode_steps:
+            raise AssertionError("decode length changed within one trace")
+        self.step = step
+
+    def _slot(self) -> int:
+        if self.step is None or self.decode_steps is None:
+            raise RuntimeError("incremental hook ran outside an active decode step")
+        return self.step
+
+    @staticmethod
+    def _buffer(current: Optional[torch.Tensor], steps: int, value: torch.Tensor) -> torch.Tensor:
+        if current is None:
+            return torch.empty((steps, *value.shape), device=value.device, dtype=value.dtype)
+        if current.device != value.device:
+            raise AssertionError("a sparse layer changed execution device during one decode trace")
+        return current
 
     def moe_input_hook(self, layer_index: int):
         def hook(_module: torch.nn.Module, inputs: tuple[torch.Tensor, ...]) -> None:
             rows = inputs[0].detach().reshape(-1, inputs[0].shape[-1])
             if rows.shape[0] != 1:
                 raise AssertionError("incremental decode must process exactly one new token")
-            self.hidden[layer_index].append(rows[0].cpu())
+            slot = self._slot()
+            self.hidden[layer_index] = self._buffer(self.hidden[layer_index], self.decode_steps, rows[0])
+            self.hidden[layer_index][slot].copy_(rows[0])
 
         return hook
 
@@ -215,47 +323,44 @@ class _IncrementalRoutingCapture:
             if logits.shape != (1, self.num_experts):
                 raise AssertionError(f"layer {layer_index}: incremental router trace has shape {list(logits.shape)}")
             boundary = torch.topk(logits[0], self.top_k + 1)
-            self.topk[layer_index].append(boundary.indices[: self.top_k].cpu())
-            self.margin[layer_index].append(
-                (boundary.values[self.top_k - 1] - boundary.values[self.top_k]).cpu()
-            )
+            slot = self._slot()
+            ids = boundary.indices[: self.top_k]
+            margin = boundary.values[self.top_k - 1] - boundary.values[self.top_k]
+            self.topk[layer_index] = self._buffer(self.topk[layer_index], self.decode_steps, ids)
+            self.margin[layer_index] = self._buffer(self.margin[layer_index], self.decode_steps, margin)
+            self.topk[layer_index][slot].copy_(ids)
+            self.margin[layer_index][slot].copy_(margin)
 
         return hook
 
-    def register(self, model: torch.nn.Module) -> list[Any]:
+    def register(self, sparse_layers: list[tuple[int, torch.nn.Module]]) -> list[Any]:
         handles = []
-        for layer_index, layer in enumerate(model.model.layers):
-            moe = layer.block_sparse_moe
-            handles.append(moe.register_forward_pre_hook(self.moe_input_hook(layer_index)))
-            handles.append(moe.register_forward_hook(self.router_hook(layer_index)))
+        for trace_index, (layer_index, moe) in enumerate(sparse_layers):
+            handles.append(moe.register_forward_pre_hook(self.moe_input_hook(trace_index)))
+            handles.append(moe.register_forward_hook(self.router_hook(trace_index)))
         return handles
 
-    def finalize(self, token_ids: list[int], decode_steps: int) -> RoutingDriftTrace:
+    def finalize(self, token_ids: torch.Tensor, decode_steps: int) -> RoutingDriftTrace:
         for layer_index in range(self.num_layers):
-            if not (
-                len(self.hidden[layer_index])
-                == len(self.topk[layer_index])
-                == len(self.margin[layer_index])
-                == decode_steps
-            ):
+            if any(values is None for values in (self.hidden[layer_index], self.topk[layer_index], self.margin[layer_index])):
                 raise AssertionError(f"layer {layer_index}: incomplete incremental decode trace")
-        return RoutingDriftTrace(
-            hidden=torch.stack([torch.stack(values) for values in self.hidden]),
-            top2=torch.stack([torch.stack(values) for values in self.topk]),
-            margin=torch.stack([torch.stack(values) for values in self.margin]),
-            token_ids=torch.tensor(token_ids, dtype=torch.long),
+        trace = RoutingDriftTrace(
+            hidden=torch.stack([value.detach().cpu() for value in self.hidden if value is not None]),
+            topk=torch.stack([value.detach().cpu() for value in self.topk if value is not None]),
+            margin=torch.stack([value.detach().cpu() for value in self.margin if value is not None]),
+            layer_indices=self.layer_indices,
+            top_k=self.top_k,
+            num_experts=self.num_experts,
+            token_ids=token_ids.detach().cpu(),
         )
+        self.hidden, self.topk, self.margin = [], [], []
+        return trace
 
 
 def _as_legacy_cache(past_key_values: Any) -> Any:
     """Use immutable tuple caches so forced/free branches share only the prefill state."""
     converter = getattr(past_key_values, "to_legacy_cache", None)
     return converter() if callable(converter) else past_key_values
-
-
-def _synchronize_cuda() -> None:
-    if torch.cuda.is_available():
-        torch.cuda.synchronize()
 
 
 @torch.inference_mode()
@@ -269,27 +374,27 @@ def _decode_from_prefill(
     num_experts: int,
     forced_tokens: Optional[torch.Tensor],
     description: str,
+    sparse_layers: list[tuple[int, torch.nn.Module]],
 ) -> RoutingDriftTrace:
     device = _forward_input_device(model)
-    attention_mask = torch.ones((1, prefill_length), dtype=torch.long, device=device)
+    full_attention_mask = torch.ones((1, prefill_length + decode_steps), dtype=torch.long, device=device)
     cache = past_key_values
     logits = next_logits
-    capture = _IncrementalRoutingCapture(len(model.model.layers), top_k, num_experts)
-    handles = capture.register(model)
-    token_ids: list[int] = []
+    capture = _IncrementalRoutingCapture(tuple(index for index, _ in sparse_layers), top_k, num_experts)
+    handles = capture.register(sparse_layers)
+    token_ids = torch.empty((decode_steps,), dtype=torch.long, device=device)
+    forced_device = None if forced_tokens is None else forced_tokens.to(device=device, dtype=torch.long)
     try:
         for step in tqdm(range(decode_steps), desc=f"[PG19 routing drift] {description}"):
             if forced_tokens is None:
                 token = logits.argmax(dim=-1).reshape(1, 1)
             else:
-                token = forced_tokens[step].to(device).reshape(1, 1)
-            token_ids.append(int(token.item()))
-            attention_mask = torch.cat(
-                (attention_mask, torch.ones((1, 1), dtype=attention_mask.dtype, device=device)), dim=1
-            )
+                token = forced_device[step].reshape(1, 1)
+            token_ids[step].copy_(token.reshape(()))
+            capture.begin_step(step, decode_steps)
             output = model(
                 input_ids=token,
-                attention_mask=attention_mask,
+                attention_mask=full_attention_mask[:, : prefill_length + step + 1],
                 past_key_values=cache,
                 use_cache=True,
                 return_dict=True,
@@ -309,21 +414,21 @@ def collect_document_routing_traces(
     prefill_tokens: int,
     decode_steps: int,
     description: str,
+    adapter: PG19ModelAdapter = MIXTRAL_ADAPTER,
 ) -> DocumentRoutingTraces:
     """Run one prefill and branch its immutable cache into forced and greedy decode."""
     if document.input_ids.numel() != prefill_tokens + decode_steps:
         raise AssertionError("document segment length changed")
     freeze_for_analysis(model)
-    top_k = int(model.config.num_experts_per_tok)
-    num_experts = int(model.config.num_local_experts)
+    top_k, num_experts = adapter.routing_config(model)
+    sparse_layers = adapter.sparse_layers(model)
     device = _forward_input_device(model)
     prefix = document.input_ids[:prefill_tokens].reshape(1, -1).to(device)
     continuation = document.input_ids[prefill_tokens:].cpu()
     attention_mask = torch.ones_like(prefix)
-    capture = _ContiguousRoutingCapture(len(model.model.layers), prefill_tokens, top_k, num_experts)
-    handles = capture.register(model)
-    _synchronize_cuda()
-    prefill_started = time.perf_counter()
+    layer_indices = tuple(index for index, _ in sparse_layers)
+    capture = _ContiguousRoutingCapture(layer_indices, prefill_tokens, top_k, num_experts)
+    handles = capture.register(sparse_layers)
     try:
         output = model(
             input_ids=prefix,
@@ -334,16 +439,12 @@ def collect_document_routing_traces(
     finally:
         for handle in handles:
             handle.remove()
-    _synchronize_cuda()
-    prefill_seconds = time.perf_counter() - prefill_started
     prefill = capture.finalize(prefix)
     base_cache = _as_legacy_cache(output.past_key_values)
     # Clone the final row before releasing the full [1, prefill, vocab] logits.
     # Keeping a view would unnecessarily pin the much larger prefill allocation.
     base_logits = output.logits[:, -1].detach().clone()
     del output
-    _synchronize_cuda()
-    forced_started = time.perf_counter()
     forced = _decode_from_prefill(
         model,
         prefill_tokens,
@@ -354,10 +455,8 @@ def collect_document_routing_traces(
         num_experts,
         continuation,
         f"{description} forced",
+        sparse_layers,
     )
-    _synchronize_cuda()
-    forced_seconds = time.perf_counter() - forced_started
-    free_started = time.perf_counter()
     free = _decode_from_prefill(
         model,
         prefill_tokens,
@@ -368,20 +467,10 @@ def collect_document_routing_traces(
         num_experts,
         None,
         f"{description} free",
+        sparse_layers,
     )
-    _synchronize_cuda()
-    free_seconds = time.perf_counter() - free_started
     if not torch.equal(forced.token_ids, continuation):
         raise AssertionError("forced decode did not process the exact PG19 continuation")
-    print(f"[Timing] {description} prefill: {prefill_seconds:.2f} sec")
-    print(
-        f"[Timing] {description} forced: {forced_seconds:.2f} sec "
-        f"({forced_seconds / decode_steps:.4f} sec/token)"
-    )
-    print(
-        f"[Timing] {description} free: {free_seconds:.2f} sec "
-        f"({free_seconds / decode_steps:.4f} sec/token)"
-    )
     return DocumentRoutingTraces(prefill=prefill, forced=forced, free=free)
 
 
@@ -403,7 +492,10 @@ def compare_prefill_document(
     """Compare every contiguous prefill position and enforce the layer-0 invariant."""
     if original.token_ids is None or merged.token_ids is None or not torch.equal(original.token_ids, merged.token_ids):
         raise AssertionError("original and merged prefill token IDs differ")
-    exact, overlap = _route_comparison(original.top2, merged.top2)
+    if not _same_routing_configuration(original, merged):
+        raise AssertionError("original and merged prefill routing configurations differ")
+    original_topk, merged_topk = _trace_topk(original), _trace_topk(merged)
+    exact, overlap = _route_comparison(original_topk, merged_topk)
     hidden_l2 = _relative_l2(original.hidden, merged.hidden)
     if not exact[0].all():
         mismatches = int((~exact[0]).sum().item())
@@ -429,8 +521,8 @@ def compare_prefill_document(
         })
     raw = {
         "input_token_ids": original.token_ids.cpu(),
-        "original_topk": original.top2.cpu(),
-        "merged_topk": merged.top2.cpu(),
+        "original_topk": original_topk.cpu(),
+        "merged_topk": merged_topk.cpu(),
         "exact_topk_match": exact.cpu(),
         "routing_shift": (~exact).cpu(),
         "topk_overlap": overlap.cpu(),
@@ -451,13 +543,16 @@ def compare_decode_document(
     token_equal = original.token_ids == merged.token_ids
     if require_identical_tokens and not token_equal.all():
         raise AssertionError("forced original/merged runs must receive identical PG19 continuation IDs")
-    exact, overlap = _route_comparison(original.top2, merged.top2)
+    if not _same_routing_configuration(original, merged):
+        raise AssertionError("original and merged decode routing configurations differ")
+    original_topk, merged_topk = _trace_topk(original), _trace_topk(merged)
+    exact, overlap = _route_comparison(original_topk, merged_topk)
     return {
         "original_token_ids": original.token_ids.cpu(),
         "merged_token_ids": merged.token_ids.cpu(),
         "token_equal": token_equal.cpu(),
-        "original_topk": original.top2.cpu(),
-        "merged_topk": merged.top2.cpu(),
+        "original_topk": original_topk.cpu(),
+        "merged_topk": merged_topk.cpu(),
         "exact_topk_match": exact.cpu(),
         "routing_shift": (~exact).cpu(),
         "topk_overlap": overlap.cpu(),
@@ -467,7 +562,10 @@ def compare_decode_document(
     }
 
 
-def summarize_free_document(metrics: dict[str, torch.Tensor]) -> dict[str, Any]:
+def summarize_free_document(
+    metrics: dict[str, torch.Tensor],
+    prefill_routing_shift: Optional[torch.Tensor] = None,
+) -> dict[str, Any]:
     token_equal = metrics["token_equal"]
     mismatch = torch.nonzero(~token_equal, as_tuple=False).flatten()
     first_token = int(mismatch[0]) if mismatch.numel() else None
@@ -475,11 +573,18 @@ def summarize_free_document(metrics: dict[str, torch.Tensor]) -> dict[str, Any]:
     if first_token is not None:
         post[first_token:] = True
     any_shift = metrics["routing_shift"].any(dim=0)
+    any_indices = torch.nonzero(any_shift, as_tuple=False).flatten()
+    first_decode_routing = int(any_indices[0]) if any_indices.numel() else None
     clean = any_shift & ~post
     clean_indices = torch.nonzero(clean, as_tuple=False).flatten()
     first_routing = int(clean_indices[0]) if clean_indices.numel() else None
     metrics["post_token_divergence"] = post
+    prefill_has = None if prefill_routing_shift is None else bool(prefill_routing_shift.any())
+    last_prefill = None if prefill_routing_shift is None else bool(prefill_routing_shift[:, -1].any())
     return {
+        "prefill_has_routing_divergence": prefill_has,
+        "last_prefill_position_has_routing_divergence": last_prefill,
+        "first_decode_routing_divergence_step": first_decode_routing,
         "first_routing_divergence_step": first_routing,
         "first_token_divergence_step": first_token,
         "routing_divergence_precedes_token_divergence": (
@@ -603,6 +708,11 @@ def aggregate_forced_metrics(raw: dict[str, Any]) -> dict[str, Any]:
 
 
 def aggregate_free_summaries(document_summaries: list[dict[str, Any]]) -> dict[str, Any]:
+    decode_routing_steps = [
+        row["first_decode_routing_divergence_step"]
+        for row in document_summaries
+        if row["first_decode_routing_divergence_step"] is not None
+    ]
     routing_steps = [
         row["first_routing_divergence_step"]
         for row in document_summaries
@@ -629,7 +739,14 @@ def aggregate_free_summaries(document_summaries: list[dict[str, Any]]) -> dict[s
             bool(row["routing_divergence_precedes_token_divergence"]) for row in document_summaries
         ) / len(document_summaries),
         "first_routing_divergence_step": observed(routing_steps),
+        "first_decode_routing_divergence_step": observed(decode_routing_steps),
         "first_token_divergence_step": observed(token_steps),
+        "documents_with_prefill_routing_divergence": sum(
+            bool(row.get("prefill_has_routing_divergence")) for row in document_summaries
+        ),
+        "documents_with_last_prefill_position_routing_divergence": sum(
+            bool(row.get("last_prefill_position_has_routing_divergence")) for row in document_summaries
+        ),
         "documents": document_summaries,
     }
 
@@ -638,6 +755,7 @@ def save_pg19_plots(
     prefill_layers: list[dict[str, Any]],
     forced_summary: dict[str, Any],
     output_dir: str | Path,
+    model_label: str = "Mixtral",
 ) -> list[Path]:
     import matplotlib
 
@@ -667,7 +785,7 @@ def save_pg19_plots(
         layers,
         [row["routing_shift_rate"] for row in prefill_layers],
         [row["routing_shift_rate_std_across_documents"] for row in prefill_layers],
-        "Mixtral layer",
+        f"{model_label} layer",
         "Routing shift rate",
         "prefill_routing_shift_by_layer.png",
     )
@@ -675,7 +793,7 @@ def save_pg19_plots(
         layers,
         [row["mean_hidden_relative_l2"] for row in prefill_layers],
         [row["mean_hidden_relative_l2_std_across_documents"] for row in prefill_layers],
-        "Mixtral layer",
+        f"{model_label} layer",
         "Mean hidden-state relative L2",
         "prefill_hidden_drift_by_layer.png",
     )
@@ -694,7 +812,7 @@ def save_pg19_plots(
         ]
         axis.plot(layers, mean, label=label, linestyle=style)
         axis.fill_between(layers, torch.tensor(mean) - torch.tensor(std), torch.tensor(mean) + torch.tensor(std), alpha=0.12)
-    axis.set_xlabel("Mixtral layer")
+    axis.set_xlabel(f"{model_label} layer")
     axis.set_ylabel("Top-K / top-(K+1) router boundary margin")
     axis.legend()
     figure.tight_layout()
@@ -707,7 +825,7 @@ def save_pg19_plots(
         figure, axis = plt.subplots(figsize=(11, 6))
         image = axis.imshow(values, aspect="auto", interpolation="nearest", vmin=vmin, vmax=vmax)
         axis.set_xlabel("Forced decode step")
-        axis.set_ylabel("Mixtral layer")
+        axis.set_ylabel(f"{model_label} layer")
         figure.colorbar(image, ax=axis, label=label)
         figure.tight_layout()
         path = output / filename
@@ -742,7 +860,7 @@ def save_pg19_plots(
         layers,
         forced_summary["routing_shift_by_layer_mean"],
         forced_summary["routing_shift_by_layer_std_across_documents"],
-        "Mixtral layer",
+        f"{model_label} layer",
         "Mean routing shift rate across forced steps",
         "forced_routing_shift_by_layer.png",
     )
@@ -759,7 +877,11 @@ def save_pg19_plots(
 
 __all__ = [
     "DocumentRoutingTraces",
+    "MIXTRAL_ADAPTER",
     "PG19Document",
+    "PG19ModelAdapter",
+    "QWEN_ADAPTER",
+    "RoutingDriftTrace",
     "aggregate_forced_metrics",
     "aggregate_free_summaries",
     "aggregate_prefill_metrics",

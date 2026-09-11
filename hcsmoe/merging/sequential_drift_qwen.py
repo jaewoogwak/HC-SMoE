@@ -51,10 +51,17 @@ def freeze_for_analysis(model: torch.nn.Module) -> torch.nn.Module:
 
 
 def router_weight_snapshot(model: torch.nn.Module) -> dict[int, torch.Tensor]:
-    return {
-        layer_index: mlp.gate.weight.detach().cpu().clone()
-        for layer_index, mlp in _sparse_moe_layers(model)
-    }
+    snapshots = {}
+    for layer_index, mlp in _sparse_moe_layers(model):
+        weight = mlp.gate.weight
+        if weight.is_meta:
+            hook = getattr(mlp.gate, "_hf_hook", None)
+            weights_map = getattr(hook, "weights_map", None)
+            if weights_map is None or "weight" not in weights_map:
+                raise AssertionError(f"layer {layer_index}: dispatched sparse-router weight is unavailable")
+            weight = weights_map["weight"]
+        snapshots[layer_index] = weight.detach().cpu().clone()
+    return snapshots
 
 
 def assert_router_weights_unchanged(reference: dict[int, torch.Tensor], model: torch.nn.Module) -> None:
@@ -63,7 +70,14 @@ def assert_router_weights_unchanged(reference: dict[int, torch.Tensor], model: t
         raise AssertionError("original and merged Qwen models have different sparse-layer indices")
     expected_experts = int(model.config.num_experts)
     for layer_index, expected in reference.items():
-        actual = sparse[layer_index].gate.weight.detach().cpu()
+        weight = sparse[layer_index].gate.weight
+        if weight.is_meta:
+            hook = getattr(sparse[layer_index].gate, "_hf_hook", None)
+            weights_map = getattr(hook, "weights_map", None)
+            if weights_map is None or "weight" not in weights_map:
+                raise AssertionError(f"layer {layer_index}: dispatched sparse-router weight is unavailable")
+            weight = weights_map["weight"]
+        actual = weight.detach().cpu()
         if actual.shape[0] != expected_experts:
             raise AssertionError(
                 f"layer {layer_index}: router width {actual.shape[0]} != original expert count {expected_experts}"

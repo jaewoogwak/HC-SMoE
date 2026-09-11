@@ -1,3 +1,4 @@
+import inspect
 from types import SimpleNamespace
 from pathlib import Path
 import tempfile
@@ -21,6 +22,9 @@ from hcsmoe.merging.sequential_drift_mixtral import (
     router_weight_snapshot,
 )
 from hcsmoe.merging.pg19_drift_mixtral import (
+    _ContiguousRoutingCapture,
+    _IncrementalRoutingCapture,
+    _decode_from_prefill,
     aggregate_forced_metrics,
     aggregate_free_summaries,
     collect_document_routing_traces,
@@ -218,6 +222,19 @@ def test_pg19_prefill_forced_and_free_use_full_contiguous_inputs():
     assert forced["merged_token_ids"].tolist() == document.input_ids[5:].tolist()
 
 
+def test_pg19_optimized_hooks_only_bulk_transfer_after_collection():
+    """Guard against reintroducing decode-step CUDA-to-CPU synchronization."""
+    incremental_source = inspect.getsource(_IncrementalRoutingCapture.moe_input_hook)
+    incremental_source += inspect.getsource(_IncrementalRoutingCapture.router_hook)
+    contiguous_source = inspect.getsource(_ContiguousRoutingCapture.moe_input_hook)
+    contiguous_source += inspect.getsource(_ContiguousRoutingCapture.router_hook)
+    decode_source = inspect.getsource(_decode_from_prefill)
+    assert ".cpu(" not in incremental_source
+    assert ".cpu(" not in contiguous_source
+    assert ".item(" not in decode_source
+    assert "torch.cat(" not in decode_source
+
+
 def test_pg19_document_aggregation_retains_document_axis_and_std():
     base = {
         "original_token_ids": torch.tensor([1, 2]),
@@ -404,6 +421,9 @@ class RoutingDriftUnitTests(unittest.TestCase):
     )
     test_pg19_prefill_forced_and_free_use_full_contiguous_inputs = staticmethod(
         test_pg19_prefill_forced_and_free_use_full_contiguous_inputs
+    )
+    test_pg19_optimized_hooks_only_bulk_transfer_after_collection = staticmethod(
+        test_pg19_optimized_hooks_only_bulk_transfer_after_collection
     )
     test_pg19_document_aggregation_retains_document_axis_and_std = staticmethod(
         test_pg19_document_aggregation_retains_document_axis_and_std
