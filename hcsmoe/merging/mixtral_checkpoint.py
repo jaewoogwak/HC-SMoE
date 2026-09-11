@@ -24,6 +24,7 @@ def load_compressed_model_for_evaluation(
     lora_eval_only: bool = False,
     lora_path: str | None = None,
     cpu_offload_for_analysis: bool = False,
+    load_to_cpu: bool = False,
 ):
     """Restore aliases, static weights, and optionally residual weights."""
     if residual_eval_only and lora_eval_only:
@@ -60,22 +61,23 @@ def load_compressed_model_for_evaluation(
         payload = torch.load(lora_path, map_location="cpu")
         lora_rank, lora_alpha = load_lora_state_dict(model, payload, group_state)
         print(f"[LoRA] Reloaded rank={lora_rank} alpha={lora_alpha:g} from {lora_path}")
-    if cpu_offload_for_analysis:
-        # Analysis callers install Accelerate CPU-offload hooks after checking
-        # the unchanged router weights.  Keeping the restored model on CPU here
-        # avoids ever materializing the whole compressed Mixtral on a 24GB GPU.
+    stage_on_cpu = cpu_offload_for_analysis or load_to_cpu
+    if stage_on_cpu:
+        # Analysis callers verify router/alias invariants while the complete
+        # checkpoint is materialized on CPU, then apply their selected static
+        # heterogeneous placement or the legacy full CPU-offload mode.
         model.to(device=torch.device("cpu"), dtype=torch.bfloat16)
     else:
         model.to(device=torch.device("cuda:0"), dtype=torch.bfloat16)
     group_counts = validate_shared_expert_topology(model, group_state)
     for name, group_count in group_counts.items():
         print(f"[HC-SMoE] {name}: unique expert count={group_count}, group count={group_count}, shared_identity=True")
-    expected_device = "cpu" if cpu_offload_for_analysis else "cuda"
+    expected_device = "cpu" if stage_on_cpu else "cuda"
     invalid = [name for name, parameter in model.named_parameters() if parameter.is_meta or parameter.device.type != expected_device]
     if invalid:
         raise AssertionError(f"Evaluation model has parameters outside {expected_device}: {invalid[:5]}")
     unique_parameter_count = sum(parameter.numel() for parameter in model.parameters())
     vram_gib = torch.cuda.memory_allocated("cuda:0") / (1024 ** 3)
-    placement = "cpu-for-analysis-offload" if cpu_offload_for_analysis else "cuda:0"
+    placement = "cpu-staging" if stage_on_cpu else "cuda:0"
     print(f"[HC-SMoE] Evaluation placement: placement={placement}, unique_parameters={unique_parameter_count:,}, vram_allocated_gib={vram_gib:.2f}, meta_parameters=0")
     return model, group_state

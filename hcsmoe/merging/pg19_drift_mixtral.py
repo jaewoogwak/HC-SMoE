@@ -8,6 +8,7 @@ from __future__ import annotations
 import math
 import random
 import statistics
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Optional, Sequence
@@ -252,6 +253,11 @@ def _as_legacy_cache(past_key_values: Any) -> Any:
     return converter() if callable(converter) else past_key_values
 
 
+def _synchronize_cuda() -> None:
+    if torch.cuda.is_available():
+        torch.cuda.synchronize()
+
+
 @torch.inference_mode()
 def _decode_from_prefill(
     model: torch.nn.Module,
@@ -316,6 +322,8 @@ def collect_document_routing_traces(
     attention_mask = torch.ones_like(prefix)
     capture = _ContiguousRoutingCapture(len(model.model.layers), prefill_tokens, top_k, num_experts)
     handles = capture.register(model)
+    _synchronize_cuda()
+    prefill_started = time.perf_counter()
     try:
         output = model(
             input_ids=prefix,
@@ -326,12 +334,16 @@ def collect_document_routing_traces(
     finally:
         for handle in handles:
             handle.remove()
+    _synchronize_cuda()
+    prefill_seconds = time.perf_counter() - prefill_started
     prefill = capture.finalize(prefix)
     base_cache = _as_legacy_cache(output.past_key_values)
     # Clone the final row before releasing the full [1, prefill, vocab] logits.
     # Keeping a view would unnecessarily pin the much larger prefill allocation.
     base_logits = output.logits[:, -1].detach().clone()
     del output
+    _synchronize_cuda()
+    forced_started = time.perf_counter()
     forced = _decode_from_prefill(
         model,
         prefill_tokens,
@@ -343,6 +355,9 @@ def collect_document_routing_traces(
         continuation,
         f"{description} forced",
     )
+    _synchronize_cuda()
+    forced_seconds = time.perf_counter() - forced_started
+    free_started = time.perf_counter()
     free = _decode_from_prefill(
         model,
         prefill_tokens,
@@ -354,8 +369,19 @@ def collect_document_routing_traces(
         None,
         f"{description} free",
     )
+    _synchronize_cuda()
+    free_seconds = time.perf_counter() - free_started
     if not torch.equal(forced.token_ids, continuation):
         raise AssertionError("forced decode did not process the exact PG19 continuation")
+    print(f"[Timing] {description} prefill: {prefill_seconds:.2f} sec")
+    print(
+        f"[Timing] {description} forced: {forced_seconds:.2f} sec "
+        f"({forced_seconds / decode_steps:.4f} sec/token)"
+    )
+    print(
+        f"[Timing] {description} free: {free_seconds:.2f} sec "
+        f"({free_seconds / decode_steps:.4f} sec/token)"
+    )
     return DocumentRoutingTraces(prefill=prefill, forced=forced, free=free)
 
 

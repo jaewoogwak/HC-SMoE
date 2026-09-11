@@ -2,18 +2,23 @@ from types import SimpleNamespace
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
 import torch
 import torch.nn as nn
+from accelerate.utils import compute_module_sizes
+from transformers import MixtralConfig, MixtralForCausalLM
 
 from hcsmoe.merging.sequential_drift_mixtral import (
     RoutingDriftTrace,
+    assert_router_weights_unchanged,
     autoregressive_routing_trace,
     collect_fixed_routing_trace,
     compare_decode_traces,
     compare_fixed_routing_traces,
     free_generation_summary,
     make_global_sample_plan,
+    router_weight_snapshot,
 )
 from hcsmoe.merging.pg19_drift_mixtral import (
     aggregate_forced_metrics,
@@ -25,6 +30,16 @@ from hcsmoe.merging.pg19_drift_mixtral import (
     select_pg19_documents_from_rows,
     stack_document_metrics,
     summarize_free_document,
+)
+from hcsmoe.merging.device_placement import (
+    GIB,
+    PlacementSettings,
+    place_model_for_analysis,
+    resolve_placement_settings,
+)
+from hcsmoe.models.mixtral.utils import (
+    bind_shared_experts_from_group_state,
+    validate_shared_expert_topology,
 )
 
 
@@ -275,6 +290,97 @@ def test_pg19_required_plots_are_created():
         assert all(Path(path).is_file() for path in paths)
 
 
+def test_auto_placement_budget_detects_a100_40gb_and_80gb():
+    with patch("torch.cuda.is_available", return_value=True):
+        with patch(
+            "torch.cuda.get_device_properties",
+            return_value=SimpleNamespace(name="NVIDIA A100-SXM4-80GB", total_memory=80 * GIB),
+        ):
+            eighty = resolve_placement_settings("auto", None, "1500GiB")
+        with patch(
+            "torch.cuda.get_device_properties",
+            return_value=SimpleNamespace(name="NVIDIA A100-SXM4-40GB", total_memory=40 * GIB),
+        ):
+            forty = resolve_placement_settings("auto", None, "1500GiB")
+    assert eighty.gpu_budget_bytes == 70 * GIB
+    assert eighty.gpu_reserve_bytes == 10 * GIB
+    assert forty.gpu_budget_bytes == 32 * GIB
+    assert forty.gpu_reserve_bytes == 8 * GIB
+
+
+@unittest.skipUnless(torch.cuda.is_available(), "placement equivalence needs CUDA")
+def test_auto_and_cpu_offload_placement_preserve_tiny_outputs_and_aliases():
+    torch.manual_seed(31)
+    auto_model = TinyCausalLM()
+    cpu_offload_model = TinyCausalLM()
+    cpu_offload_model.load_state_dict(auto_model.state_dict())
+    shared = nn.Linear(4, 4, bias=False)
+    auto_model.model.layers[0].aliases = nn.ModuleList([shared, shared])
+    shared_copy = nn.Linear(4, 4, bias=False)
+    shared_copy.load_state_dict(shared.state_dict())
+    cpu_offload_model.model.layers[0].aliases = nn.ModuleList([shared_copy, shared_copy])
+    auto_settings = resolve_placement_settings("auto", "1GiB", "16GiB")
+    offload_settings = PlacementSettings(
+        mode="cpu-offload",
+        gpu_name=auto_settings.gpu_name,
+        gpu_total_bytes=auto_settings.gpu_total_bytes,
+        gpu_budget_bytes=None,
+        gpu_reserve_bytes=None,
+        cpu_budget_bytes=auto_settings.cpu_budget_bytes,
+    )
+    auto_model = place_model_for_analysis(auto_model, auto_settings)
+    cpu_offload_model = place_model_for_analysis(cpu_offload_model, offload_settings)
+    input_ids = torch.tensor([[1, 2, 3]], device="cuda:0")
+    with torch.inference_mode():
+        auto_output = auto_model.model(input_ids)
+        offload_output = cpu_offload_model.model(input_ids)
+    torch.testing.assert_close(auto_output, offload_output, rtol=1e-5, atol=1e-6)
+    assert auto_model.model.layers[0].aliases[0] is auto_model.model.layers[0].aliases[1]
+    assert cpu_offload_model.model.layers[0].aliases[0] is cpu_offload_model.model.layers[0].aliases[1]
+
+
+@unittest.skipUnless(torch.cuda.is_available(), "hybrid Mixtral placement needs CUDA")
+def test_actual_mixtral_hybrid_map_keeps_whole_layers_and_shared_experts():
+    config = MixtralConfig(
+        vocab_size=64,
+        hidden_size=16,
+        intermediate_size=32,
+        num_hidden_layers=4,
+        num_attention_heads=4,
+        num_key_value_heads=2,
+        num_local_experts=4,
+        num_experts_per_tok=2,
+        max_position_embeddings=128,
+    )
+    model = MixtralForCausalLM(config).to(dtype=torch.bfloat16)
+    group_state = {
+        f"model.layers.{layer}.block_sparse_moe": torch.tensor([0, 0, 1, 1])
+        for layer in range(config.num_hidden_layers)
+    }
+    bind_shared_experts_from_group_state(model, group_state)
+    router_snapshot = router_weight_snapshot(model)
+    total_bytes = int(compute_module_sizes(model, dtype=torch.bfloat16)[""])
+    settings = PlacementSettings(
+        mode="auto",
+        gpu_name=torch.cuda.get_device_name(0),
+        gpu_total_bytes=torch.cuda.get_device_properties(0).total_memory,
+        gpu_budget_bytes=int(total_bytes * 0.72),
+        gpu_reserve_bytes=None,
+        cpu_budget_bytes=16 * GIB,
+    )
+    model = place_model_for_analysis(model, settings)
+    assert_router_weights_unchanged(router_snapshot, model)
+    targets = {"cuda" if isinstance(target, int) or str(target).startswith("cuda") else str(target) for target in model.hf_device_map.values()}
+    assert "cuda" in targets and "cpu" in targets
+    assert validate_shared_expert_topology(model, group_state) == {
+        key: 2 for key in group_state
+    }
+    with torch.inference_mode():
+        output = model(torch.tensor([[1, 2, 3]], device="cuda:0"), use_cache=True)
+    assert output.logits.shape == (1, 3, config.vocab_size)
+    assert output.logits.device.type == "cuda"
+
+
 class RoutingDriftUnitTests(unittest.TestCase):
     """Expose the dependency-free checks to the standard-library test runner."""
 
@@ -306,6 +412,15 @@ class RoutingDriftUnitTests(unittest.TestCase):
         test_pg19_free_summary_uses_only_shared_token_prefix
     )
     test_pg19_required_plots_are_created = staticmethod(test_pg19_required_plots_are_created)
+    test_auto_placement_budget_detects_a100_40gb_and_80gb = staticmethod(
+        test_auto_placement_budget_detects_a100_40gb_and_80gb
+    )
+    test_auto_and_cpu_offload_placement_preserve_tiny_outputs_and_aliases = staticmethod(
+        test_auto_and_cpu_offload_placement_preserve_tiny_outputs_and_aliases
+    )
+    test_actual_mixtral_hybrid_map_keeps_whole_layers_and_shared_experts = staticmethod(
+        test_actual_mixtral_hybrid_map_keeps_whole_layers_and_shared_experts
+    )
 
 
 if __name__ == "__main__":

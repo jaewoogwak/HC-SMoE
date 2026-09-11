@@ -492,14 +492,27 @@ def freeze_for_analysis(model: torch.nn.Module) -> torch.nn.Module:
 
 def router_weight_snapshot(model: torch.nn.Module) -> list[torch.Tensor]:
     """Small CPU copy used to prove the merged checkpoint kept every router."""
-    return [layer.block_sparse_moe.gate.weight.detach().cpu().clone() for layer in model.model.layers]
+    snapshots = []
+    for layer_index, layer in enumerate(model.model.layers):
+        gate = layer.block_sparse_moe.gate
+        weight = gate.weight
+        if weight.is_meta:
+            hook = getattr(gate, "_hf_hook", None)
+            weights_map = getattr(hook, "weights_map", None)
+            if weights_map is None:
+                raise RuntimeError(
+                    f"layer {layer_index}: offloaded router weight has no Accelerate weights_map"
+                )
+            weight = weights_map["weight"]
+        snapshots.append(weight.detach().cpu().clone())
+    return snapshots
 
 
 def assert_router_weights_unchanged(reference: list[torch.Tensor], model: torch.nn.Module) -> None:
     if len(reference) != len(model.model.layers):
         raise AssertionError("original and merged models have different layer counts")
-    for layer_index, (expected, layer) in enumerate(zip(reference, model.model.layers)):
-        actual = layer.block_sparse_moe.gate.weight.detach().cpu()
+    actual_weights = router_weight_snapshot(model)
+    for layer_index, (expected, actual) in enumerate(zip(reference, actual_weights)):
         if not torch.equal(expected, actual):
             raise AssertionError(f"layer {layer_index}: merged checkpoint changed the original router weights")
 

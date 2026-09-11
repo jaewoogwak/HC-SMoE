@@ -11,7 +11,6 @@ from pathlib import Path
 from typing import Any, Optional
 
 import torch
-from accelerate import cpu_offload
 from tqdm import tqdm
 from transformers import AutoTokenizer, MixtralForCausalLM
 
@@ -19,6 +18,15 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
 from hcsmoe.merging.mixtral_checkpoint import load_compressed_model_for_evaluation
+from hcsmoe.merging.device_placement import (
+    PLACEMENT_CHOICES,
+    PlacementSettings,
+    place_model_for_analysis,
+    pretrained_cpu_load_kwargs,
+    print_model_placement,
+    print_placement_environment,
+    resolve_placement_settings,
+)
 from hcsmoe.merging.pg19_drift_mixtral import (
     DocumentRoutingTraces,
     aggregate_forced_metrics,
@@ -53,28 +61,33 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--num-documents", type=int, default=8)
     parser.add_argument("--prefill-tokens", type=int, default=2048)
     parser.add_argument("--decode-steps", type=int, default=512)
+    parser.add_argument("--placement", choices=PLACEMENT_CHOICES, default="auto")
+    parser.add_argument(
+        "--gpu-memory",
+        default=None,
+        help="Optional auto-placement CUDA budget, e.g. 70GiB; default is detected GPU memory minus a safety reserve",
+    )
+    parser.add_argument("--cpu-memory", default="1500GiB", help="CPU budget used by auto placement")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--output-dir", default="results/routing_drift/mixtral_hcsmoe_8to4_pg19")
     return parser.parse_args()
 
 
-def _freeze_and_cpu_offload(model: torch.nn.Module) -> torch.nn.Module:
-    freeze_for_analysis(model)
-    cpu_offload(model, execution_device=torch.device("cuda:0"))
-    return model
-
-
-def load_original_for_analysis(model_name: str) -> tuple[MixtralForCausalLM, list[torch.Tensor]]:
+def load_original_for_analysis(
+    model_name: str,
+    placement: PlacementSettings,
+) -> tuple[MixtralForCausalLM, list[torch.Tensor]]:
     if not torch.cuda.is_available():
         raise RuntimeError("Mixtral routing-drift analysis requires CUDA")
     model = MixtralForCausalLM.from_pretrained(
         model_name,
-        torch_dtype=torch.bfloat16,
-        device_map={"": "cpu"},
+        **pretrained_cpu_load_kwargs(),
     )
     routers = router_weight_snapshot(model)
-    print("[PG19 routing drift] Original model: CPU offload with cuda:0 execution")
-    return _freeze_and_cpu_offload(model), routers
+    model = place_model_for_analysis(model, placement)
+    assert_router_weights_unchanged(routers, model)
+    print_model_placement(model, "original")
+    return freeze_for_analysis(model), routers
 
 
 def load_merged_for_analysis(
@@ -82,6 +95,7 @@ def load_merged_for_analysis(
     model_path: str,
     group_state_path: str,
     original_routers: list[torch.Tensor],
+    placement: PlacementSettings,
 ) -> MixtralForCausalLM:
     model, _ = load_compressed_model_for_evaluation(
         model_name,
@@ -89,11 +103,14 @@ def load_merged_for_analysis(
         group_state_path,
         False,
         None,
-        cpu_offload_for_analysis=True,
+        load_to_cpu=True,
     )
     assert_router_weights_unchanged(original_routers, model)
     print("[PG19 routing drift] Vanilla HC-SMoE router weights are bitwise identical")
-    return _freeze_and_cpu_offload(model)
+    model = place_model_for_analysis(model, placement)
+    assert_router_weights_unchanged(original_routers, model)
+    print_model_placement(model, "vanilla HC-SMoE")
+    return freeze_for_analysis(model)
 
 
 def _clear_cuda() -> None:
@@ -115,6 +132,8 @@ def main() -> None:
 
     os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
     torch.manual_seed(args.seed)
+    placement = resolve_placement_settings(args.placement, args.gpu_memory, args.cpu_memory)
+    print_placement_environment(placement)
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     tokenizer = AutoTokenizer.from_pretrained(args.model_name)
@@ -155,7 +174,7 @@ def main() -> None:
         },
     )
 
-    original_model, original_routers = load_original_for_analysis(args.model_name)
+    original_model, original_routers = load_original_for_analysis(args.model_name, placement)
     original_traces: list[Optional[DocumentRoutingTraces]] = []
     for index, document in enumerate(tqdm(documents, desc="[PG19 routing drift] original documents")):
         original_traces.append(
@@ -175,6 +194,7 @@ def main() -> None:
         args.model_path,
         args.group_state_path,
         original_routers,
+        placement,
     )
     prefill_document_rows: list[list[dict[str, Any]]] = []
     prefill_raw_documents: list[dict[str, torch.Tensor]] = []
