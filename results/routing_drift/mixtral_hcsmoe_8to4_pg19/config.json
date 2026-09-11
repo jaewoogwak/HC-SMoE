@@ -1,0 +1,16 @@
+{
+  "model_name": "mistralai/Mixtral-8x7B-v0.1",
+  "model_path": "/home/jaewoo/HC-SMoE/results/mixtral_8to4/model.pth",
+  "group_state_path": "/home/jaewoo/HC-SMoE/results/mixtral_8to4/group_state_dict.pt",
+  "dataset_name": "emozilla/pg19-test",
+  "dataset_split": "test",
+  "num_documents": 8,
+  "prefill_tokens": 2048,
+  "decode_steps": 512,
+  "seed": 42,
+  "comparison": "Original Mixtral vs vanilla HC-SMoE 8-to-4",
+  "router_comparison": "unchanged original expert IDs; no projection to merged groups",
+  "prefill": "all positions in one contiguous segment per PG19 document",
+  "forced_decode": "ground-truth PG19 continuation with separate model-owned KV caches",
+  "free_decode": "independent greedy decoding; post-token-divergence routes are flagged"
+}

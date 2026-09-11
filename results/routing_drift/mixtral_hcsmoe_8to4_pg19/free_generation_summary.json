@@ -1,0 +1,111 @@
+{
+  "num_documents": 8,
+  "fraction_routing_divergence_precedes_token_divergence": 0.75,
+  "first_routing_divergence_step": {
+    "observed_documents": 6,
+    "mean": 0.0,
+    "median": 0.0
+  },
+  "first_decode_routing_divergence_step": {
+    "observed_documents": 8,
+    "mean": 0.0,
+    "median": 0.0
+  },
+  "first_token_divergence_step": {
+    "observed_documents": 8,
+    "mean": 3.625,
+    "median": 2.0
+  },
+  "documents_with_prefill_routing_divergence": 8,
+  "documents_with_last_prefill_position_routing_divergence": 8,
+  "documents": [
+    {
+      "prefill_has_routing_divergence": true,
+      "last_prefill_position_has_routing_divergence": true,
+      "first_decode_routing_divergence_step": 0,
+      "first_routing_divergence_step": 0,
+      "first_token_divergence_step": 14,
+      "routing_divergence_precedes_token_divergence": true,
+      "clean_prefix_decode_steps": 14,
+      "document_id": "http://www.gutenberg.org/ebooks/37443",
+      "source_index": 42
+    },
+    {
+      "prefill_has_routing_divergence": true,
+      "last_prefill_position_has_routing_divergence": true,
+      "first_decode_routing_divergence_step": 0,
+      "first_routing_divergence_step": 0,
+      "first_token_divergence_step": 1,
+      "routing_divergence_precedes_token_divergence": true,
+      "clean_prefix_decode_steps": 1,
+      "document_id": "http://www.gutenberg.org/ebooks/37403",
+      "source_index": 41
+    },
+    {
+      "prefill_has_routing_divergence": true,
+      "last_prefill_position_has_routing_divergence": true,
+      "first_decode_routing_divergence_step": 0,
+      "first_routing_divergence_step": 0,
+      "first_token_divergence_step": 8,
+      "routing_divergence_precedes_token_divergence": true,
+      "clean_prefix_decode_steps": 8,
+      "document_id": "http://www.gutenberg.org/ebooks/6941",
+      "source_index": 91
+    },
+    {
+      "prefill_has_routing_divergence": true,
+      "last_prefill_position_has_routing_divergence": true,
+      "first_decode_routing_divergence_step": 0,
+      "first_routing_divergence_step": null,
+      "first_token_divergence_step": 0,
+      "routing_divergence_precedes_token_divergence": false,
+      "clean_prefix_decode_steps": 0,
+      "document_id": "http://www.gutenberg.org/ebooks/25646",
+      "source_index": 9
+    },
+    {
+      "prefill_has_routing_divergence": true,
+      "last_prefill_position_has_routing_divergence": true,
+      "first_decode_routing_divergence_step": 0,
+      "first_routing_divergence_step": 0,
+      "first_token_divergence_step": 2,
+      "routing_divergence_precedes_token_divergence": true,
+      "clean_prefix_decode_steps": 2,
+      "document_id": "http://www.gutenberg.org/ebooks/47068",
+      "source_index": 65
+    },
+    {
+      "prefill_has_routing_divergence": true,
+      "last_prefill_position_has_routing_divergence": true,
+      "first_decode_routing_divergence_step": 0,
+      "first_routing_divergence_step": 0,
+      "first_token_divergence_step": 2,
+      "routing_divergence_precedes_token_divergence": true,
+      "clean_prefix_decode_steps": 2,
+      "document_id": "http://www.gutenberg.org/ebooks/40579",
+      "source_index": 50
+    },
+    {
+      "prefill_has_routing_divergence": true,
+      "last_prefill_position_has_routing_divergence": true,
+      "first_decode_routing_divergence_step": 0,
+      "first_routing_divergence_step": null,
+      "first_token_divergence_step": 0,
+      "routing_divergence_precedes_token_divergence": false,
+      "clean_prefix_decode_steps": 0,
+      "document_id": "http://www.gutenberg.org/ebooks/10321",
+      "source_index": 1
+    },
+    {
+      "prefill_has_routing_divergence": true,
+      "last_prefill_position_has_routing_divergence": true,
+      "first_decode_routing_divergence_step": 0,
+      "first_routing_divergence_step": 0,
+      "first_token_divergence_step": 2,
+      "routing_divergence_precedes_token_divergence": true,
+      "clean_prefix_decode_steps": 2,
+      "document_id": "http://www.gutenberg.org/ebooks/49078",
+      "source_index": 70
+    }
+  ]
+}
