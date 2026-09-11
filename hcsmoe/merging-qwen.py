@@ -109,25 +109,28 @@ def get_grouper(args, config):
             )
 
 def evaluation(args, model, tokenizer):
-    result_dir = args.result_path.split("/")[:-1]
-    result_dir = "/".join(result_dir)
-    if not os.path.exists(result_dir):
-        os.makedirs(result_dir)
+    if not args.result_path:
+        return
+    result_dir = os.path.dirname(args.result_path)
+    if result_dir:
+        os.makedirs(result_dir, exist_ok=True)
 
     # if eval_ppl:
     #     evaluate_minipile_perplexity(
     #         model, tokenizer=tokenizer, batch_size=eval_batch_size, log=True
     #     )
 
-    if isinstance(args.task, str):
+    tasks = args.task.split(",") if isinstance(args.task, str) else list(args.task)
+    for task in tasks:
         evaluate_fewshot(
-            model, tokenizer=tokenizer, task=args.task, num_fewshot=args.num_fewshot, output_path=args.result_path, log=True
+            model,
+            tokenizer=tokenizer,
+            task=task.strip(),
+            num_fewshot=args.num_fewshot,
+            eval_batch_size=args.eval_batch_size,
+            output_path=args.result_path,
+            log=True,
         )
-    else:
-        for i, t in enumerate(args.tasks):
-            evaluate_fewshot(
-                model, tokenizer=tokenizer, task=t, num_fewshot=args.num_fewshot, eval_batch_size=args.eval_batch_size, output_path=args.result_path, log=True
-            )
 
 def print_usage_frequency(usage_dict):
     for k in usage_dict:
@@ -162,7 +165,7 @@ def run_hcsmoe(
         ingredient: Optional[str] = "act", # act, weight, act+weight
         overlap_metric: Optional[str] = "cosine", # kl-divergence, wasserstein, cosine
         dynamic_group: Optional[bool] = False,
-        gpu_memory: Optional[str] = "18GiB",
+        gpu_memory: Optional[str] = "60GiB",
         cpu_memory: Optional[str] = "900GiB",
 ):
     print(f"Merge model {model_name} with {num_average_groups} group, {dominant} dominant + {similarity_base} grouping + {merge} merge - {mode}, ingredient: {ingredient}, evaluate on {task}")
@@ -198,17 +201,17 @@ def run_hcsmoe(
     )
     torch.manual_seed(0)
 
-    tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen1.5-MoE-A2.7B-Chat")
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
     tokenizer.pad_token_id = tokenizer.eos_token_id
     model = Qwen2MoeForCausalLM.from_pretrained(
-        "Qwen/Qwen1.5-MoE-A2.7B-Chat",
+        model_name,
         torch_dtype=torch.bfloat16,
         device_map="auto",
         max_memory={0: gpu_memory, "cpu": cpu_memory},
         offload_buffers=True,
     )
     if model_path:
-        model.load_state_dict(torch.load(model_name))
+        model.load_state_dict(torch.load(model_path, map_location="cpu"))
     model.eval()
     dataloader_for_merging = get_dataloader(args, tokenizer)
     grouper = get_grouper(args, model.config)

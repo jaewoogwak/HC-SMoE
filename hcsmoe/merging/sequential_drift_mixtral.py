@@ -465,3 +465,457 @@ def save_sequential_drift_plots(result: dict[str, Any], output_path: str | Path)
         plot("exact_match_rate", "router", "Top-2 exact match rate vs Original", "sequential_router_match.png"),
         plot("top2_overlap", "router", "Mean top-2 overlap vs Original", "sequential_router_overlap.png"),
     ]
+
+
+# ---------------------------------------------------------------------------
+# Vanilla HC-SMoE routing-drift analysis
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class RoutingDriftTrace:
+    """Compact CPU trace for sampled tokens or incremental decode steps."""
+
+    hidden: torch.Tensor  # [layers, tokens, hidden]
+    top2: torch.Tensor  # [layers, tokens, 2]
+    margin: torch.Tensor  # [layers, tokens]
+    input_id_batches: list[torch.Tensor] = field(default_factory=list)
+    token_ids: Optional[torch.Tensor] = None
+
+
+def freeze_for_analysis(model: torch.nn.Module) -> torch.nn.Module:
+    model.eval()
+    for parameter in model.parameters():
+        parameter.requires_grad_(False)
+    return model
+
+
+def router_weight_snapshot(model: torch.nn.Module) -> list[torch.Tensor]:
+    """Small CPU copy used to prove the merged checkpoint kept every router."""
+    return [layer.block_sparse_moe.gate.weight.detach().cpu().clone() for layer in model.model.layers]
+
+
+def assert_router_weights_unchanged(reference: list[torch.Tensor], model: torch.nn.Module) -> None:
+    if len(reference) != len(model.model.layers):
+        raise AssertionError("original and merged models have different layer counts")
+    for layer_index, (expected, layer) in enumerate(zip(reference, model.model.layers)):
+        actual = layer.block_sparse_moe.gate.weight.detach().cpu()
+        if not torch.equal(expected, actual):
+            raise AssertionError(f"layer {layer_index}: merged checkpoint changed the original router weights")
+
+
+class _FixedRoutingCapture:
+    def __init__(self, plan: GlobalSamplePlan, num_layers: int) -> None:
+        self.plan = plan
+        self.num_layers = num_layers
+        self.hidden: list[Optional[torch.Tensor]] = [None] * num_layers
+        self.top2: list[Optional[torch.Tensor]] = [None] * num_layers
+        self.margin: list[Optional[torch.Tensor]] = [None] * num_layers
+        self.hidden_seen = [torch.zeros(plan.token_count, dtype=torch.bool) for _ in range(num_layers)]
+        self.router_seen = [torch.zeros(plan.token_count, dtype=torch.bool) for _ in range(num_layers)]
+        self.slots = torch.empty(0, dtype=torch.long)
+        self.rows = torch.empty(0, dtype=torch.long)
+        self.batch_tokens: Optional[int] = None
+
+    def begin_batch(self, offset: int, batch_tokens: int) -> None:
+        self.batch_tokens = batch_tokens
+        self.slots, self.rows = self.plan.selection(offset, batch_tokens)
+
+    def end_batch(self) -> None:
+        self.batch_tokens = None
+
+    def _sample(self, value: torch.Tensor, label: str) -> torch.Tensor:
+        if self.batch_tokens is None:
+            raise RuntimeError(f"{label}: hook ran outside an active batch")
+        flattened = value.detach().reshape(-1, value.shape[-1])
+        if len(flattened) != self.batch_tokens:
+            raise AssertionError(f"{label}: expected {self.batch_tokens} tokens, got {len(flattened)}")
+        return flattened.index_select(0, self.rows.to(flattened.device)).cpu()
+
+    @staticmethod
+    def _allocate(current: Optional[torch.Tensor], plan: GlobalSamplePlan, values: torch.Tensor) -> torch.Tensor:
+        if current is None:
+            return torch.empty((plan.token_count, *values.shape[1:]), dtype=values.dtype)
+        return current
+
+    def moe_input_hook(self, layer_index: int):
+        def hook(_module: torch.nn.Module, inputs: tuple[torch.Tensor, ...]) -> None:
+            values = self._sample(inputs[0], f"layer {layer_index} MoE input")
+            self.hidden[layer_index] = self._allocate(self.hidden[layer_index], self.plan, values)
+            self.hidden[layer_index][self.slots] = values
+            self.hidden_seen[layer_index][self.slots] = True
+        return hook
+
+    def router_hook(self, layer_index: int):
+        def hook(_module: torch.nn.Module, _inputs: tuple[torch.Tensor, ...], output: Any) -> None:
+            if not isinstance(output, (tuple, list)) or len(output) < 2:
+                raise RuntimeError(f"layer {layer_index}: expected MoE hidden output and router logits")
+            logits = self._sample(output[1], f"layer {layer_index} router logits").float()
+            top3 = torch.topk(logits, 3, dim=-1)
+            ids = top3.indices[:, :TOP_K]
+            margins = top3.values[:, 1] - top3.values[:, 2]
+            self.top2[layer_index] = self._allocate(self.top2[layer_index], self.plan, ids)
+            self.margin[layer_index] = self._allocate(self.margin[layer_index], self.plan, margins)
+            self.top2[layer_index][self.slots] = ids
+            self.margin[layer_index][self.slots] = margins
+            self.router_seen[layer_index][self.slots] = True
+        return hook
+
+    def register(self, model: torch.nn.Module) -> list[Any]:
+        handles = []
+        for layer_index, layer in enumerate(model.model.layers):
+            moe = layer.block_sparse_moe
+            handles.append(moe.register_forward_pre_hook(self.moe_input_hook(layer_index)))
+            handles.append(moe.register_forward_hook(self.router_hook(layer_index)))
+        return handles
+
+    def finalize(self, input_id_batches: list[torch.Tensor]) -> RoutingDriftTrace:
+        for layer_index in range(self.num_layers):
+            if not self.hidden_seen[layer_index].all() or not self.router_seen[layer_index].all():
+                raise AssertionError(f"layer {layer_index}: fixed-input trace is incomplete")
+        return RoutingDriftTrace(
+            hidden=torch.stack([value for value in self.hidden if value is not None]),
+            top2=torch.stack([value for value in self.top2 if value is not None]),
+            margin=torch.stack([value for value in self.margin if value is not None]),
+            input_id_batches=input_id_batches,
+        )
+
+
+@torch.inference_mode()
+def collect_fixed_routing_trace(
+    model: torch.nn.Module,
+    dataloader: Iterable[dict[str, torch.Tensor]],
+    sample_plan: GlobalSamplePlan,
+    expected_input_batches: Optional[list[torch.Tensor]] = None,
+    description: str = "[Routing drift] fixed input",
+) -> RoutingDriftTrace:
+    """Run a real sequential model forward and retain only sampled token rows."""
+    freeze_for_analysis(model)
+    capture = _FixedRoutingCapture(sample_plan, len(model.model.layers))
+    handles = capture.register(model)
+    input_batches: list[torch.Tensor] = []
+    offset = 0
+    batch_count = 0
+    try:
+        for batch_index, batch in enumerate(tqdm(dataloader, desc=description)):
+            input_ids = batch["input_ids"].detach().cpu()
+            if expected_input_batches is None:
+                input_batches.append(input_ids.clone())
+            elif batch_index >= len(expected_input_batches) or not torch.equal(input_ids, expected_input_batches[batch_index]):
+                raise AssertionError("original and merged models must receive identical fixed input_ids")
+            batch_tokens = input_ids.numel()
+            capture.begin_batch(offset, batch_tokens)
+            inputs = {key: value.to(_forward_input_device(model)) for key, value in batch.items() if key != "labels"}
+            model.model(**inputs, use_cache=False, return_dict=True)
+            capture.end_batch()
+            offset += batch_tokens
+            batch_count += 1
+    finally:
+        for handle in handles:
+            handle.remove()
+    if expected_input_batches is not None and len(expected_input_batches) != batch_count:
+        raise AssertionError("fixed-input dataloader yielded a different batch count")
+    if offset != sample_plan.total_tokens:
+        raise AssertionError(f"fixed-input stream changed: expected {sample_plan.total_tokens} tokens, saw {offset}")
+    return capture.finalize(input_batches if expected_input_batches is None else expected_input_batches)
+
+
+def _route_comparison(original_top2: torch.Tensor, merged_top2: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    if original_top2.shape != merged_top2.shape or original_top2.shape[-1] != TOP_K:
+        raise AssertionError("routing traces must have matching [..., 2] shapes")
+    original_set = original_top2.sort(dim=-1).values
+    merged_set = merged_top2.sort(dim=-1).values
+    exact = (original_set == merged_set).all(dim=-1)
+    preserved = (merged_top2.unsqueeze(-1) == original_top2.unsqueeze(-2)).any(dim=-1).sum(dim=-1)
+    return exact, preserved.float() / TOP_K
+
+
+def _optional_mean(values: torch.Tensor, mask: torch.Tensor) -> Optional[float]:
+    return float(values[mask].mean()) if mask.any() else None
+
+
+def compare_fixed_routing_traces(
+    original: RoutingDriftTrace,
+    merged: RoutingDriftTrace,
+    sample_positions: torch.Tensor,
+) -> tuple[list[dict[str, Any]], dict[str, torch.Tensor]]:
+    """Compute tokenwise and aggregate fixed-input metrics without group projection."""
+    if len(original.input_id_batches) != len(merged.input_id_batches) or any(
+        not torch.equal(left, right) for left, right in zip(original.input_id_batches, merged.input_id_batches)
+    ):
+        raise AssertionError("original and merged fixed input IDs differ")
+    flattened_input_ids = torch.cat([batch.reshape(-1) for batch in original.input_id_batches])
+    if sample_positions.numel() and int(sample_positions.max()) >= flattened_input_ids.numel():
+        raise AssertionError("sample position falls outside the fixed input stream")
+    exact, overlap = _route_comparison(original.top2, merged.top2)
+    reference = original.hidden.float()
+    candidate = merged.hidden.float()
+    hidden_relative_l2 = torch.linalg.vector_norm(candidate - reference, dim=-1) / torch.linalg.vector_norm(
+        reference, dim=-1
+    ).clamp_min(EPSILON)
+    layers: list[dict[str, Any]] = []
+    for layer_index in range(original.top2.shape[0]):
+        shifted = ~exact[layer_index]
+        both_same = overlap[layer_index] == 1.0
+        one_changed = overlap[layer_index] == 0.5
+        both_changed = overlap[layer_index] == 0.0
+        count = exact.shape[1]
+        layers.append({
+            "layer": layer_index,
+            "tokens": count,
+            "exact_top2_match_rate": float(exact[layer_index].float().mean()),
+            "routing_shift_rate": float(shifted.float().mean()),
+            "mean_top2_overlap": float(overlap[layer_index].mean()),
+            "both_same_fraction": float(both_same.float().mean()),
+            "one_changed_fraction": float(one_changed.float().mean()),
+            "both_changed_fraction": float(both_changed.float().mean()),
+            "mean_hidden_relative_l2": float(hidden_relative_l2[layer_index].mean()),
+            "median_hidden_relative_l2": float(hidden_relative_l2[layer_index].median()),
+            "original_margin_shifted": _optional_mean(original.margin[layer_index], shifted),
+            "original_margin_non_shifted": _optional_mean(original.margin[layer_index], ~shifted),
+            "merged_margin_shifted": _optional_mean(merged.margin[layer_index], shifted),
+            "merged_margin_non_shifted": _optional_mean(merged.margin[layer_index], ~shifted),
+        })
+    if not exact[0].all():
+        mismatches = int((~exact[0]).sum())
+        raise AssertionError(f"first MoE layer routing differs for {mismatches} sampled tokens; router/input invariant failed")
+    token_metrics = {
+        "sample_positions": sample_positions.cpu(),
+        "sampled_input_token_ids": flattened_input_ids.index_select(0, sample_positions.cpu()),
+        "original_top2": original.top2.cpu(),
+        "merged_top2": merged.top2.cpu(),
+        "original_margin": original.margin.cpu(),
+        "merged_margin": merged.margin.cpu(),
+        "exact_top2_match": exact.cpu(),
+        "top2_overlap": overlap.cpu(),
+        "hidden_relative_l2": hidden_relative_l2.cpu(),
+    }
+    return layers, token_metrics
+
+
+class _DecodeRoutingCapture:
+    def __init__(self, num_layers: int) -> None:
+        self.num_layers = num_layers
+        self.hidden: list[list[torch.Tensor]] = [[] for _ in range(num_layers)]
+        self.top2: list[list[torch.Tensor]] = [[] for _ in range(num_layers)]
+        self.margin: list[list[torch.Tensor]] = [[] for _ in range(num_layers)]
+
+    def moe_input_hook(self, layer_index: int):
+        def hook(_module: torch.nn.Module, inputs: tuple[torch.Tensor, ...]) -> None:
+            rows = inputs[0].detach().reshape(-1, inputs[0].shape[-1])
+            if len(rows) != 1:
+                raise AssertionError("decode trace must capture only the newly decoded token")
+            self.hidden[layer_index].append(rows[0].cpu())
+        return hook
+
+    def router_hook(self, layer_index: int):
+        def hook(_module: torch.nn.Module, _inputs: tuple[torch.Tensor, ...], output: Any) -> None:
+            if not isinstance(output, (tuple, list)) or len(output) < 2:
+                raise RuntimeError(f"layer {layer_index}: expected MoE hidden output and router logits")
+            logits = output[1].detach().reshape(-1, output[1].shape[-1]).float()
+            if len(logits) != 1:
+                raise AssertionError("decode router trace must contain one new token")
+            top3 = torch.topk(logits[0], 3)
+            self.top2[layer_index].append(top3.indices[:TOP_K].cpu())
+            self.margin[layer_index].append((top3.values[1] - top3.values[2]).cpu())
+        return hook
+
+    def register(self, model: torch.nn.Module) -> list[Any]:
+        handles = []
+        for layer_index, layer in enumerate(model.model.layers):
+            moe = layer.block_sparse_moe
+            handles.append(moe.register_forward_pre_hook(self.moe_input_hook(layer_index)))
+            handles.append(moe.register_forward_hook(self.router_hook(layer_index)))
+        return handles
+
+    def finalize(self, token_ids: list[int], decode_steps: int) -> RoutingDriftTrace:
+        for layer_index in range(self.num_layers):
+            if len(self.hidden[layer_index]) != decode_steps or len(self.top2[layer_index]) != decode_steps:
+                raise AssertionError(f"layer {layer_index}: incomplete incremental decode trace")
+        return RoutingDriftTrace(
+            hidden=torch.stack([torch.stack(values) for values in self.hidden]),
+            top2=torch.stack([torch.stack(values) for values in self.top2]),
+            margin=torch.stack([torch.stack(values) for values in self.margin]),
+            token_ids=torch.tensor(token_ids, dtype=torch.long),
+        )
+
+
+@torch.inference_mode()
+def autoregressive_routing_trace(
+    model: torch.nn.Module,
+    prompt_ids: torch.Tensor,
+    decode_steps: int,
+    forced_tokens: Optional[torch.Tensor] = None,
+    description: str = "decode",
+) -> RoutingDriftTrace:
+    """Greedy or forced incremental decode with a model-owned KV cache."""
+    if prompt_ids.ndim != 2 or prompt_ids.shape[0] != 1 or prompt_ids.shape[1] == 0:
+        raise ValueError("prompt_ids must have shape [1, prompt_length]")
+    if decode_steps <= 0:
+        raise ValueError("decode_steps must be positive")
+    if forced_tokens is not None and forced_tokens.numel() != decode_steps:
+        raise ValueError("forced token count must equal decode_steps")
+    freeze_for_analysis(model)
+    device = _forward_input_device(model)
+    prompt = prompt_ids.to(device)
+    attention_mask = torch.ones_like(prompt)
+    output = model(input_ids=prompt, attention_mask=attention_mask, use_cache=True, return_dict=True)
+    past_key_values = output.past_key_values
+    next_logits = output.logits[:, -1]
+    capture = _DecodeRoutingCapture(len(model.model.layers))
+    handles = capture.register(model)
+    generated: list[int] = []
+    try:
+        for step in tqdm(range(decode_steps), desc=f"[Routing drift] {description}"):
+            if forced_tokens is None:
+                token = next_logits.argmax(dim=-1).reshape(1, 1)
+            else:
+                token = forced_tokens[step].reshape(1, 1).to(device)
+            generated.append(int(token.item()))
+            attention_mask = torch.cat((attention_mask, torch.ones((1, 1), dtype=attention_mask.dtype, device=device)), dim=1)
+            output = model(
+                input_ids=token,
+                attention_mask=attention_mask,
+                past_key_values=past_key_values,
+                use_cache=True,
+                return_dict=True,
+            )
+            past_key_values = output.past_key_values
+            next_logits = output.logits[:, -1]
+    finally:
+        for handle in handles:
+            handle.remove()
+    return capture.finalize(generated, decode_steps)
+
+
+def compare_decode_traces(original: RoutingDriftTrace, merged: RoutingDriftTrace, require_identical_tokens: bool) -> dict[str, torch.Tensor]:
+    if original.token_ids is None or merged.token_ids is None:
+        raise AssertionError("decode traces must include generated token IDs")
+    token_equal = original.token_ids == merged.token_ids
+    if require_identical_tokens and not token_equal.all():
+        raise AssertionError("forced decode must use identical continuation token IDs")
+    exact, overlap = _route_comparison(original.top2, merged.top2)
+    hidden_relative_l2 = torch.linalg.vector_norm(merged.hidden.float() - original.hidden.float(), dim=-1) / torch.linalg.vector_norm(
+        original.hidden.float(), dim=-1
+    ).clamp_min(EPSILON)
+    return {
+        "original_token_ids": original.token_ids.cpu(),
+        "merged_token_ids": merged.token_ids.cpu(),
+        "token_equal": token_equal.cpu(),
+        "original_top2": original.top2.cpu(),
+        "merged_top2": merged.top2.cpu(),
+        "routing_shift": (~exact).cpu(),
+        "top2_overlap": overlap.cpu(),
+        "hidden_relative_l2": hidden_relative_l2.cpu(),
+        "original_margin": original.margin.cpu(),
+        "merged_margin": merged.margin.cpu(),
+    }
+
+
+def free_generation_summary(metrics: dict[str, torch.Tensor]) -> dict[str, Any]:
+    token_equal = metrics["token_equal"]
+    token_mismatch = torch.nonzero(~token_equal, as_tuple=False).flatten()
+    first_token = int(token_mismatch[0]) if token_mismatch.numel() else None
+    steps = token_equal.numel()
+    post_token_divergence = torch.zeros(steps, dtype=torch.bool)
+    if first_token is not None:
+        post_token_divergence[first_token:] = True
+    any_routing_shift = metrics["routing_shift"].any(dim=0)
+    clean_routing_shift = any_routing_shift & ~post_token_divergence
+    clean_indices = torch.nonzero(clean_routing_shift, as_tuple=False).flatten()
+    first_routing = int(clean_indices[0]) if clean_indices.numel() else None
+    metrics["post_token_divergence"] = post_token_divergence
+    return {
+        "first_routing_divergence_step": first_routing,
+        "first_token_divergence_step": first_token,
+        "routing_divergence_precedes_token_divergence": (
+            first_routing is not None and (first_token is None or first_routing < first_token)
+        ),
+        "clean_prefix_decode_steps": first_token if first_token is not None else steps,
+    }
+
+
+def forced_decode_summary(metrics: dict[str, torch.Tensor]) -> dict[str, Any]:
+    shift = metrics["routing_shift"].float()
+    overlap = metrics["top2_overlap"].float()
+    hidden = metrics["hidden_relative_l2"].float()
+    return {
+        "mean_routing_shift_rate": float(shift.mean()),
+        "mean_top2_overlap": float(overlap.mean()),
+        "mean_hidden_relative_l2": float(hidden.mean()),
+        "routing_shift_rate_by_step": shift.mean(dim=0).tolist(),
+        "routing_shift_rate_by_layer": shift.mean(dim=1).tolist(),
+    }
+
+
+def save_routing_drift_plots(
+    layer_metrics: list[dict[str, Any]],
+    token_metrics: dict[str, torch.Tensor],
+    forced_metrics: dict[str, torch.Tensor],
+    output_dir: str | Path,
+) -> list[Path]:
+    import matplotlib
+
+    matplotlib.use("Agg")
+    from matplotlib import pyplot as plt
+
+    output = Path(output_dir)
+    output.mkdir(parents=True, exist_ok=True)
+    layers = [row["layer"] for row in layer_metrics]
+    paths: list[Path] = []
+
+    def line_plot(values: list[float], ylabel: str, filename: str) -> None:
+        figure, axis = plt.subplots(figsize=(8, 4.5))
+        axis.plot(layers, values, marker="o")
+        axis.set_xlabel("Mixtral layer")
+        axis.set_ylabel(ylabel)
+        axis.set_xticks(layers)
+        figure.tight_layout()
+        path = output / filename
+        figure.savefig(path, dpi=160)
+        plt.close(figure)
+        paths.append(path)
+
+    line_plot([row["routing_shift_rate"] for row in layer_metrics], "Routing shift rate", "routing_shift_by_layer.png")
+    line_plot([row["mean_hidden_relative_l2"] for row in layer_metrics], "Mean hidden relative L2", "hidden_drift_by_layer.png")
+
+    figure, axis = plt.subplots(figsize=(8, 4.5))
+    axis.plot(layers, [math.nan if row["original_margin_shifted"] is None else row["original_margin_shifted"] for row in layer_metrics], label="Original, shifted")
+    axis.plot(layers, [math.nan if row["original_margin_non_shifted"] is None else row["original_margin_non_shifted"] for row in layer_metrics], label="Original, non-shifted")
+    axis.plot(layers, [math.nan if row["merged_margin_shifted"] is None else row["merged_margin_shifted"] for row in layer_metrics], label="Merged, shifted", linestyle="--")
+    axis.plot(layers, [math.nan if row["merged_margin_non_shifted"] is None else row["merged_margin_non_shifted"] for row in layer_metrics], label="Merged, non-shifted", linestyle="--")
+    axis.set_xlabel("Mixtral layer")
+    axis.set_ylabel("Top-2 / top-3 router margin")
+    axis.legend()
+    figure.tight_layout()
+    path = output / "margin_shift_analysis.png"
+    figure.savefig(path, dpi=160)
+    plt.close(figure)
+    paths.append(path)
+
+    def heatmap(values: torch.Tensor, label: str, filename: str, vmin: float, vmax: float) -> None:
+        figure, axis = plt.subplots(figsize=(10, 6))
+        image = axis.imshow(values.float().numpy(), aspect="auto", interpolation="nearest", vmin=vmin, vmax=vmax)
+        axis.set_xlabel("Decode step")
+        axis.set_ylabel("Mixtral layer")
+        figure.colorbar(image, ax=axis, label=label)
+        figure.tight_layout()
+        path = output / filename
+        figure.savefig(path, dpi=160)
+        plt.close(figure)
+        paths.append(path)
+
+    heatmap(forced_metrics["routing_shift"], "Routing shift", "forced_routing_shift_heatmap.png", 0.0, 1.0)
+    heatmap(forced_metrics["top2_overlap"], "Top-2 overlap", "forced_top2_overlap_heatmap.png", 0.0, 1.0)
+    decode_steps = list(range(forced_metrics["routing_shift"].shape[1]))
+    figure, axis = plt.subplots(figsize=(8, 4.5))
+    axis.plot(decode_steps, forced_metrics["routing_shift"].float().mean(dim=0).tolist(), marker="o")
+    axis.set_xlabel("Decode step")
+    axis.set_ylabel("Mean routing shift rate across layers")
+    figure.tight_layout()
+    path = output / "forced_shift_vs_decode_step.png"
+    figure.savefig(path, dpi=160)
+    plt.close(figure)
+    paths.append(path)
+    line_plot(forced_metrics["routing_shift"].float().mean(dim=1).tolist(), "Mean routing shift rate across decode steps", "forced_shift_vs_layer.png")
+    return paths

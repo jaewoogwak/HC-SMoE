@@ -23,6 +23,7 @@ def load_compressed_model_for_evaluation(
     residual_path: str | None,
     lora_eval_only: bool = False,
     lora_path: str | None = None,
+    cpu_offload_for_analysis: bool = False,
 ):
     """Restore aliases, static weights, and optionally residual weights."""
     if residual_eval_only and lora_eval_only:
@@ -59,14 +60,22 @@ def load_compressed_model_for_evaluation(
         payload = torch.load(lora_path, map_location="cpu")
         lora_rank, lora_alpha = load_lora_state_dict(model, payload, group_state)
         print(f"[LoRA] Reloaded rank={lora_rank} alpha={lora_alpha:g} from {lora_path}")
-    model.to(device=torch.device("cuda:0"), dtype=torch.bfloat16)
+    if cpu_offload_for_analysis:
+        # Analysis callers install Accelerate CPU-offload hooks after checking
+        # the unchanged router weights.  Keeping the restored model on CPU here
+        # avoids ever materializing the whole compressed Mixtral on a 24GB GPU.
+        model.to(device=torch.device("cpu"), dtype=torch.bfloat16)
+    else:
+        model.to(device=torch.device("cuda:0"), dtype=torch.bfloat16)
     group_counts = validate_shared_expert_topology(model, group_state)
     for name, group_count in group_counts.items():
         print(f"[HC-SMoE] {name}: unique expert count={group_count}, group count={group_count}, shared_identity=True")
-    invalid = [name for name, parameter in model.named_parameters() if parameter.is_meta or parameter.device.type != "cuda"]
+    expected_device = "cpu" if cpu_offload_for_analysis else "cuda"
+    invalid = [name for name, parameter in model.named_parameters() if parameter.is_meta or parameter.device.type != expected_device]
     if invalid:
-        raise AssertionError(f"Evaluation model has CPU/meta parameters: {invalid[:5]}")
+        raise AssertionError(f"Evaluation model has parameters outside {expected_device}: {invalid[:5]}")
     unique_parameter_count = sum(parameter.numel() for parameter in model.parameters())
     vram_gib = torch.cuda.memory_allocated("cuda:0") / (1024 ** 3)
-    print(f"[HC-SMoE] Evaluation placement: unique_parameters={unique_parameter_count:,}, vram_allocated_gib={vram_gib:.2f}, cpu_meta_parameters=0")
+    placement = "cpu-for-analysis-offload" if cpu_offload_for_analysis else "cuda:0"
+    print(f"[HC-SMoE] Evaluation placement: placement={placement}, unique_parameters={unique_parameter_count:,}, vram_allocated_gib={vram_gib:.2f}, meta_parameters=0")
     return model, group_state

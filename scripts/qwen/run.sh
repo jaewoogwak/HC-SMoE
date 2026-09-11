@@ -1,6 +1,4 @@
 export NCCL_P2P_DISABLE=0
-export CUDA_LAUNCH_BLOCKING=1
-export TORCH_USE_CUDA_DSA=1
 export TOKENIZERS_PARALLELISM="false"
 # Keep a caller-provided cache location; the old placeholder literally created
 # a directory named "your-huggingface-home-path" under the repository.
@@ -15,11 +13,12 @@ accelerate launch --config_file static/finetune_config.yaml \
   --cluster="hierarchical" \
   --linkage="average" \
   --merge="freq" \
-  --num_average_groups=45 \
+  --num_average_groups=30 \
   --n_sentences=32 \
   --train_batch_size=2 \
   --eval_batch_size=16 \
-  --gpu_memory="14GiB" \
-  --cpu_memory="900GiB" \
-  --result_path="results/results_qwen_test.txt" \
-  --output_path="results/qwen/merge-45e/test" |& tee results/log_45e_test
+  --gpu_memory="${GPU_MEMORY:-60GiB}" \
+  --cpu_memory="${CPU_MEMORY:-900GiB}" \
+  --result_path="results/qwen_60to30/hcsmoe/lm_eval.txt" \
+  --output_path="results/qwen_60to30/hcsmoe" \
+  "$@"
