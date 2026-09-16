@@ -43,6 +43,14 @@ class LayerBatchContext:
     next_teacher_topk: Optional[torch.Tensor]
 
 
+@dataclass
+class GroupBatchOutput:
+    """Unweighted merged-expert outputs and a token-row lookup for one batch."""
+
+    row_lookup: torch.Tensor
+    values: torch.Tensor
+
+
 def _module_device(module: torch.nn.Module) -> torch.device:
     hook = getattr(module, "_hf_hook", None)
     execution_device = getattr(hook, "execution_device", None)
@@ -236,7 +244,7 @@ class MixtralPartitionEvaluator:
         self.eps = eps
         self.num_experts = int(model.config.num_local_experts)
         self.contexts: list[LayerBatchContext] = []
-        self._contribution_cache: dict[tuple[int, ...], list[torch.Tensor]] = {}
+        self._group_output_cache: dict[tuple[int, ...], list[GroupBatchOutput]] = {}
         usage = torch.zeros(self.num_experts, dtype=torch.float32)
         with torch.inference_mode():
             for batch in batches:
@@ -266,41 +274,77 @@ class MixtralPartitionEvaluator:
                 ))
         self.usage = usage
 
-    def _group_contributions(self, group: tuple[int, ...]) -> list[torch.Tensor]:
+    def _group_outputs(self, group: tuple[int, ...]) -> list[GroupBatchOutput]:
+        """Evaluate a merged FFN once on the union of token rows touched by its group."""
         group = tuple(sorted(group))
-        if group in self._contribution_cache:
-            return self._contribution_cache[group]
+        if group in self._group_output_cache:
+            return self._group_output_cache[group]
         device = _module_device(self.layer.block_sparse_moe)
         weights = _weighted_group_weights(
             self.layer.block_sparse_moe.experts, group, self.usage, device, self.eps
         )
-        contributions: list[torch.Tensor] = []
+        outputs: list[GroupBatchOutput] = []
         with torch.inference_mode():
             for context in self.contexts:
                 selected = context.selected_experts
-                route_weights = context.routing_weights
                 membership = torch.zeros(self.num_experts, dtype=torch.bool)
                 membership[list(group)] = True
-                selected_members = membership[selected]
-                token_weights = (route_weights * selected_members.to(route_weights.dtype)).sum(dim=-1)
-                active = torch.nonzero(token_weights != 0, as_tuple=False).flatten()
-                output = torch.zeros_like(context.moe_input.reshape(-1, context.moe_input.shape[-1]))
+                active = torch.nonzero(membership[selected].any(dim=-1), as_tuple=False).flatten()
+                flat_input = context.moe_input.reshape(-1, context.moe_input.shape[-1])
+                row_lookup = torch.full((flat_input.shape[0],), -1, dtype=torch.long)
                 if active.numel():
-                    hidden = context.moe_input.reshape(-1, context.moe_input.shape[-1]).index_select(0, active).to(device)
-                    value = _expert_forward(hidden, weights)
-                    value = value * token_weights.index_select(0, active).to(device)[:, None]
-                    output.index_copy_(0, active, value.detach().cpu().to(output.dtype))
-                contributions.append(output.reshape_as(context.moe_input))
-        self._contribution_cache[group] = contributions
-        return contributions
+                    hidden = flat_input.index_select(0, active).to(device)
+                    values = _expert_forward(hidden, weights).detach().cpu().to(flat_input.dtype)
+                    row_lookup[active] = torch.arange(active.numel(), dtype=torch.long)
+                else:
+                    values = torch.empty(
+                        (0, flat_input.shape[-1]), dtype=flat_input.dtype, device="cpu"
+                    )
+                outputs.append(GroupBatchOutput(row_lookup=row_lookup, values=values))
+        self._group_output_cache[group] = outputs
+        return outputs
 
     def candidate_hidden(self, partition: Partition) -> list[torch.Tensor]:
+        """Mirror HF Mixtral's expert-ID-order weighting and index_add accumulation."""
         partition = canonical_partition(partition)
-        per_group = [self._group_contributions(group) for group in partition]
-        return [
-            context.attention_residual + sum((values[index] for values in per_group), torch.zeros_like(context.attention_residual))
-            for index, context in enumerate(self.contexts)
-        ]
+        group_outputs = {group: self._group_outputs(group) for group in partition}
+        expert_to_group = {
+            expert_index: group for group in partition for expert_index in group
+        }
+        device = _module_device(self.layer.block_sparse_moe)
+        candidates: list[torch.Tensor] = []
+        for batch_index, context in enumerate(self.contexts):
+            selected = context.selected_experts
+            routing_weights = context.routing_weights
+            flat_input = context.moe_input.reshape(-1, context.moe_input.shape[-1])
+            final_hidden = torch.zeros(
+                flat_input.shape, dtype=flat_input.dtype, device=device
+            )
+            expert_mask = F.one_hot(selected, num_classes=self.num_experts).permute(2, 1, 0)
+            for expert_index in range(self.num_experts):
+                topk_slot, token_rows = torch.where(expert_mask[expert_index])
+                if token_rows.numel() == 0:
+                    continue
+                cached = group_outputs[expert_to_group[expert_index]][batch_index]
+                cached_rows = cached.row_lookup.index_select(0, token_rows)
+                if torch.any(cached_rows < 0):
+                    raise AssertionError(
+                        f"group output cache is missing rows for expert {expert_index}"
+                    )
+                current_hidden = cached.values.index_select(0, cached_rows).to(device)
+                current_hidden = current_hidden * routing_weights[
+                    token_rows, topk_slot, None
+                ].to(device)
+                final_hidden.index_add_(
+                    0,
+                    token_rows.to(device),
+                    current_hidden.to(flat_input.dtype),
+                )
+            candidate = context.attention_residual.to(device) + final_hidden.reshape(
+                context.moe_input.shape
+            )
+            candidates.append(candidate.detach().cpu())
+        return candidates
 
     def evaluate(self, partition: Partition) -> dict[str, Any]:
         started = time.perf_counter()
@@ -331,16 +375,62 @@ def commit_partition(
     usage: torch.Tensor,
     eps: float = EPSILON,
 ) -> None:
-    """Apply HC-SMoE aliasing, rebuilding each group directly from originals."""
+    """Apply HC-SMoE aliasing from weights computed before any in-place mutation."""
     experts = layer.block_sparse_moe.experts
     device = _module_device(layer.block_sparse_moe)
-    for group in canonical_partition(partition):
-        weights = _weighted_group_weights(experts, group, usage, device, eps)
+    partition = canonical_partition(partition)
+    # Every merged tensor is materialized while all source experts are pristine.
+    # Consequently later groups can never observe an earlier representative copy_.
+    merged_weights = [
+        (group, _weighted_group_weights(experts, group, usage, device, eps))
+        for group in partition
+    ]
+    for group, weights in merged_weights:
         representative = experts[group[0]]
         for name, weight in zip(("w1", "w2", "w3"), weights):
             getattr(representative, name).weight.copy_(weight)
         for expert_index in group[1:]:
             experts[expert_index] = representative
+
+
+def _same_group_top2_count(context: LayerBatchContext, partition: Partition) -> int:
+    labels = torch.tensor(
+        labels_from_partition(partition, int(context.router_logits.shape[-1])),
+        dtype=torch.long,
+    )
+    grouped = labels[context.selected_experts]
+    return int((grouped[:, 0] == grouped[:, 1]).sum().item())
+
+
+def _assert_post_commit_consistency(
+    expected: torch.Tensor,
+    actual: torch.Tensor,
+    *,
+    layer_index: int,
+    batch_index: int,
+    partition: Partition,
+    same_group_top2_tokens: int,
+    rtol: float = 2e-2,
+    atol: float = 2e-2,
+) -> None:
+    try:
+        torch.testing.assert_close(expected, actual, rtol=rtol, atol=atol)
+    except AssertionError as error:
+        expected_float = expected.float()
+        actual_float = actual.float()
+        absolute = (expected_float - actual_float).abs()
+        threshold = atol + rtol * actual_float.abs()
+        mismatched = absolute > threshold
+        relative = absolute / actual_float.abs().clamp_min(EPSILON)
+        raise AssertionError(
+            "post-commit fast-path consistency failure: "
+            f"layer={layer_index}, batch={batch_index}, "
+            f"mismatched_elements={int(mismatched.sum().item())}/{expected.numel()}, "
+            f"max_absolute_difference={float(absolute.max().item()):.10g}, "
+            f"max_relative_difference={float(relative.max().item()):.10g}, "
+            f"dtype={expected.dtype}, partition={[list(group) for group in partition]}, "
+            f"same_group_top2_tokens={same_group_top2_tokens}, rtol={rtol}, atol={atol}"
+        ) from error
 
 
 @torch.inference_mode()
@@ -446,8 +536,19 @@ def run_sequential_drift_aware_merging(
             manual_committed = evaluator.candidate_hidden(final_partition)
             commit_partition(model.model.layers[layer_index], final_partition, evaluator.usage, eps)
             actual_committed = forward_decoder_layer(model, layer_index, layer_inputs)
-            for expected, actual in zip(manual_committed, actual_committed):
-                torch.testing.assert_close(expected, actual.hidden_states, rtol=2e-2, atol=2e-2)
+            for batch_index, (expected, actual, context) in enumerate(
+                zip(manual_committed, actual_committed, evaluator.contexts)
+            ):
+                _assert_post_commit_consistency(
+                    expected,
+                    actual.hidden_states,
+                    layer_index=layer_index,
+                    batch_index=batch_index,
+                    partition=final_partition,
+                    same_group_top2_tokens=_same_group_top2_count(
+                        context, final_partition
+                    ),
+                )
             usage_frequencies = evaluator.usage.tolist()
             del evaluator
         if sequential:
