@@ -17,7 +17,7 @@ accelerate launch --config_file static/finetune_config.yaml \
   --n_sentences=32 \
   --train_batch_size=2 \
   --eval_batch_size=16 \
-  --gpu_memory="${GPU_MEMORY:-60GiB}" \
+  --gpu_memory="${GPU_MEMORY:-86GiB}" \
   --cpu_memory="${CPU_MEMORY:-900GiB}" \
   --result_path="results/qwen_60to30/hcsmoe/lm_eval.txt" \
   --output_path="results/qwen_60to30/hcsmoe" \

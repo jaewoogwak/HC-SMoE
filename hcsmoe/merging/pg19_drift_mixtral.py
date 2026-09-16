@@ -707,6 +707,164 @@ def aggregate_forced_metrics(raw: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _linear_progress_slope(values: torch.Tensor) -> float:
+    """Least-squares slope against normalized decode progress, with no causal claim."""
+    values = values.float()
+    if values.numel() < 2:
+        return 0.0
+    progress = torch.linspace(0.0, 1.0, values.numel(), dtype=values.dtype, device=values.device)
+    centered_progress = progress - progress.mean()
+    return float((centered_progress * (values - values.mean())).sum() / centered_progress.square().sum())
+
+
+def aggregate_free_routing_metrics(raw: dict[str, Any], bin_size: int = 64) -> dict[str, Any]:
+    """Summarize the complete free-generation routing trajectory.
+
+    Deliberately includes positions after generated token IDs diverge: these are
+    end-to-end autoregressive trajectory differences, not clean-prefix-only drift.
+    """
+    if bin_size <= 0:
+        raise ValueError("bin_size must be positive")
+    shift = raw["routing_shift"].float()
+    overlap = raw["topk_overlap"].float()
+    if shift.ndim != 3 or overlap.shape != shift.shape:
+        raise AssertionError("free routing tensors must be matching [documents, layers, decode_steps] tensors")
+    documents, layers, steps = shift.shape
+    if not documents or not layers or not steps:
+        raise AssertionError("free routing tensors must have non-empty document, layer, and step dimensions")
+
+    shift_by_step_doc = shift.mean(dim=1)
+    overlap_by_step_doc = overlap.mean(dim=1)
+
+    def across_documents(values: torch.Tensor) -> tuple[list[float], list[float]]:
+        return values.mean(dim=0).tolist(), _std(values, 0).tolist()
+
+    shift_step_mean, shift_step_std = across_documents(shift_by_step_doc)
+    overlap_step_mean, overlap_step_std = across_documents(overlap_by_step_doc)
+    bins: list[dict[str, int]] = []
+    shift_binned_mean: list[float] = []
+    shift_binned_std: list[float] = []
+    overlap_binned_mean: list[float] = []
+    overlap_binned_std: list[float] = []
+    for start in range(0, steps, bin_size):
+        end_exclusive = min(start + bin_size, steps)
+        bins.append({"start": start, "end": end_exclusive - 1})
+        shift_bin = shift_by_step_doc[:, start:end_exclusive].mean(dim=1)
+        overlap_bin = overlap_by_step_doc[:, start:end_exclusive].mean(dim=1)
+        shift_binned_mean.append(float(shift_bin.mean()))
+        shift_binned_std.append(float(_std(shift_bin, 0)))
+        overlap_binned_mean.append(float(overlap_bin.mean()))
+        overlap_binned_std.append(float(_std(overlap_bin, 0)))
+
+    quarter = max(1, steps // 4)
+    half = max(1, steps // 2)
+
+    def span_mean(values: torch.Tensor, start: int, end: int) -> float:
+        return float(values[:, start:end].mean())
+
+    first_quarter_shift = span_mean(shift_by_step_doc, 0, quarter)
+    last_quarter_shift = span_mean(shift_by_step_doc, steps - quarter, steps)
+    first_half_shift = span_mean(shift_by_step_doc, 0, half)
+    second_half_shift = span_mean(shift_by_step_doc, half, steps)
+    first_quarter_overlap = span_mean(overlap_by_step_doc, 0, quarter)
+    last_quarter_overlap = span_mean(overlap_by_step_doc, steps - quarter, steps)
+    first_half_overlap = span_mean(overlap_by_step_doc, 0, half)
+    second_half_overlap = span_mean(overlap_by_step_doc, half, steps)
+    return {
+        "num_documents": int(documents),
+        "num_layers": int(layers),
+        "decode_steps": int(steps),
+        "bin_size": bin_size,
+        "analysis_scope": "full free-generation trajectory, including post-token-divergence steps",
+        "mean_routing_shift_rate": float(shift.mean()),
+        "mean_topk_overlap": float(overlap.mean()),
+        "routing_shift_by_step_mean": shift_step_mean,
+        "routing_shift_by_step_std_across_documents": shift_step_std,
+        "topk_overlap_by_step_mean": overlap_step_mean,
+        "topk_overlap_by_step_std_across_documents": overlap_step_std,
+        "routing_shift_heatmap_mean": shift.mean(dim=0).tolist(),
+        "routing_shift_heatmap_std_across_documents": _std(shift, 0).tolist(),
+        "topk_overlap_heatmap_mean": overlap.mean(dim=0).tolist(),
+        "topk_overlap_heatmap_std_across_documents": _std(overlap, 0).tolist(),
+        "bins": bins,
+        "routing_shift_binned_mean": shift_binned_mean,
+        "routing_shift_binned_std_across_documents": shift_binned_std,
+        "topk_overlap_binned_mean": overlap_binned_mean,
+        "topk_overlap_binned_std_across_documents": overlap_binned_std,
+        "first_quarter_mean_routing_shift": first_quarter_shift,
+        "last_quarter_mean_routing_shift": last_quarter_shift,
+        "last_minus_first_quarter": last_quarter_shift - first_quarter_shift,
+        "first_half_mean_routing_shift": first_half_shift,
+        "second_half_mean_routing_shift": second_half_shift,
+        "second_minus_first_half": second_half_shift - first_half_shift,
+        "first_quarter_mean_topk_overlap": first_quarter_overlap,
+        "last_quarter_mean_topk_overlap": last_quarter_overlap,
+        "last_minus_first_quarter_topk_overlap": last_quarter_overlap - first_quarter_overlap,
+        "first_half_mean_topk_overlap": first_half_overlap,
+        "second_half_mean_topk_overlap": second_half_overlap,
+        "second_minus_first_half_topk_overlap": second_half_overlap - first_half_overlap,
+        "routing_shift_linear_slope": _linear_progress_slope(shift_by_step_doc.mean(dim=0)),
+        "topk_overlap_linear_slope": _linear_progress_slope(overlap_by_step_doc.mean(dim=0)),
+    }
+
+
+def save_free_routing_plots(
+    summary: dict[str, Any], output_dir: str | Path, model_label: str = "Mixtral"
+) -> list[Path]:
+    """Plot full free-decoding routing trajectory quantities only (no hidden/logit drift)."""
+    import matplotlib
+
+    matplotlib.use("Agg")
+    from matplotlib import pyplot as plt
+
+    output = Path(output_dir)
+    output.mkdir(parents=True, exist_ok=True)
+    steps = list(range(summary["decode_steps"]))
+    paths: list[Path] = []
+
+    def curve(mean_key: str, std_key: str, ylabel: str, filename: str) -> None:
+        mean, std = summary[mean_key], summary[std_key]
+        figure, axis = plt.subplots(figsize=(9, 4.5))
+        axis.plot(steps, mean, linewidth=1.4)
+        axis.fill_between(steps, torch.tensor(mean) - torch.tensor(std), torch.tensor(mean) + torch.tensor(std), alpha=0.2)
+        axis.set(xlabel="Free decode step", ylabel=ylabel, ylim=(0, 1), xlim=(0, max(0, len(steps) - 1)))
+        figure.tight_layout()
+        path = output / filename
+        figure.savefig(path, dpi=160)
+        plt.close(figure)
+        paths.append(path)
+
+    curve("routing_shift_by_step_mean", "routing_shift_by_step_std_across_documents", "Mean routing shift rate", "free_routing_shift_by_step.png")
+    curve("topk_overlap_by_step_mean", "topk_overlap_by_step_std_across_documents", "Mean top-K overlap", "free_topk_overlap_by_step.png")
+
+    centers = [(item["start"] + item["end"]) / 2 for item in summary["bins"]]
+    figure, axis = plt.subplots(figsize=(8, 4.5))
+    means = summary["routing_shift_binned_mean"]
+    stds = summary["routing_shift_binned_std_across_documents"]
+    axis.errorbar(centers, means, yerr=stds, marker="o", capsize=3)
+    axis.set(xlabel="Free decode progress (64-step bin center)", ylabel="Mean routing shift rate", ylim=(0, 1))
+    figure.tight_layout()
+    path = output / "free_routing_shift_binned.png"
+    figure.savefig(path, dpi=160)
+    plt.close(figure)
+    paths.append(path)
+
+    def heatmap(key: str, color_label: str, filename: str) -> None:
+        figure, axis = plt.subplots(figsize=(12, 6))
+        image = axis.imshow(summary[key], aspect="auto", interpolation="nearest", vmin=0.0, vmax=1.0)
+        axis.set(xlabel="Free decode step", ylabel=f"{model_label} layer")
+        figure.colorbar(image, ax=axis, label=color_label)
+        figure.tight_layout()
+        path = output / filename
+        figure.savefig(path, dpi=160)
+        plt.close(figure)
+        paths.append(path)
+
+    heatmap("routing_shift_heatmap_mean", "Mean routing shift rate across documents", "free_routing_shift_heatmap.png")
+    heatmap("topk_overlap_heatmap_mean", "Mean top-K overlap across documents", "free_topk_overlap_heatmap.png")
+    return paths
+
+
 def aggregate_free_summaries(document_summaries: list[dict[str, Any]]) -> dict[str, Any]:
     decode_routing_steps = [
         row["first_decode_routing_divergence_step"]
@@ -883,6 +1041,7 @@ __all__ = [
     "QWEN_ADAPTER",
     "RoutingDriftTrace",
     "aggregate_forced_metrics",
+    "aggregate_free_routing_metrics",
     "aggregate_free_summaries",
     "aggregate_prefill_metrics",
     "collect_document_routing_traces",
@@ -890,6 +1049,7 @@ __all__ = [
     "compare_prefill_document",
     "load_pg19_documents",
     "save_pg19_plots",
+    "save_free_routing_plots",
     "select_pg19_documents_from_rows",
     "stack_document_metrics",
     "summarize_free_document",

@@ -1,0 +1,3818 @@
+[
+  {
+    "layer": 0,
+    "input_token_count": 16384,
+    "final_groups": [
+      [
+        0,
+        3,
+        4,
+        5,
+        7
+      ],
+      [
+        1
+      ],
+      [
+        2
+      ],
+      [
+        6
+      ]
+    ],
+    "selected_merges": [
+      {
+        "group_a": [
+          5
+        ],
+        "group_b": [
+          7
+        ],
+        "resulting_group": [
+          5,
+          7
+        ],
+        "c_out": 0.01176107453648001,
+        "c_route": 0.0345458984375,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.0,
+        "c_total": 0.0
+      },
+      {
+        "group_a": [
+          0
+        ],
+        "group_b": [
+          5,
+          7
+        ],
+        "resulting_group": [
+          0,
+          5,
+          7
+        ],
+        "c_out": 0.024322201730683446,
+        "c_route": 0.064697265625,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.019513659561501223,
+        "c_total": 0.009756829780750612
+      },
+      {
+        "group_a": [
+          0,
+          5,
+          7
+        ],
+        "group_b": [
+          4
+        ],
+        "resulting_group": [
+          0,
+          4,
+          5,
+          7
+        ],
+        "c_out": 0.040229658130556345,
+        "c_route": 0.092132568359375,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.0,
+        "c_total": 0.0
+      },
+      {
+        "group_a": [
+          0,
+          4,
+          5,
+          7
+        ],
+        "group_b": [
+          3
+        ],
+        "resulting_group": [
+          0,
+          3,
+          4,
+          5,
+          7
+        ],
+        "c_out": 0.06020555133000016,
+        "c_route": 0.12945556640625,
+        "normalized_c_out": 0.31636436890809666,
+        "normalized_c_route": 0.023799919321992786,
+        "c_total": 0.17008214411504471
+      }
+    ],
+    "final_c_out": 0.06020555133000016,
+    "final_c_route": 0.12945556640625,
+    "lambda_route": 0.5,
+    "sequential": true,
+    "calibration_seed": 42,
+    "usage_frequencies": [
+      4283.0,
+      3891.0,
+      3974.0,
+      3857.0,
+      4284.0,
+      4525.0,
+      3533.0,
+      4421.0
+    ],
+    "elapsed_seconds": 30.810853760922328
+  },
+  {
+    "layer": 1,
+    "input_token_count": 16384,
+    "final_groups": [
+      [
+        0,
+        2,
+        5,
+        6,
+        7
+      ],
+      [
+        1
+      ],
+      [
+        3
+      ],
+      [
+        4
+      ]
+    ],
+    "selected_merges": [
+      {
+        "group_a": [
+          0
+        ],
+        "group_b": [
+          7
+        ],
+        "resulting_group": [
+          0,
+          7
+        ],
+        "c_out": 0.007288019871339202,
+        "c_route": 0.03179931640625,
+        "normalized_c_out": 0.015191602044045691,
+        "normalized_c_route": 0.0026281208935554456,
+        "c_total": 0.008909861468800568
+      },
+      {
+        "group_a": [
+          0,
+          7
+        ],
+        "group_b": [
+          6
+        ],
+        "resulting_group": [
+          0,
+          6,
+          7
+        ],
+        "c_out": 0.01407954329624772,
+        "c_route": 0.0516357421875,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.0,
+        "c_total": 0.0
+      },
+      {
+        "group_a": [
+          0,
+          6,
+          7
+        ],
+        "group_b": [
+          2
+        ],
+        "resulting_group": [
+          0,
+          2,
+          6,
+          7
+        ],
+        "c_out": 0.02267754403874278,
+        "c_route": 0.07208251953125,
+        "normalized_c_out": 0.4626052771129677,
+        "normalized_c_route": 0.0010543657331113971,
+        "c_total": 0.23182982142303957
+      },
+      {
+        "group_a": [
+          0,
+          2,
+          6,
+          7
+        ],
+        "group_b": [
+          5
+        ],
+        "resulting_group": [
+          0,
+          2,
+          5,
+          6,
+          7
+        ],
+        "c_out": 0.031749176792800426,
+        "c_route": 0.09149169921875,
+        "normalized_c_out": 0.4925074602407787,
+        "normalized_c_route": 0.0,
+        "c_total": 0.24625373012038934
+      }
+    ],
+    "final_c_out": 0.031749176792800426,
+    "final_c_route": 0.09149169921875,
+    "lambda_route": 0.5,
+    "sequential": true,
+    "calibration_seed": 42,
+    "usage_frequencies": [
+      4468.0,
+      4121.0,
+      4533.0,
+      2824.0,
+      4631.0,
+      4220.0,
+      3961.0,
+      4010.0
+    ],
+    "elapsed_seconds": 19.71619056700729
+  },
+  {
+    "layer": 2,
+    "input_token_count": 16384,
+    "final_groups": [
+      [
+        0,
+        1,
+        2,
+        5,
+        7
+      ],
+      [
+        3
+      ],
+      [
+        4
+      ],
+      [
+        6
+      ]
+    ],
+    "selected_merges": [
+      {
+        "group_a": [
+          5
+        ],
+        "group_b": [
+          7
+        ],
+        "resulting_group": [
+          5,
+          7
+        ],
+        "c_out": 0.008670871786307544,
+        "c_route": 0.031494140625,
+        "normalized_c_out": 0.11109388147210718,
+        "normalized_c_route": 0.0,
+        "c_total": 0.05554694073605359
+      },
+      {
+        "group_a": [
+          0
+        ],
+        "group_b": [
+          5,
+          7
+        ],
+        "resulting_group": [
+          0,
+          5,
+          7
+        ],
+        "c_out": 0.017291915719397366,
+        "c_route": 0.054931640625,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.0,
+        "c_total": 0.0
+      },
+      {
+        "group_a": [
+          0,
+          5,
+          7
+        ],
+        "group_b": [
+          2
+        ],
+        "resulting_group": [
+          0,
+          2,
+          5,
+          7
+        ],
+        "c_out": 0.026331754634156823,
+        "c_route": 0.07672119140625,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.0,
+        "c_total": 0.0
+      },
+      {
+        "group_a": [
+          0,
+          2,
+          5,
+          7
+        ],
+        "group_b": [
+          1
+        ],
+        "resulting_group": [
+          0,
+          1,
+          2,
+          5,
+          7
+        ],
+        "c_out": 0.03560160263441503,
+        "c_route": 0.0980224609375,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.013550135500151732,
+        "c_total": 0.006775067750075866
+      }
+    ],
+    "final_c_out": 0.03560160263441503,
+    "final_c_route": 0.0980224609375,
+    "lambda_route": 0.5,
+    "sequential": true,
+    "calibration_seed": 42,
+    "usage_frequencies": [
+      4037.0,
+      4486.0,
+      4077.0,
+      4582.0,
+      3992.0,
+      3563.0,
+      4299.0,
+      3732.0
+    ],
+    "elapsed_seconds": 15.904993624077179
+  },
+  {
+    "layer": 3,
+    "input_token_count": 16384,
+    "final_groups": [
+      [
+        0,
+        1,
+        5,
+        6,
+        7
+      ],
+      [
+        2
+      ],
+      [
+        3
+      ],
+      [
+        4
+      ]
+    ],
+    "selected_merges": [
+      {
+        "group_a": [
+          0
+        ],
+        "group_b": [
+          5
+        ],
+        "resulting_group": [
+          0,
+          5
+        ],
+        "c_out": 0.005876814189832658,
+        "c_route": 0.022247314453125,
+        "normalized_c_out": 0.04500443683157747,
+        "normalized_c_route": 0.0,
+        "c_total": 0.022502218415788734
+      },
+      {
+        "group_a": [
+          0,
+          5
+        ],
+        "group_b": [
+          1
+        ],
+        "resulting_group": [
+          0,
+          1,
+          5
+        ],
+        "c_out": 0.0111399597954005,
+        "c_route": 0.036865234375,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.0,
+        "c_total": 0.0
+      },
+      {
+        "group_a": [
+          0,
+          1,
+          5
+        ],
+        "group_b": [
+          6
+        ],
+        "resulting_group": [
+          0,
+          1,
+          5,
+          6
+        ],
+        "c_out": 0.01681411301251501,
+        "c_route": 0.05206298828125,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.0,
+        "c_total": 0.0
+      },
+      {
+        "group_a": [
+          0,
+          1,
+          5,
+          6
+        ],
+        "group_b": [
+          7
+        ],
+        "resulting_group": [
+          0,
+          1,
+          5,
+          6,
+          7
+        ],
+        "c_out": 0.023331289878115058,
+        "c_route": 0.066619873046875,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.0,
+        "c_total": 0.0
+      }
+    ],
+    "final_c_out": 0.023331289878115058,
+    "final_c_route": 0.066619873046875,
+    "lambda_route": 0.5,
+    "sequential": true,
+    "calibration_seed": 42,
+    "usage_frequencies": [
+      3550.0,
+      3937.0,
+      4279.0,
+      3900.0,
+      4659.0,
+      3912.0,
+      4089.0,
+      4442.0
+    ],
+    "elapsed_seconds": 20.125778693938628
+  },
+  {
+    "layer": 4,
+    "input_token_count": 16384,
+    "final_groups": [
+      [
+        0,
+        1,
+        2,
+        4,
+        6
+      ],
+      [
+        3
+      ],
+      [
+        5
+      ],
+      [
+        7
+      ]
+    ],
+    "selected_merges": [
+      {
+        "group_a": [
+          1
+        ],
+        "group_b": [
+          6
+        ],
+        "resulting_group": [
+          1,
+          6
+        ],
+        "c_out": 0.006577290128916502,
+        "c_route": 0.02471923828125,
+        "normalized_c_out": 0.12359678462332516,
+        "normalized_c_route": 0.0,
+        "c_total": 0.06179839231166258
+      },
+      {
+        "group_a": [
+          0
+        ],
+        "group_b": [
+          1,
+          6
+        ],
+        "resulting_group": [
+          0,
+          1,
+          6
+        ],
+        "c_out": 0.012603454641066492,
+        "c_route": 0.042999267578125,
+        "normalized_c_out": 0.029002592074207183,
+        "normalized_c_route": 0.0,
+        "c_total": 0.014501296037103591
+      },
+      {
+        "group_a": [
+          0,
+          1,
+          6
+        ],
+        "group_b": [
+          4
+        ],
+        "resulting_group": [
+          0,
+          1,
+          4,
+          6
+        ],
+        "c_out": 0.018483151448890567,
+        "c_route": 0.0623779296875,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.0,
+        "c_total": 0.0
+      },
+      {
+        "group_a": [
+          0,
+          1,
+          4,
+          6
+        ],
+        "group_b": [
+          2
+        ],
+        "resulting_group": [
+          0,
+          1,
+          2,
+          4,
+          6
+        ],
+        "c_out": 0.024855575058609247,
+        "c_route": 0.07977294921875,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.0,
+        "c_total": 0.0
+      }
+    ],
+    "final_c_out": 0.024855575058609247,
+    "final_c_route": 0.07977294921875,
+    "lambda_route": 0.5,
+    "sequential": true,
+    "calibration_seed": 42,
+    "usage_frequencies": [
+      4038.0,
+      3860.0,
+      4464.0,
+      4311.0,
+      3951.0,
+      4255.0,
+      3716.0,
+      4173.0
+    ],
+    "elapsed_seconds": 19.195825616945513
+  },
+  {
+    "layer": 5,
+    "input_token_count": 16384,
+    "final_groups": [
+      [
+        0,
+        2,
+        4,
+        5,
+        6
+      ],
+      [
+        1
+      ],
+      [
+        3
+      ],
+      [
+        7
+      ]
+    ],
+    "selected_merges": [
+      {
+        "group_a": [
+          2
+        ],
+        "group_b": [
+          5
+        ],
+        "resulting_group": [
+          2,
+          5
+        ],
+        "c_out": 0.005083378520794213,
+        "c_route": 0.02935791015625,
+        "normalized_c_out": 0.11585091892252658,
+        "normalized_c_route": 0.0,
+        "c_total": 0.05792545946126329
+      },
+      {
+        "group_a": [
+          2,
+          5
+        ],
+        "group_b": [
+          4
+        ],
+        "resulting_group": [
+          2,
+          4,
+          5
+        ],
+        "c_out": 0.009897262090817094,
+        "c_route": 0.0511474609375,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.1330166270680316,
+        "c_total": 0.0665083135340158
+      },
+      {
+        "group_a": [
+          0
+        ],
+        "group_b": [
+          2,
+          4,
+          5
+        ],
+        "resulting_group": [
+          0,
+          2,
+          4,
+          5
+        ],
+        "c_out": 0.015387265477329493,
+        "c_route": 0.069610595703125,
+        "normalized_c_out": 0.07588655944713138,
+        "normalized_c_route": 0.0,
+        "c_total": 0.03794327972356569
+      },
+      {
+        "group_a": [
+          0,
+          2,
+          4,
+          5
+        ],
+        "group_b": [
+          6
+        ],
+        "resulting_group": [
+          0,
+          2,
+          4,
+          5,
+          6
+        ],
+        "c_out": 0.021135214250534773,
+        "c_route": 0.0867919921875,
+        "normalized_c_out": 0.1121148991860844,
+        "normalized_c_route": 0.0,
+        "c_total": 0.0560574495930422
+      }
+    ],
+    "final_c_out": 0.021135214250534773,
+    "final_c_route": 0.0867919921875,
+    "lambda_route": 0.5,
+    "sequential": true,
+    "calibration_seed": 42,
+    "usage_frequencies": [
+      4000.0,
+      4541.0,
+      3468.0,
+      4111.0,
+      3987.0,
+      3689.0,
+      4184.0,
+      4788.0
+    ],
+    "elapsed_seconds": 18.08970417501405
+  },
+  {
+    "layer": 6,
+    "input_token_count": 16384,
+    "final_groups": [
+      [
+        0,
+        2,
+        5,
+        6,
+        7
+      ],
+      [
+        1
+      ],
+      [
+        3
+      ],
+      [
+        4
+      ]
+    ],
+    "selected_merges": [
+      {
+        "group_a": [
+          5
+        ],
+        "group_b": [
+          6
+        ],
+        "resulting_group": [
+          5,
+          6
+        ],
+        "c_out": 0.004055414377944544,
+        "c_route": 0.028564453125,
+        "normalized_c_out": 0.018390942884343345,
+        "normalized_c_route": 0.002325581395171617,
+        "c_total": 0.010358262139757482
+      },
+      {
+        "group_a": [
+          5,
+          6
+        ],
+        "group_b": [
+          7
+        ],
+        "resulting_group": [
+          5,
+          6,
+          7
+        ],
+        "c_out": 0.007872241083532572,
+        "c_route": 0.045928955078125,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.0,
+        "c_total": 0.0
+      },
+      {
+        "group_a": [
+          2
+        ],
+        "group_b": [
+          5,
+          6,
+          7
+        ],
+        "resulting_group": [
+          2,
+          5,
+          6,
+          7
+        ],
+        "c_out": 0.012648364179767668,
+        "c_route": 0.06378173828125,
+        "normalized_c_out": 0.08805800840393219,
+        "normalized_c_route": 0.0,
+        "c_total": 0.04402900420196609
+      },
+      {
+        "group_a": [
+          0
+        ],
+        "group_b": [
+          2,
+          5,
+          6,
+          7
+        ],
+        "resulting_group": [
+          0,
+          2,
+          5,
+          6,
+          7
+        ],
+        "c_out": 0.017220491776242852,
+        "c_route": 0.080841064453125,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.0,
+        "c_total": 0.0
+      }
+    ],
+    "final_c_out": 0.017220491776242852,
+    "final_c_route": 0.080841064453125,
+    "lambda_route": 0.5,
+    "sequential": true,
+    "calibration_seed": 42,
+    "usage_frequencies": [
+      4652.0,
+      4864.0,
+      4751.0,
+      4229.0,
+      3915.0,
+      3345.0,
+      3403.0,
+      3609.0
+    ],
+    "elapsed_seconds": 16.85956085997168
+  },
+  {
+    "layer": 7,
+    "input_token_count": 16384,
+    "final_groups": [
+      [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      [
+        1
+      ],
+      [
+        6
+      ],
+      [
+        7
+      ]
+    ],
+    "selected_merges": [
+      {
+        "group_a": [
+          2
+        ],
+        "group_b": [
+          3
+        ],
+        "resulting_group": [
+          2,
+          3
+        ],
+        "c_out": 0.0036493959778454155,
+        "c_route": 0.02783203125,
+        "normalized_c_out": 0.03015828275880072,
+        "normalized_c_route": 0.0,
+        "c_total": 0.01507914137940036
+      },
+      {
+        "group_a": [
+          2,
+          3
+        ],
+        "group_b": [
+          4
+        ],
+        "resulting_group": [
+          2,
+          3,
+          4
+        ],
+        "c_out": 0.007204242050647736,
+        "c_route": 0.04638671875,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.0,
+        "c_total": 0.0
+      },
+      {
+        "group_a": [
+          0
+        ],
+        "group_b": [
+          2,
+          3,
+          4
+        ],
+        "resulting_group": [
+          0,
+          2,
+          3,
+          4
+        ],
+        "c_out": 0.011047792620956898,
+        "c_route": 0.06524658203125,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.02919708028964299,
+        "c_total": 0.014598540144821495
+      },
+      {
+        "group_a": [
+          0,
+          2,
+          3,
+          4
+        ],
+        "group_b": [
+          5
+        ],
+        "resulting_group": [
+          0,
+          2,
+          3,
+          4,
+          5
+        ],
+        "c_out": 0.015140683623030782,
+        "c_route": 0.082275390625,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.0,
+        "c_total": 0.0
+      }
+    ],
+    "final_c_out": 0.015140683623030782,
+    "final_c_route": 0.082275390625,
+    "lambda_route": 0.5,
+    "sequential": true,
+    "calibration_seed": 42,
+    "usage_frequencies": [
+      4034.0,
+      4493.0,
+      3054.0,
+      3757.0,
+      3760.0,
+      4515.0,
+      4293.0,
+      4862.0
+    ],
+    "elapsed_seconds": 18.350791446049698
+  },
+  {
+    "layer": 8,
+    "input_token_count": 16384,
+    "final_groups": [
+      [
+        0,
+        4,
+        5,
+        6,
+        7
+      ],
+      [
+        1
+      ],
+      [
+        2
+      ],
+      [
+        3
+      ]
+    ],
+    "selected_merges": [
+      {
+        "group_a": [
+          0
+        ],
+        "group_b": [
+          7
+        ],
+        "resulting_group": [
+          0,
+          7
+        ],
+        "c_out": 0.0032404328958364204,
+        "c_route": 0.021820068359375,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.0,
+        "c_total": 0.0
+      },
+      {
+        "group_a": [
+          0,
+          7
+        ],
+        "group_b": [
+          6
+        ],
+        "resulting_group": [
+          0,
+          6,
+          7
+        ],
+        "c_out": 0.006621557986363769,
+        "c_route": 0.0389404296875,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.062015503872030774,
+        "c_total": 0.031007751936015387
+      },
+      {
+        "group_a": [
+          0,
+          6,
+          7
+        ],
+        "group_b": [
+          5
+        ],
+        "resulting_group": [
+          0,
+          5,
+          6,
+          7
+        ],
+        "c_out": 0.01027378608705476,
+        "c_route": 0.052459716796875,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.0,
+        "c_total": 0.0
+      },
+      {
+        "group_a": [
+          0,
+          5,
+          6,
+          7
+        ],
+        "group_b": [
+          4
+        ],
+        "resulting_group": [
+          0,
+          4,
+          5,
+          6,
+          7
+        ],
+        "c_out": 0.014547616941854358,
+        "c_route": 0.06939697265625,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.058047493398675196,
+        "c_total": 0.029023746699337598
+      }
+    ],
+    "final_c_out": 0.014547616941854358,
+    "final_c_route": 0.06939697265625,
+    "lambda_route": 0.5,
+    "sequential": true,
+    "calibration_seed": 42,
+    "usage_frequencies": [
+      3364.0,
+      4603.0,
+      4525.0,
+      5080.0,
+      4516.0,
+      3835.0,
+      3963.0,
+      2882.0
+    ],
+    "elapsed_seconds": 20.625800388050266
+  },
+  {
+    "layer": 9,
+    "input_token_count": 16384,
+    "final_groups": [
+      [
+        0
+      ],
+      [
+        1
+      ],
+      [
+        2
+      ],
+      [
+        3,
+        4,
+        5,
+        6,
+        7
+      ]
+    ],
+    "selected_merges": [
+      {
+        "group_a": [
+          4
+        ],
+        "group_b": [
+          5
+        ],
+        "resulting_group": [
+          4,
+          5
+        ],
+        "c_out": 0.0028281791019253433,
+        "c_route": 0.01611328125,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.0031347962379225046,
+        "c_total": 0.0015673981189612523
+      },
+      {
+        "group_a": [
+          4,
+          5
+        ],
+        "group_b": [
+          6
+        ],
+        "resulting_group": [
+          4,
+          5,
+          6
+        ],
+        "c_out": 0.006017872248776257,
+        "c_route": 0.026885986328125,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.0,
+        "c_total": 0.0
+      },
+      {
+        "group_a": [
+          4,
+          5,
+          6
+        ],
+        "group_b": [
+          7
+        ],
+        "resulting_group": [
+          4,
+          5,
+          6,
+          7
+        ],
+        "c_out": 0.009669034567195922,
+        "c_route": 0.03778076171875,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.03686635944143762,
+        "c_total": 0.01843317972071881
+      },
+      {
+        "group_a": [
+          3
+        ],
+        "group_b": [
+          4,
+          5,
+          6,
+          7
+        ],
+        "resulting_group": [
+          3,
+          4,
+          5,
+          6,
+          7
+        ],
+        "c_out": 0.013930782093666494,
+        "c_route": 0.046600341796875,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.0,
+        "c_total": 0.0
+      }
+    ],
+    "final_c_out": 0.013930782093666494,
+    "final_c_route": 0.046600341796875,
+    "lambda_route": 0.5,
+    "sequential": true,
+    "calibration_seed": 42,
+    "usage_frequencies": [
+      4624.0,
+      4455.0,
+      4589.0,
+      4470.0,
+      2434.0,
+      3960.0,
+      3883.0,
+      4353.0
+    ],
+    "elapsed_seconds": 18.76900481095072
+  },
+  {
+    "layer": 10,
+    "input_token_count": 16384,
+    "final_groups": [
+      [
+        0
+      ],
+      [
+        1,
+        3
+      ],
+      [
+        2,
+        4,
+        6,
+        7
+      ],
+      [
+        5
+      ]
+    ],
+    "selected_merges": [
+      {
+        "group_a": [
+          6
+        ],
+        "group_b": [
+          7
+        ],
+        "resulting_group": [
+          6,
+          7
+        ],
+        "c_out": 0.003291346729383804,
+        "c_route": 0.015533447265625,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.0,
+        "c_total": 0.0
+      },
+      {
+        "group_a": [
+          4
+        ],
+        "group_b": [
+          6,
+          7
+        ],
+        "resulting_group": [
+          4,
+          6,
+          7
+        ],
+        "c_out": 0.006881842331495136,
+        "c_route": 0.026947021484375,
+        "normalized_c_out": 0.023042865974707734,
+        "normalized_c_route": 0.051597051592897465,
+        "c_total": 0.0373199587838026
+      },
+      {
+        "group_a": [
+          2
+        ],
+        "group_b": [
+          4,
+          6,
+          7
+        ],
+        "resulting_group": [
+          2,
+          4,
+          6,
+          7
+        ],
+        "c_out": 0.011002018465660512,
+        "c_route": 0.038543701171875,
+        "normalized_c_out": 0.1412605416391436,
+        "normalized_c_route": 0.0,
+        "c_total": 0.0706302708195718
+      },
+      {
+        "group_a": [
+          1
+        ],
+        "group_b": [
+          3
+        ],
+        "resulting_group": [
+          1,
+          3
+        ],
+        "c_out": 0.014755341573618352,
+        "c_route": 0.05035400390625,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.13898305083201967,
+        "c_total": 0.06949152541600984
+      }
+    ],
+    "final_c_out": 0.014755341573618352,
+    "final_c_route": 0.05035400390625,
+    "lambda_route": 0.5,
+    "sequential": true,
+    "calibration_seed": 42,
+    "usage_frequencies": [
+      3690.0,
+      3939.0,
+      3988.0,
+      4501.0,
+      4537.0,
+      4877.0,
+      3086.0,
+      4150.0
+    ],
+    "elapsed_seconds": 16.390037723002024
+  },
+  {
+    "layer": 11,
+    "input_token_count": 16384,
+    "final_groups": [
+      [
+        0,
+        3,
+        5,
+        6,
+        7
+      ],
+      [
+        1
+      ],
+      [
+        2
+      ],
+      [
+        4
+      ]
+    ],
+    "selected_merges": [
+      {
+        "group_a": [
+          3
+        ],
+        "group_b": [
+          7
+        ],
+        "resulting_group": [
+          3,
+          7
+        ],
+        "c_out": 0.001723044719255995,
+        "c_route": 0.011993408203125,
+        "normalized_c_out": 0.0062864879731581195,
+        "normalized_c_route": 0.0,
+        "c_total": 0.0031432439865790598
+      },
+      {
+        "group_a": [
+          3,
+          7
+        ],
+        "group_b": [
+          5
+        ],
+        "resulting_group": [
+          3,
+          5,
+          7
+        ],
+        "c_out": 0.005357160000130534,
+        "c_route": 0.0294189453125,
+        "normalized_c_out": 0.06874960902026342,
+        "normalized_c_route": 0.0,
+        "c_total": 0.03437480451013171
+      },
+      {
+        "group_a": [
+          0
+        ],
+        "group_b": [
+          3,
+          5,
+          7
+        ],
+        "resulting_group": [
+          0,
+          3,
+          5,
+          7
+        ],
+        "c_out": 0.009127251105383039,
+        "c_route": 0.04486083984375,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.0,
+        "c_total": 0.0
+      },
+      {
+        "group_a": [
+          0,
+          3,
+          5,
+          7
+        ],
+        "group_b": [
+          6
+        ],
+        "resulting_group": [
+          0,
+          3,
+          5,
+          6,
+          7
+        ],
+        "c_out": 0.013517900719307363,
+        "c_route": 0.058746337890625,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.0,
+        "c_total": 0.0
+      }
+    ],
+    "final_c_out": 0.013517900719307363,
+    "final_c_route": 0.058746337890625,
+    "lambda_route": 0.5,
+    "sequential": true,
+    "calibration_seed": 42,
+    "usage_frequencies": [
+      4510.0,
+      4662.0,
+      4779.0,
+      959.0,
+      3930.0,
+      4477.0,
+      5369.0,
+      4082.0
+    ],
+    "elapsed_seconds": 16.77708176197484
+  },
+  {
+    "layer": 12,
+    "input_token_count": 16384,
+    "final_groups": [
+      [
+        0
+      ],
+      [
+        1,
+        2,
+        5,
+        6,
+        7
+      ],
+      [
+        3
+      ],
+      [
+        4
+      ]
+    ],
+    "selected_merges": [
+      {
+        "group_a": [
+          5
+        ],
+        "group_b": [
+          7
+        ],
+        "resulting_group": [
+          5,
+          7
+        ],
+        "c_out": 0.0014908041412127204,
+        "c_route": 0.00946044921875,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.03262955853921458,
+        "c_total": 0.01631477926960729
+      },
+      {
+        "group_a": [
+          2
+        ],
+        "group_b": [
+          5,
+          7
+        ],
+        "resulting_group": [
+          2,
+          5,
+          7
+        ],
+        "c_out": 0.004495607659919187,
+        "c_route": 0.021728515625,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.1134328358098001,
+        "c_total": 0.05671641790490005
+      },
+      {
+        "group_a": [
+          1
+        ],
+        "group_b": [
+          2,
+          5,
+          7
+        ],
+        "resulting_group": [
+          1,
+          2,
+          5,
+          7
+        ],
+        "c_out": 0.007780465413816273,
+        "c_route": 0.030975341796875,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.0,
+        "c_total": 0.0
+      },
+      {
+        "group_a": [
+          1,
+          2,
+          5,
+          7
+        ],
+        "group_b": [
+          6
+        ],
+        "resulting_group": [
+          1,
+          2,
+          5,
+          6,
+          7
+        ],
+        "c_out": 0.011327544343657792,
+        "c_route": 0.03961181640625,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.0,
+        "c_total": 0.0
+      }
+    ],
+    "final_c_out": 0.011327544343657792,
+    "final_c_route": 0.03961181640625,
+    "lambda_route": 0.5,
+    "sequential": true,
+    "calibration_seed": 42,
+    "usage_frequencies": [
+      4256.0,
+      4246.0,
+      4615.0,
+      4887.0,
+      4220.0,
+      4854.0,
+      4576.0,
+      1114.0
+    ],
+    "elapsed_seconds": 16.277275296044536
+  },
+  {
+    "layer": 13,
+    "input_token_count": 16384,
+    "final_groups": [
+      [
+        0,
+        2,
+        4,
+        6,
+        7
+      ],
+      [
+        1
+      ],
+      [
+        3
+      ],
+      [
+        5
+      ]
+    ],
+    "selected_merges": [
+      {
+        "group_a": [
+          4
+        ],
+        "group_b": [
+          7
+        ],
+        "resulting_group": [
+          4,
+          7
+        ],
+        "c_out": 0.003800844046054408,
+        "c_route": 0.01513671875,
+        "normalized_c_out": 0.0858437286664038,
+        "normalized_c_route": 0.0,
+        "c_total": 0.0429218643332019
+      },
+      {
+        "group_a": [
+          4,
+          7
+        ],
+        "group_b": [
+          6
+        ],
+        "resulting_group": [
+          4,
+          6,
+          7
+        ],
+        "c_out": 0.007322884805034846,
+        "c_route": 0.02716064453125,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.15408805029858755,
+        "c_total": 0.07704402514929377
+      },
+      {
+        "group_a": [
+          2
+        ],
+        "group_b": [
+          4,
+          6,
+          7
+        ],
+        "resulting_group": [
+          2,
+          4,
+          6,
+          7
+        ],
+        "c_out": 0.011152963270433247,
+        "c_route": 0.0379638671875,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.0,
+        "c_total": 0.0
+      },
+      {
+        "group_a": [
+          0
+        ],
+        "group_b": [
+          2,
+          4,
+          6,
+          7
+        ],
+        "resulting_group": [
+          0,
+          2,
+          4,
+          6,
+          7
+        ],
+        "c_out": 0.015287585090845823,
+        "c_route": 0.0477294921875,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.0,
+        "c_total": 0.0
+      }
+    ],
+    "final_c_out": 0.015287585090845823,
+    "final_c_route": 0.0477294921875,
+    "lambda_route": 0.5,
+    "sequential": true,
+    "calibration_seed": 42,
+    "usage_frequencies": [
+      4096.0,
+      4097.0,
+      3126.0,
+      4241.0,
+      3821.0,
+      4961.0,
+      4494.0,
+      3932.0
+    ],
+    "elapsed_seconds": 14.838260279968381
+  },
+  {
+    "layer": 14,
+    "input_token_count": 16384,
+    "final_groups": [
+      [
+        0,
+        1,
+        2,
+        4,
+        5
+      ],
+      [
+        3
+      ],
+      [
+        6
+      ],
+      [
+        7
+      ]
+    ],
+    "selected_merges": [
+      {
+        "group_a": [
+          2
+        ],
+        "group_b": [
+          4
+        ],
+        "resulting_group": [
+          2,
+          4
+        ],
+        "c_out": 0.003594989684643224,
+        "c_route": 0.015960693359375,
+        "normalized_c_out": 0.038546549798871406,
+        "normalized_c_route": 0.0,
+        "c_total": 0.019273274899435703
+      },
+      {
+        "group_a": [
+          2,
+          4
+        ],
+        "group_b": [
+          5
+        ],
+        "resulting_group": [
+          2,
+          4,
+          5
+        ],
+        "c_out": 0.007223133114166558,
+        "c_route": 0.026153564453125,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.0,
+        "c_total": 0.0
+      },
+      {
+        "group_a": [
+          1
+        ],
+        "group_b": [
+          2,
+          4,
+          5
+        ],
+        "resulting_group": [
+          1,
+          2,
+          4,
+          5
+        ],
+        "c_out": 0.011220667161978781,
+        "c_route": 0.037811279296875,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.0,
+        "c_total": 0.0
+      },
+      {
+        "group_a": [
+          0
+        ],
+        "group_b": [
+          1,
+          2,
+          4,
+          5
+        ],
+        "resulting_group": [
+          0,
+          1,
+          2,
+          4,
+          5
+        ],
+        "c_out": 0.01625311083626002,
+        "c_route": 0.0496826171875,
+        "normalized_c_out": 0.09327315801590481,
+        "normalized_c_route": 0.0,
+        "c_total": 0.04663657900795241
+      }
+    ],
+    "final_c_out": 0.01625311083626002,
+    "final_c_route": 0.0496826171875,
+    "lambda_route": 0.5,
+    "sequential": true,
+    "calibration_seed": 42,
+    "usage_frequencies": [
+      3746.0,
+      4733.0,
+      2382.0,
+      4646.0,
+      3856.0,
+      3794.0,
+      5039.0,
+      4572.0
+    ],
+    "elapsed_seconds": 13.828416645992547
+  },
+  {
+    "layer": 15,
+    "input_token_count": 16384,
+    "final_groups": [
+      [
+        0
+      ],
+      [
+        1,
+        2,
+        3,
+        4,
+        7
+      ],
+      [
+        5
+      ],
+      [
+        6
+      ]
+    ],
+    "selected_merges": [
+      {
+        "group_a": [
+          1
+        ],
+        "group_b": [
+          3
+        ],
+        "resulting_group": [
+          1,
+          3
+        ],
+        "c_out": 0.003451941243838519,
+        "c_route": 0.01556396484375,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.0,
+        "c_total": 0.0
+      },
+      {
+        "group_a": [
+          1,
+          3
+        ],
+        "group_b": [
+          4
+        ],
+        "resulting_group": [
+          1,
+          3,
+          4
+        ],
+        "c_out": 0.007024222722975537,
+        "c_route": 0.02734375,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.0,
+        "c_total": 0.0
+      },
+      {
+        "group_a": [
+          1,
+          3,
+          4
+        ],
+        "group_b": [
+          2
+        ],
+        "resulting_group": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "c_out": 0.010917833540588617,
+        "c_route": 0.041473388671875,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.20930232556145809,
+        "c_total": 0.10465116278072904
+      },
+      {
+        "group_a": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "group_b": [
+          7
+        ],
+        "resulting_group": [
+          1,
+          2,
+          3,
+          4,
+          7
+        ],
+        "c_out": 0.015205064322799444,
+        "c_route": 0.054534912109375,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.11764705881159424,
+        "c_total": 0.05882352940579712
+      }
+    ],
+    "final_c_out": 0.015205064322799444,
+    "final_c_route": 0.054534912109375,
+    "lambda_route": 0.5,
+    "sequential": true,
+    "calibration_seed": 42,
+    "usage_frequencies": [
+      4085.0,
+      4025.0,
+      4303.0,
+      2288.0,
+      4560.0,
+      4500.0,
+      4868.0,
+      4139.0
+    ],
+    "elapsed_seconds": 14.898683081031777
+  },
+  {
+    "layer": 16,
+    "input_token_count": 16384,
+    "final_groups": [
+      [
+        0,
+        2,
+        4,
+        6,
+        7
+      ],
+      [
+        1
+      ],
+      [
+        3
+      ],
+      [
+        5
+      ]
+    ],
+    "selected_merges": [
+      {
+        "group_a": [
+          6
+        ],
+        "group_b": [
+          7
+        ],
+        "resulting_group": [
+          6,
+          7
+        ],
+        "c_out": 0.003174393088556826,
+        "c_route": 0.01483154296875,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.0,
+        "c_total": 0.0
+      },
+      {
+        "group_a": [
+          4
+        ],
+        "group_b": [
+          6,
+          7
+        ],
+        "resulting_group": [
+          4,
+          6,
+          7
+        ],
+        "c_out": 0.006402921688277274,
+        "c_route": 0.023468017578125,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.0,
+        "c_total": 0.0
+      },
+      {
+        "group_a": [
+          2
+        ],
+        "group_b": [
+          4,
+          6,
+          7
+        ],
+        "resulting_group": [
+          2,
+          4,
+          6,
+          7
+        ],
+        "c_out": 0.01047810516320169,
+        "c_route": 0.035552978515625,
+        "normalized_c_out": 0.0672519611834707,
+        "normalized_c_route": 0.06432748537395355,
+        "c_total": 0.06578972327871213
+      },
+      {
+        "group_a": [
+          0
+        ],
+        "group_b": [
+          2,
+          4,
+          6,
+          7
+        ],
+        "resulting_group": [
+          0,
+          2,
+          4,
+          6,
+          7
+        ],
+        "c_out": 0.015014067059382796,
+        "c_route": 0.044586181640625,
+        "normalized_c_out": 0.1405029887423396,
+        "normalized_c_route": 0.0,
+        "c_total": 0.0702514943711698
+      }
+    ],
+    "final_c_out": 0.015014067059382796,
+    "final_c_route": 0.044586181640625,
+    "lambda_route": 0.5,
+    "sequential": true,
+    "calibration_seed": 42,
+    "usage_frequencies": [
+      3855.0,
+      4390.0,
+      5054.0,
+      3618.0,
+      4790.0,
+      3392.0,
+      3927.0,
+      3742.0
+    ],
+    "elapsed_seconds": 15.277982652070932
+  },
+  {
+    "layer": 17,
+    "input_token_count": 16384,
+    "final_groups": [
+      [
+        0
+      ],
+      [
+        1,
+        2,
+        4,
+        5,
+        7
+      ],
+      [
+        3
+      ],
+      [
+        6
+      ]
+    ],
+    "selected_merges": [
+      {
+        "group_a": [
+          2
+        ],
+        "group_b": [
+          5
+        ],
+        "resulting_group": [
+          2,
+          5
+        ],
+        "c_out": 0.0037804423773195595,
+        "c_route": 0.013092041015625,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.0,
+        "c_total": 0.0
+      },
+      {
+        "group_a": [
+          2,
+          5
+        ],
+        "group_b": [
+          7
+        ],
+        "resulting_group": [
+          2,
+          5,
+          7
+        ],
+        "c_out": 0.007414341147523373,
+        "c_route": 0.025299072265625,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.1624365482098408,
+        "c_total": 0.0812182741049204
+      },
+      {
+        "group_a": [
+          2,
+          5,
+          7
+        ],
+        "group_b": [
+          4
+        ],
+        "resulting_group": [
+          2,
+          4,
+          5,
+          7
+        ],
+        "c_out": 0.01192335074301809,
+        "c_route": 0.033935546875,
+        "normalized_c_out": 0.06702645791117028,
+        "normalized_c_route": 0.0,
+        "c_total": 0.03351322895558514
+      },
+      {
+        "group_a": [
+          1
+        ],
+        "group_b": [
+          2,
+          4,
+          5,
+          7
+        ],
+        "resulting_group": [
+          1,
+          2,
+          4,
+          5,
+          7
+        ],
+        "c_out": 0.016241306788288057,
+        "c_route": 0.0438232421875,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.0,
+        "c_total": 0.0
+      }
+    ],
+    "final_c_out": 0.016241306788288057,
+    "final_c_route": 0.0438232421875,
+    "lambda_route": 0.5,
+    "sequential": true,
+    "calibration_seed": 42,
+    "usage_frequencies": [
+      4009.0,
+      4791.0,
+      4533.0,
+      4335.0,
+      3890.0,
+      3918.0,
+      3890.0,
+      3402.0
+    ],
+    "elapsed_seconds": 15.668158579966985
+  },
+  {
+    "layer": 18,
+    "input_token_count": 16384,
+    "final_groups": [
+      [
+        0
+      ],
+      [
+        1,
+        3,
+        4,
+        6,
+        7
+      ],
+      [
+        2
+      ],
+      [
+        5
+      ]
+    ],
+    "selected_merges": [
+      {
+        "group_a": [
+          4
+        ],
+        "group_b": [
+          7
+        ],
+        "resulting_group": [
+          4,
+          7
+        ],
+        "c_out": 0.003929476748453453,
+        "c_route": 0.0205078125,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.14125560537078774,
+        "c_total": 0.07062780268539387
+      },
+      {
+        "group_a": [
+          4,
+          7
+        ],
+        "group_b": [
+          6
+        ],
+        "resulting_group": [
+          4,
+          6,
+          7
+        ],
+        "c_out": 0.008338941028341651,
+        "c_route": 0.03314208984375,
+        "normalized_c_out": 0.05957235683812191,
+        "normalized_c_route": 0.0,
+        "c_total": 0.029786178419060956
+      },
+      {
+        "group_a": [
+          3
+        ],
+        "group_b": [
+          4,
+          6,
+          7
+        ],
+        "resulting_group": [
+          3,
+          4,
+          6,
+          7
+        ],
+        "c_out": 0.012703387415967882,
+        "c_route": 0.0458984375,
+        "normalized_c_out": 0.037927333524263876,
+        "normalized_c_route": 0.0,
+        "c_total": 0.018963666762131938
+      },
+      {
+        "group_a": [
+          1
+        ],
+        "group_b": [
+          3,
+          4,
+          6,
+          7
+        ],
+        "resulting_group": [
+          1,
+          3,
+          4,
+          6,
+          7
+        ],
+        "c_out": 0.01683235913515091,
+        "c_route": 0.060028076171875,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.10833333332347259,
+        "c_total": 0.05416666666173629
+      }
+    ],
+    "final_c_out": 0.01683235913515091,
+    "final_c_route": 0.060028076171875,
+    "lambda_route": 0.5,
+    "sequential": true,
+    "calibration_seed": 42,
+    "usage_frequencies": [
+      4061.0,
+      3684.0,
+      4043.0,
+      4115.0,
+      4364.0,
+      4098.0,
+      4262.0,
+      4141.0
+    ],
+    "elapsed_seconds": 15.282086864928715
+  },
+  {
+    "layer": 19,
+    "input_token_count": 16384,
+    "final_groups": [
+      [
+        0,
+        1,
+        2,
+        3,
+        6
+      ],
+      [
+        4
+      ],
+      [
+        5
+      ],
+      [
+        7
+      ]
+    ],
+    "selected_merges": [
+      {
+        "group_a": [
+          0
+        ],
+        "group_b": [
+          3
+        ],
+        "resulting_group": [
+          0,
+          3
+        ],
+        "c_out": 0.0032671766821295023,
+        "c_route": 0.024200439453125,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.0,
+        "c_total": 0.0
+      },
+      {
+        "group_a": [
+          0,
+          3
+        ],
+        "group_b": [
+          2
+        ],
+        "resulting_group": [
+          0,
+          2,
+          3
+        ],
+        "c_out": 0.006596120074391365,
+        "c_route": 0.039886474609375,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.0,
+        "c_total": 0.0
+      },
+      {
+        "group_a": [
+          0,
+          2,
+          3
+        ],
+        "group_b": [
+          1
+        ],
+        "resulting_group": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "c_out": 0.010030052857473493,
+        "c_route": 0.055877685546875,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.0,
+        "c_total": 0.0
+      },
+      {
+        "group_a": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "group_b": [
+          6
+        ],
+        "resulting_group": [
+          0,
+          1,
+          2,
+          3,
+          6
+        ],
+        "c_out": 0.01365597709082067,
+        "c_route": 0.070587158203125,
+        "normalized_c_out": 0.015005926666081226,
+        "normalized_c_route": 0.0,
+        "c_total": 0.007502963333040613
+      }
+    ],
+    "final_c_out": 0.01365597709082067,
+    "final_c_route": 0.070587158203125,
+    "lambda_route": 0.5,
+    "sequential": true,
+    "calibration_seed": 42,
+    "usage_frequencies": [
+      4162.0,
+      3520.0,
+      3967.0,
+      4207.0,
+      4156.0,
+      4403.0,
+      4479.0,
+      3874.0
+    ],
+    "elapsed_seconds": 17.062080792034976
+  },
+  {
+    "layer": 20,
+    "input_token_count": 16384,
+    "final_groups": [
+      [
+        0,
+        2,
+        3,
+        4,
+        6
+      ],
+      [
+        1
+      ],
+      [
+        5
+      ],
+      [
+        7
+      ]
+    ],
+    "selected_merges": [
+      {
+        "group_a": [
+          3
+        ],
+        "group_b": [
+          6
+        ],
+        "resulting_group": [
+          3,
+          6
+        ],
+        "c_out": 0.002682462625671178,
+        "c_route": 0.020751953125,
+        "normalized_c_out": 0.04894370154574859,
+        "normalized_c_route": 0.038834951452192415,
+        "c_total": 0.0438893264989705
+      },
+      {
+        "group_a": [
+          0
+        ],
+        "group_b": [
+          3,
+          6
+        ],
+        "resulting_group": [
+          0,
+          3,
+          6
+        ],
+        "c_out": 0.0052083482732996345,
+        "c_route": 0.03387451171875,
+        "normalized_c_out": 0.14084305691200225,
+        "normalized_c_route": 0.0,
+        "c_total": 0.07042152845600112
+      },
+      {
+        "group_a": [
+          0,
+          3,
+          6
+        ],
+        "group_b": [
+          4
+        ],
+        "resulting_group": [
+          0,
+          3,
+          4,
+          6
+        ],
+        "c_out": 0.007506680034566671,
+        "c_route": 0.047088623046875,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.0,
+        "c_total": 0.0
+      },
+      {
+        "group_a": [
+          0,
+          3,
+          4,
+          6
+        ],
+        "group_b": [
+          2
+        ],
+        "resulting_group": [
+          0,
+          2,
+          3,
+          4,
+          6
+        ],
+        "c_out": 0.009933022549375892,
+        "c_route": 0.060089111328125,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.0,
+        "c_total": 0.0
+      }
+    ],
+    "final_c_out": 0.009933022549375892,
+    "final_c_route": 0.060089111328125,
+    "lambda_route": 0.5,
+    "sequential": true,
+    "calibration_seed": 42,
+    "usage_frequencies": [
+      3922.0,
+      4565.0,
+      3696.0,
+      3710.0,
+      3997.0,
+      4355.0,
+      3936.0,
+      4587.0
+    ],
+    "elapsed_seconds": 16.886025525047444
+  },
+  {
+    "layer": 21,
+    "input_token_count": 16384,
+    "final_groups": [
+      [
+        0,
+        1,
+        3,
+        5,
+        7
+      ],
+      [
+        2
+      ],
+      [
+        4
+      ],
+      [
+        6
+      ]
+    ],
+    "selected_merges": [
+      {
+        "group_a": [
+          3
+        ],
+        "group_b": [
+          7
+        ],
+        "resulting_group": [
+          3,
+          7
+        ],
+        "c_out": 0.0023985480365809053,
+        "c_route": 0.019073486328125,
+        "normalized_c_out": 0.23302792125443594,
+        "normalized_c_route": 0.0,
+        "c_total": 0.11651396062721797
+      },
+      {
+        "group_a": [
+          0
+        ],
+        "group_b": [
+          3,
+          7
+        ],
+        "resulting_group": [
+          0,
+          3,
+          7
+        ],
+        "c_out": 0.004589729243889451,
+        "c_route": 0.0321044921875,
+        "normalized_c_out": 0.09458437488149322,
+        "normalized_c_route": 0.0,
+        "c_total": 0.04729218744074661
+      },
+      {
+        "group_a": [
+          0,
+          3,
+          7
+        ],
+        "group_b": [
+          1
+        ],
+        "resulting_group": [
+          0,
+          1,
+          3,
+          7
+        ],
+        "c_out": 0.006608562485780567,
+        "c_route": 0.04510498046875,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.08762886596458029,
+        "c_total": 0.043814432982290145
+      },
+      {
+        "group_a": [
+          0,
+          1,
+          3,
+          7
+        ],
+        "group_b": [
+          5
+        ],
+        "resulting_group": [
+          0,
+          1,
+          3,
+          5,
+          7
+        ],
+        "c_out": 0.008789307903498411,
+        "c_route": 0.05615234375,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.0,
+        "c_total": 0.0
+      }
+    ],
+    "final_c_out": 0.008789307903498411,
+    "final_c_route": 0.05615234375,
+    "lambda_route": 0.5,
+    "sequential": true,
+    "calibration_seed": 42,
+    "usage_frequencies": [
+      4041.0,
+      4090.0,
+      4474.0,
+      3710.0,
+      4038.0,
+      3880.0,
+      4539.0,
+      3996.0
+    ],
+    "elapsed_seconds": 16.94674663594924
+  },
+  {
+    "layer": 22,
+    "input_token_count": 16384,
+    "final_groups": [
+      [
+        0,
+        2,
+        3,
+        4,
+        5
+      ],
+      [
+        1
+      ],
+      [
+        6
+      ],
+      [
+        7
+      ]
+    ],
+    "selected_merges": [
+      {
+        "group_a": [
+          0
+        ],
+        "group_b": [
+          5
+        ],
+        "resulting_group": [
+          0,
+          5
+        ],
+        "c_out": 0.002007437651627697,
+        "c_route": 0.01629638671875,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.07692307691338224,
+        "c_total": 0.03846153845669112
+      },
+      {
+        "group_a": [
+          0,
+          5
+        ],
+        "group_b": [
+          2
+        ],
+        "resulting_group": [
+          0,
+          2,
+          5
+        ],
+        "c_out": 0.003819168865447864,
+        "c_route": 0.026092529296875,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.0,
+        "c_total": 0.0
+      },
+      {
+        "group_a": [
+          0,
+          2,
+          5
+        ],
+        "group_b": [
+          4
+        ],
+        "resulting_group": [
+          0,
+          2,
+          4,
+          5
+        ],
+        "c_out": 0.005663495365297422,
+        "c_route": 0.03533935546875,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.03225806451234038,
+        "c_total": 0.01612903225617019
+      },
+      {
+        "group_a": [
+          0,
+          2,
+          4,
+          5
+        ],
+        "group_b": [
+          3
+        ],
+        "resulting_group": [
+          0,
+          2,
+          3,
+          4,
+          5
+        ],
+        "c_out": 0.007685102755203843,
+        "c_route": 0.042877197265625,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.0,
+        "c_total": 0.0
+      }
+    ],
+    "final_c_out": 0.007685102755203843,
+    "final_c_route": 0.042877197265625,
+    "lambda_route": 0.5,
+    "sequential": true,
+    "calibration_seed": 42,
+    "usage_frequencies": [
+      4246.0,
+      4449.0,
+      3395.0,
+      3840.0,
+      4031.0,
+      3919.0,
+      4422.0,
+      4466.0
+    ],
+    "elapsed_seconds": 16.86503400001675
+  },
+  {
+    "layer": 23,
+    "input_token_count": 16384,
+    "final_groups": [
+      [
+        0
+      ],
+      [
+        1,
+        2,
+        4,
+        5,
+        7
+      ],
+      [
+        3
+      ],
+      [
+        6
+      ]
+    ],
+    "selected_merges": [
+      {
+        "group_a": [
+          4
+        ],
+        "group_b": [
+          7
+        ],
+        "resulting_group": [
+          4,
+          7
+        ],
+        "c_out": 0.0017603852757019922,
+        "c_route": 0.018341064453125,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.0,
+        "c_total": 0.0
+      },
+      {
+        "group_a": [
+          2
+        ],
+        "group_b": [
+          4,
+          7
+        ],
+        "resulting_group": [
+          2,
+          4,
+          7
+        ],
+        "c_out": 0.0036076169344596565,
+        "c_route": 0.02935791015625,
+        "normalized_c_out": 0.02535829500066289,
+        "normalized_c_route": 0.0,
+        "c_total": 0.012679147500331445
+      },
+      {
+        "group_a": [
+          2,
+          4,
+          7
+        ],
+        "group_b": [
+          5
+        ],
+        "resulting_group": [
+          2,
+          4,
+          5,
+          7
+        ],
+        "c_out": 0.0053824944770894945,
+        "c_route": 0.040313720703125,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.0,
+        "c_total": 0.0
+      },
+      {
+        "group_a": [
+          1
+        ],
+        "group_b": [
+          2,
+          4,
+          5,
+          7
+        ],
+        "resulting_group": [
+          1,
+          2,
+          4,
+          5,
+          7
+        ],
+        "c_out": 0.007372076448518783,
+        "c_route": 0.05120849609375,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.08510638296685631,
+        "c_total": 0.042553191483428156
+      }
+    ],
+    "final_c_out": 0.007372076448518783,
+    "final_c_route": 0.05120849609375,
+    "lambda_route": 0.5,
+    "sequential": true,
+    "calibration_seed": 42,
+    "usage_frequencies": [
+      4484.0,
+      4197.0,
+      3797.0,
+      4013.0,
+      4001.0,
+      4510.0,
+      3934.0,
+      3832.0
+    ],
+    "elapsed_seconds": 16.445582899963483
+  },
+  {
+    "layer": 24,
+    "input_token_count": 16384,
+    "final_groups": [
+      [
+        0,
+        2,
+        3,
+        5,
+        6
+      ],
+      [
+        1
+      ],
+      [
+        4
+      ],
+      [
+        7
+      ]
+    ],
+    "selected_merges": [
+      {
+        "group_a": [
+          5
+        ],
+        "group_b": [
+          6
+        ],
+        "resulting_group": [
+          5,
+          6
+        ],
+        "c_out": 0.0018878465343732387,
+        "c_route": 0.015625,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.0,
+        "c_total": 0.0
+      },
+      {
+        "group_a": [
+          3
+        ],
+        "group_b": [
+          5,
+          6
+        ],
+        "resulting_group": [
+          3,
+          5,
+          6
+        ],
+        "c_out": 0.0037586588005069643,
+        "c_route": 0.025787353515625,
+        "normalized_c_out": 0.13371895131725198,
+        "normalized_c_route": 0.0,
+        "c_total": 0.06685947565862599
+      },
+      {
+        "group_a": [
+          2
+        ],
+        "group_b": [
+          3,
+          5,
+          6
+        ],
+        "resulting_group": [
+          2,
+          3,
+          5,
+          6
+        ],
+        "c_out": 0.0054625993652734905,
+        "c_route": 0.036529541015625,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.0,
+        "c_total": 0.0
+      },
+      {
+        "group_a": [
+          0
+        ],
+        "group_b": [
+          2,
+          3,
+          5,
+          6
+        ],
+        "resulting_group": [
+          0,
+          2,
+          3,
+          5,
+          6
+        ],
+        "c_out": 0.007407779747154564,
+        "c_route": 0.04498291015625,
+        "normalized_c_out": 0.1664136139643974,
+        "normalized_c_route": 0.0,
+        "c_total": 0.0832068069821987
+      }
+    ],
+    "final_c_out": 0.007407779747154564,
+    "final_c_route": 0.04498291015625,
+    "lambda_route": 0.5,
+    "sequential": true,
+    "calibration_seed": 42,
+    "usage_frequencies": [
+      4025.0,
+      4381.0,
+      4435.0,
+      4294.0,
+      4027.0,
+      3610.0,
+      3821.0,
+      4175.0
+    ],
+    "elapsed_seconds": 16.009455565013923
+  },
+  {
+    "layer": 25,
+    "input_token_count": 16384,
+    "final_groups": [
+      [
+        0
+      ],
+      [
+        1,
+        3,
+        5,
+        6,
+        7
+      ],
+      [
+        2
+      ],
+      [
+        4
+      ]
+    ],
+    "selected_merges": [
+      {
+        "group_a": [
+          3
+        ],
+        "group_b": [
+          5
+        ],
+        "resulting_group": [
+          3,
+          5
+        ],
+        "c_out": 0.00195650958630722,
+        "c_route": 0.014404296875,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.0,
+        "c_total": 0.0
+      },
+      {
+        "group_a": [
+          3,
+          5
+        ],
+        "group_b": [
+          6
+        ],
+        "resulting_group": [
+          3,
+          5,
+          6
+        ],
+        "c_out": 0.0037328640173655003,
+        "c_route": 0.023651123046875,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.02644230769022485,
+        "c_total": 0.013221153845112426
+      },
+      {
+        "group_a": [
+          3,
+          5,
+          6
+        ],
+        "group_b": [
+          7
+        ],
+        "resulting_group": [
+          3,
+          5,
+          6,
+          7
+        ],
+        "c_out": 0.0055322847329080105,
+        "c_route": 0.032196044921875,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.0025510204079500207,
+        "c_total": 0.0012755102039750104
+      },
+      {
+        "group_a": [
+          1
+        ],
+        "group_b": [
+          3,
+          5,
+          6,
+          7
+        ],
+        "resulting_group": [
+          1,
+          3,
+          5,
+          6,
+          7
+        ],
+        "c_out": 0.0073599464958533645,
+        "c_route": 0.038665771484375,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.0,
+        "c_total": 0.0
+      }
+    ],
+    "final_c_out": 0.0073599464958533645,
+    "final_c_route": 0.038665771484375,
+    "lambda_route": 0.5,
+    "sequential": true,
+    "calibration_seed": 42,
+    "usage_frequencies": [
+      4415.0,
+      4257.0,
+      4168.0,
+      3411.0,
+      4388.0,
+      3942.0,
+      3969.0,
+      4218.0
+    ],
+    "elapsed_seconds": 15.519925642060116
+  },
+  {
+    "layer": 26,
+    "input_token_count": 16384,
+    "final_groups": [
+      [
+        0,
+        2,
+        5,
+        6,
+        7
+      ],
+      [
+        1
+      ],
+      [
+        3
+      ],
+      [
+        4
+      ]
+    ],
+    "selected_merges": [
+      {
+        "group_a": [
+          2
+        ],
+        "group_b": [
+          7
+        ],
+        "resulting_group": [
+          2,
+          7
+        ],
+        "c_out": 0.0020410653960425407,
+        "c_route": 0.013916015625,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.09003215433134992,
+        "c_total": 0.04501607716567496
+      },
+      {
+        "group_a": [
+          0
+        ],
+        "group_b": [
+          2,
+          7
+        ],
+        "resulting_group": [
+          0,
+          2,
+          7
+        ],
+        "c_out": 0.003772012540139258,
+        "c_route": 0.021636962890625,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.0374331550769342,
+        "c_total": 0.0187165775384671
+      },
+      {
+        "group_a": [
+          0,
+          2,
+          7
+        ],
+        "group_b": [
+          6
+        ],
+        "resulting_group": [
+          0,
+          2,
+          6,
+          7
+        ],
+        "c_out": 0.005597349954769015,
+        "c_route": 0.02911376953125,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.0,
+        "c_total": 0.0
+      },
+      {
+        "group_a": [
+          0,
+          2,
+          6,
+          7
+        ],
+        "group_b": [
+          5
+        ],
+        "resulting_group": [
+          0,
+          2,
+          5,
+          6,
+          7
+        ],
+        "c_out": 0.0075273067923262715,
+        "c_route": 0.0360107421875,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.0,
+        "c_total": 0.0
+      }
+    ],
+    "final_c_out": 0.0075273067923262715,
+    "final_c_route": 0.0360107421875,
+    "lambda_route": 0.5,
+    "sequential": true,
+    "calibration_seed": 42,
+    "usage_frequencies": [
+      4265.0,
+      4106.0,
+      3876.0,
+      4095.0,
+      4170.0,
+      4063.0,
+      4164.0,
+      4029.0
+    ],
+    "elapsed_seconds": 16.921427080989815
+  },
+  {
+    "layer": 27,
+    "input_token_count": 16384,
+    "final_groups": [
+      [
+        0,
+        1,
+        3,
+        6,
+        7
+      ],
+      [
+        2
+      ],
+      [
+        4
+      ],
+      [
+        5
+      ]
+    ],
+    "selected_merges": [
+      {
+        "group_a": [
+          0
+        ],
+        "group_b": [
+          3
+        ],
+        "resulting_group": [
+          0,
+          3
+        ],
+        "c_out": 0.002196619243477471,
+        "c_route": 0.012298583984375,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.0,
+        "c_total": 0.0
+      },
+      {
+        "group_a": [
+          0,
+          3
+        ],
+        "group_b": [
+          1
+        ],
+        "resulting_group": [
+          0,
+          1,
+          3
+        ],
+        "c_out": 0.0044055959151592106,
+        "c_route": 0.02044677734375,
+        "normalized_c_out": 0.11383011413931686,
+        "normalized_c_route": 0.0,
+        "c_total": 0.05691505706965843
+      },
+      {
+        "group_a": [
+          0,
+          1,
+          3
+        ],
+        "group_b": [
+          6
+        ],
+        "resulting_group": [
+          0,
+          1,
+          3,
+          6
+        ],
+        "c_out": 0.006298355583567172,
+        "c_route": 0.02801513671875,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.0,
+        "c_total": 0.0
+      },
+      {
+        "group_a": [
+          0,
+          1,
+          3,
+          6
+        ],
+        "group_b": [
+          7
+        ],
+        "resulting_group": [
+          0,
+          1,
+          3,
+          6,
+          7
+        ],
+        "c_out": 0.00824621960055083,
+        "c_route": 0.03509521484375,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.0,
+        "c_total": 0.0
+      }
+    ],
+    "final_c_out": 0.00824621960055083,
+    "final_c_route": 0.03509521484375,
+    "lambda_route": 0.5,
+    "sequential": true,
+    "calibration_seed": 42,
+    "usage_frequencies": [
+      3978.0,
+      3518.0,
+      4238.0,
+      3953.0,
+      4232.0,
+      4767.0,
+      4220.0,
+      3862.0
+    ],
+    "elapsed_seconds": 16.72778610396199
+  },
+  {
+    "layer": 28,
+    "input_token_count": 16384,
+    "final_groups": [
+      [
+        0,
+        1,
+        2,
+        3,
+        6
+      ],
+      [
+        4
+      ],
+      [
+        5
+      ],
+      [
+        7
+      ]
+    ],
+    "selected_merges": [
+      {
+        "group_a": [
+          1
+        ],
+        "group_b": [
+          2
+        ],
+        "resulting_group": [
+          1,
+          2
+        ],
+        "c_out": 0.00260335931670852,
+        "c_route": 0.01251220703125,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.0,
+        "c_total": 0.0
+      },
+      {
+        "group_a": [
+          1,
+          2
+        ],
+        "group_b": [
+          3
+        ],
+        "resulting_group": [
+          1,
+          2,
+          3
+        ],
+        "c_out": 0.005294163915095851,
+        "c_route": 0.020538330078125,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.0,
+        "c_total": 0.0
+      },
+      {
+        "group_a": [
+          0
+        ],
+        "group_b": [
+          1,
+          2,
+          3
+        ],
+        "resulting_group": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "c_out": 0.007985527510754764,
+        "c_route": 0.028167724609375,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.06315789473248513,
+        "c_total": 0.03157894736624257
+      },
+      {
+        "group_a": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "group_b": [
+          6
+        ],
+        "resulting_group": [
+          0,
+          1,
+          2,
+          3,
+          6
+        ],
+        "c_out": 0.01103940064786002,
+        "c_route": 0.0350341796875,
+        "normalized_c_out": 0.004760735338958626,
+        "normalized_c_route": 0.0,
+        "c_total": 0.002380367669479313
+      }
+    ],
+    "final_c_out": 0.01103940064786002,
+    "final_c_route": 0.0350341796875,
+    "lambda_route": 0.5,
+    "sequential": true,
+    "calibration_seed": 42,
+    "usage_frequencies": [
+      4481.0,
+      4395.0,
+      4504.0,
+      3269.0,
+      4166.0,
+      3490.0,
+      4010.0,
+      4453.0
+    ],
+    "elapsed_seconds": 15.450563749996945
+  },
+  {
+    "layer": 29,
+    "input_token_count": 16384,
+    "final_groups": [
+      [
+        0,
+        2,
+        3,
+        5,
+        6
+      ],
+      [
+        1
+      ],
+      [
+        4
+      ],
+      [
+        7
+      ]
+    ],
+    "selected_merges": [
+      {
+        "group_a": [
+          0
+        ],
+        "group_b": [
+          3
+        ],
+        "resulting_group": [
+          0,
+          3
+        ],
+        "c_out": 0.002915003540692851,
+        "c_route": 0.00994873046875,
+        "normalized_c_out": 0.0854483446407384,
+        "normalized_c_route": 0.146639511191843,
+        "c_total": 0.1160439279162907
+      },
+      {
+        "group_a": [
+          0,
+          3
+        ],
+        "group_b": [
+          6
+        ],
+        "resulting_group": [
+          0,
+          3,
+          6
+        ],
+        "c_out": 0.005977649008855224,
+        "c_route": 0.0152587890625,
+        "normalized_c_out": 0.04233123931025721,
+        "normalized_c_route": 0.0,
+        "c_total": 0.021165619655128604
+      },
+      {
+        "group_a": [
+          0,
+          3,
+          6
+        ],
+        "group_b": [
+          5
+        ],
+        "resulting_group": [
+          0,
+          3,
+          5,
+          6
+        ],
+        "c_out": 0.008818398986477405,
+        "c_route": 0.024017333984375,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.24494382020668243,
+        "c_total": 0.12247191010334121
+      },
+      {
+        "group_a": [
+          0,
+          3,
+          5,
+          6
+        ],
+        "group_b": [
+          2
+        ],
+        "resulting_group": [
+          0,
+          2,
+          3,
+          5,
+          6
+        ],
+        "c_out": 0.013024058192968369,
+        "c_route": 0.0281982421875,
+        "normalized_c_out": 0.33532269964467076,
+        "normalized_c_route": 0.0,
+        "c_total": 0.16766134982233538
+      }
+    ],
+    "final_c_out": 0.013024058192968369,
+    "final_c_route": 0.0281982421875,
+    "lambda_route": 0.5,
+    "sequential": true,
+    "calibration_seed": 42,
+    "usage_frequencies": [
+      4109.0,
+      4155.0,
+      4578.0,
+      4395.0,
+      4296.0,
+      3474.0,
+      4183.0,
+      3578.0
+    ],
+    "elapsed_seconds": 16.704291007015854
+  },
+  {
+    "layer": 30,
+    "input_token_count": 16384,
+    "final_groups": [
+      [
+        0,
+        1,
+        4
+      ],
+      [
+        2,
+        3,
+        6
+      ],
+      [
+        5
+      ],
+      [
+        7
+      ]
+    ],
+    "selected_merges": [
+      {
+        "group_a": [
+          2
+        ],
+        "group_b": [
+          6
+        ],
+        "resulting_group": [
+          2,
+          6
+        ],
+        "c_out": 0.0033067204349208623,
+        "c_route": 0.012603759765625,
+        "normalized_c_out": 0.14598519858986975,
+        "normalized_c_route": 0.0,
+        "c_total": 0.07299259929493487
+      },
+      {
+        "group_a": [
+          0
+        ],
+        "group_b": [
+          4
+        ],
+        "resulting_group": [
+          0,
+          4
+        ],
+        "c_out": 0.005775709461886436,
+        "c_route": 0.02557373046875,
+        "normalized_c_out": 0.05333929670101987,
+        "normalized_c_route": 0.1051028179714821,
+        "c_total": 0.07922105733625098
+      },
+      {
+        "group_a": [
+          0,
+          4
+        ],
+        "group_b": [
+          1
+        ],
+        "resulting_group": [
+          0,
+          1,
+          4
+        ],
+        "c_out": 0.008758742827922106,
+        "c_route": 0.03662109375,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": 0.19380888289858583,
+        "c_total": 0.09690444144929292
+      },
+      {
+        "group_a": [
+          2,
+          6
+        ],
+        "group_b": [
+          3
+        ],
+        "resulting_group": [
+          2,
+          3,
+          6
+        ],
+        "c_out": 0.01395438436884433,
+        "c_route": 0.0435791015625,
+        "normalized_c_out": 0.14446166744127364,
+        "normalized_c_route": 0.0,
+        "c_total": 0.07223083372063682
+      }
+    ],
+    "final_c_out": 0.01395438436884433,
+    "final_c_route": 0.0435791015625,
+    "lambda_route": 0.5,
+    "sequential": true,
+    "calibration_seed": 42,
+    "usage_frequencies": [
+      3893.0,
+      4498.0,
+      4911.0,
+      4221.0,
+      3934.0,
+      2863.0,
+      3990.0,
+      4458.0
+    ],
+    "elapsed_seconds": 15.663624101085588
+  },
+  {
+    "layer": 31,
+    "input_token_count": 16384,
+    "final_groups": [
+      [
+        0,
+        4
+      ],
+      [
+        1
+      ],
+      [
+        2,
+        7
+      ],
+      [
+        3,
+        5,
+        6
+      ]
+    ],
+    "selected_merges": [
+      {
+        "group_a": [
+          0
+        ],
+        "group_b": [
+          4
+        ],
+        "resulting_group": [
+          0,
+          4
+        ],
+        "c_out": 0.0021535866108024493,
+        "c_route": null,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": null,
+        "c_total": 0.0
+      },
+      {
+        "group_a": [
+          3
+        ],
+        "group_b": [
+          6
+        ],
+        "resulting_group": [
+          3,
+          6
+        ],
+        "c_out": 0.004516096436418593,
+        "c_route": null,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": null,
+        "c_total": 0.0
+      },
+      {
+        "group_a": [
+          2
+        ],
+        "group_b": [
+          7
+        ],
+        "resulting_group": [
+          2,
+          7
+        ],
+        "c_out": 0.007346672471612692,
+        "c_route": null,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": null,
+        "c_total": 0.0
+      },
+      {
+        "group_a": [
+          3,
+          6
+        ],
+        "group_b": [
+          5
+        ],
+        "resulting_group": [
+          3,
+          5,
+          6
+        ],
+        "c_out": 0.013958747615106404,
+        "c_route": null,
+        "normalized_c_out": 0.0,
+        "normalized_c_route": null,
+        "c_total": 0.0
+      }
+    ],
+    "final_c_out": 0.013958747615106404,
+    "final_c_route": null,
+    "lambda_route": 0.5,
+    "sequential": true,
+    "calibration_seed": 42,
+    "usage_frequencies": [
+      4057.0,
+      4282.0,
+      3163.0,
+      4923.0,
+      3955.0,
+      4196.0,
+      5168.0,
+      3024.0
+    ],
+    "elapsed_seconds": 10.529629077063873
+  }
+]

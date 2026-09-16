@@ -30,6 +30,7 @@ from hcsmoe.merging.device_placement import (
 from hcsmoe.merging.pg19_drift_mixtral import (
     DocumentRoutingTraces,
     aggregate_forced_metrics,
+    aggregate_free_routing_metrics,
     aggregate_free_summaries,
     aggregate_prefill_metrics,
     collect_document_routing_traces,
@@ -37,6 +38,7 @@ from hcsmoe.merging.pg19_drift_mixtral import (
     compare_prefill_document,
     load_pg19_documents,
     save_pg19_plots,
+    save_free_routing_plots,
     stack_document_metrics,
     summarize_free_document,
 )
@@ -244,6 +246,7 @@ def main() -> None:
     forced_summary = aggregate_forced_metrics(forced_raw)
     forced_summary["document_ids"] = document_ids
     free_summary = aggregate_free_summaries(free_document_summaries)
+    free_routing_trajectory = aggregate_free_routing_metrics(free_raw)
 
     _json_dump(output_dir / "prefill_layer_metrics.json", prefill_layer_metrics)
     _json_dump(output_dir / "prefill_document_metrics.json", prefill_document_metrics)
@@ -252,7 +255,9 @@ def main() -> None:
     _json_dump(output_dir / "forced_decode_summary.json", forced_summary)
     torch.save(free_raw, output_dir / "free_generation_metrics.pt")
     _json_dump(output_dir / "free_generation_summary.json", free_summary)
+    _json_dump(output_dir / "free_routing_trajectory_summary.json", free_routing_trajectory)
     plot_paths = save_pg19_plots(prefill_layer_metrics, forced_summary, output_dir)
+    plot_paths += save_free_routing_plots(free_routing_trajectory, output_dir)
 
     print(f"[PG19 routing drift] Layer-0 exact routing match: {prefill_layer_metrics[0]['exact_topk_match_rate']:.6f}")
     print(

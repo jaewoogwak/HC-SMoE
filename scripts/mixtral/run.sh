@@ -1,6 +1,4 @@
 export NCCL_P2P_DISABLE=0
-export CUDA_LAUNCH_BLOCKING=1
-export TORCH_USE_CUDA_DSA=1
 export TOKENIZERS_PARALLELISM="false"
 export HF_HOME="your-huggingface-home-path"
 
